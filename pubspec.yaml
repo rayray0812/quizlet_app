@@ -1,0 +1,52 @@
+name: quizlet_app
+description: "Open Source Quizlet Alternative for High School Students"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Data Models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Backend
+  supabase_flutter: ^2.8.4
+
+  # Routing
+  go_router: ^14.8.1
+
+  # WebView (mobile only)
+  webview_flutter: ^4.12.0
+
+  # UI
+  flip_card: ^0.7.0
+  google_fonts: ^6.2.1
+
+  # Utils
+  uuid: ^4.5.1
+  connectivity_plus: ^6.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+
+flutter:
+  uses-material-design: true
