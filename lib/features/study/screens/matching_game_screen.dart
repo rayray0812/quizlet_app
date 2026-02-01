@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/matching_tile.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
 class MatchingGameScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -104,21 +105,22 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
   }
 
   void _showResults() {
+    final l10n = AppLocalizations.of(context);
     final seconds = _stopwatch.elapsed.inSeconds;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Game Complete!'),
+        title: Text(l10n.gameComplete),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${seconds}s',
+              l10n.timeSeconds(seconds),
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 8),
-            Text('$_attempts attempts for ${_gameCards.length} pairs'),
+            Text(l10n.attemptsForPairs(_attempts, _gameCards.length)),
           ],
         ),
         actions: [
@@ -127,14 +129,14 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
               Navigator.pop(context);
               setState(() => _initGame());
             },
-            child: const Text('Play Again'),
+            child: Text(l10n.playAgain),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text('Done'),
+            child: Text(l10n.done),
           ),
         ],
       ),
@@ -146,58 +148,75 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
     final studySet =
         ref.watch(studySetsProvider.notifier).getById(widget.setId);
 
+    final l10n = AppLocalizations.of(context);
+
     if (studySet == null || studySet.cards.length < 2) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Matching Game')),
-        body: const Center(child: Text('Need at least 2 cards')),
+        appBar: AppBar(title: Text(l10n.matchingGame)),
+        body: Center(child: Text(l10n.needAtLeast2Cards)),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-            'Matched: ${_matchedCardIds.length} / ${_gameCards.length}'),
+            l10n.matched(_matchedCardIds.length, _gameCards.length)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => setState(() => _initGame()),
-            tooltip: 'Restart',
+            tooltip: l10n.restart,
           ),
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () => context.go('/'),
-            tooltip: 'Home',
+            tooltip: l10n.home,
           ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(12),
-        child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: _gameCards.length <= 3 ? 2 : 3,
-            childAspectRatio: 1.3,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: _tiles.length,
-          itemBuilder: (context, index) {
-            final tile = _tiles[index];
-            MatchingTileState state;
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final crossCount = _gameCards.length <= 3 ? 2 : 3;
+            final tileCount = _tiles.length;
+            final rowCount = (tileCount / crossCount).ceil();
+            final spacing = 8.0;
+            final availH = constraints.maxHeight - (rowCount - 1) * spacing;
+            final availW = constraints.maxWidth - (crossCount - 1) * spacing;
+            final tileH = availH / rowCount;
+            final tileW = availW / crossCount;
+            final aspect = tileW / tileH;
 
-            if (_matchedCardIds.contains(tile.cardId)) {
-              state = MatchingTileState.matched;
-            } else if (_incorrectIndices.contains(index)) {
-              state = MatchingTileState.incorrect;
-            } else if (_selectedIndex == index) {
-              state = MatchingTileState.selected;
-            } else {
-              state = MatchingTileState.normal;
-            }
+            return GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossCount,
+                childAspectRatio: aspect.clamp(0.5, 3.0),
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+              ),
+              itemCount: tileCount,
+              itemBuilder: (context, index) {
+                final tile = _tiles[index];
+                MatchingTileState state;
 
-            return MatchingTile(
-              text: tile.text,
-              state: state,
-              onTap: () => _onTileTap(index),
+                if (_matchedCardIds.contains(tile.cardId)) {
+                  state = MatchingTileState.matched;
+                } else if (_incorrectIndices.contains(index)) {
+                  state = MatchingTileState.incorrect;
+                } else if (_selectedIndex == index) {
+                  state = MatchingTileState.selected;
+                } else {
+                  state = MatchingTileState.normal;
+                }
+
+                return MatchingTile(
+                  text: tile.text,
+                  state: state,
+                  onTap: () => _onTileTap(index),
+                );
+              },
             );
           },
         ),

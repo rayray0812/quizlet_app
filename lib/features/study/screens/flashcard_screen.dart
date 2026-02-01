@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/swipe_card_stack.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
 class FlashcardScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -61,10 +62,12 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
     final studySet =
         ref.watch(studySetsProvider.notifier).getById(widget.setId);
 
+    final l10n = AppLocalizations.of(context);
+
     if (studySet == null || studySet.cards.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Flashcards')),
-        body: const Center(child: Text('No cards available')),
+        appBar: AppBar(title: Text(l10n.flashcards)),
+        body: Center(child: Text(l10n.noCardsAvailable)),
       );
     }
 
@@ -75,7 +78,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () => context.go('/'),
-            tooltip: 'Home',
+            tooltip: l10n.home,
           ),
         ],
       ),
@@ -87,9 +90,10 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                 ? 0
                 : _swipedCount / _currentCards.length,
           ),
+          const SizedBox(height: 4),
           // Score row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -105,7 +109,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                   ],
                 ),
                 Text(
-                  'Swipe to sort',
+                  l10n.swipeToSort,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Row(
@@ -133,7 +137,11 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
 
   Widget _buildCardStack() {
     final swipeCards = _currentCards
-        .map((c) => SwipeCardData(term: c.term, definition: c.definition))
+        .map((c) => SwipeCardData(
+              term: c.term,
+              definition: c.definition,
+              imageUrl: c.imageUrl,
+            ))
         .toList();
 
     return Padding(
@@ -147,6 +155,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
   }
 
   Widget _buildRoundEnd(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final allKnown = _unknownCards.isEmpty;
 
     return Center(
@@ -157,45 +166,47 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
           children: [
             Icon(
               allKnown ? Icons.celebration : Icons.bar_chart,
-              size: 64,
+              size: 72,
               color: allKnown
                   ? Colors.amber
                   : Theme.of(context).colorScheme.primary,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
-              allKnown ? 'Great job!' : 'Round Complete',
-              style: Theme.of(context).textTheme.headlineSmall,
+              allKnown ? l10n.greatJob : l10n.roundComplete,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _StatBox(
-                  label: 'Know',
+                  label: l10n.know,
                   count: _knownCards.length,
                   color: Colors.green,
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 40),
                 _StatBox(
-                  label: "Don't know",
+                  label: l10n.dontKnow,
                   count: _unknownCards.length,
                   color: Colors.red,
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
             if (_unknownCards.isNotEmpty)
               FilledButton.icon(
                 onPressed: () => _startRound(_unknownCards),
                 icon: const Icon(Icons.replay),
                 label: Text(
-                    'Review ${_unknownCards.length} unknown cards'),
+                    l10n.reviewNUnknownCards(_unknownCards.length)),
               ),
-            const SizedBox(height: 12),
+            if (_unknownCards.isNotEmpty) const SizedBox(height: 16),
             OutlinedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Done'),
+              child: Text(l10n.done),
             ),
           ],
         ),

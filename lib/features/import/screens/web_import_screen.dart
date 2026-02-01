@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:quizlet_app/features/import/utils/js_scraper.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/models/study_set.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
 class WebImportScreen extends StatefulWidget {
   const WebImportScreen({super.key});
@@ -75,12 +76,105 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
     if (!url.contains('quizlet.com')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a Quizlet URL')),
+        SnackBar(content: Text(AppLocalizations.of(context).pleaseEnterQuizletUrl)),
       );
       return;
     }
 
     _controller.loadRequest(Uri.parse(url));
+  }
+
+  Future<void> _debugScrape() async {
+    if (_controller == null) return;
+    try {
+      final result = await _controller.runJavaScriptReturningResult('''
+        (function() {
+          var info = [];
+          try {
+            var nd = document.getElementById('__NEXT_DATA__');
+            var parsed = JSON.parse(nd.textContent);
+            var pp = parsed.props.pageProps;
+            var state = JSON.parse(pp.dehydratedReduxStateKey);
+
+            // setPage structure
+            var sp = state.setPage;
+            info.push('setPage keys: ' + Object.keys(sp).join(', '));
+            if (sp.set) {
+              info.push('setPage.set keys: ' + Object.keys(sp.set).join(', '));
+              if (sp.set.terms) info.push('setPage.set.terms: array len=' + sp.set.terms.length);
+              if (sp.set.title) info.push('setPage.set.title: ' + sp.set.title);
+            }
+            if (sp.terms) {
+              info.push('setPage.terms: type=' + typeof sp.terms);
+              if (Array.isArray(sp.terms)) info.push('setPage.terms len=' + sp.terms.length);
+            }
+
+            // cards structure
+            var cd = state.cards;
+            info.push('cards keys: ' + Object.keys(cd).join(', '));
+            // show first few sub-keys
+            Object.keys(cd).forEach(function(k) {
+              var v = cd[k];
+              if (v && typeof v === 'object' && !Array.isArray(v)) {
+                info.push('cards.' + k + ' keys: ' + Object.keys(v).slice(0, 8).join(', '));
+              } else if (Array.isArray(v)) {
+                info.push('cards.' + k + ': array len=' + v.length);
+                if (v.length > 0) info.push('cards.' + k + '[0] keys: ' + Object.keys(v[0]).slice(0, 8).join(', '));
+              } else {
+                info.push('cards.' + k + ': ' + String(v).substring(0, 60));
+              }
+            });
+
+            // also check studiableData
+            if (state.studiableData) {
+              info.push('studiableData keys: ' + Object.keys(state.studiableData).join(', '));
+            }
+
+          } catch(e) {
+            info.push('ERROR: ' + e.message);
+          }
+
+          // DOM TermText sample
+          var tt = document.querySelectorAll('.TermText');
+          if (tt.length > 0) {
+            info.push('TermText[0]: ' + tt[0].innerText.substring(0, 40));
+            if (tt.length > 1) info.push('TermText[1]: ' + tt[1].innerText.substring(0, 40));
+          }
+
+          return info.join('\\n');
+        })();
+      ''');
+
+      String debugStr = result.toString();
+      if (debugStr.startsWith('"') && debugStr.endsWith('"')) {
+        debugStr = debugStr.substring(1, debugStr.length - 1);
+        debugStr = debugStr.replaceAll(r'\n', '\n');
+      }
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Debug Info'),
+            content: SingleChildScrollView(
+              child: SelectableText(debugStr, style: const TextStyle(fontSize: 12)),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Debug error: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _scrapeAndImport() async {
@@ -91,13 +185,13 @@ class _WebImportScreenState extends State<WebImportScreen> {
         JsScraper.scrapeScript,
       );
 
-      String jsonStr = result.toString();
-      // Remove surrounding quotes if present
-      if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
-        jsonStr = jsonStr.substring(1, jsonStr.length - 1);
-        jsonStr = jsonStr.replaceAll(r'\"', '"');
-        jsonStr = jsonStr.replaceAll(r'\\n', '\n');
+      String encoded = result.toString();
+      // Remove surrounding quotes from WebView return value
+      if (encoded.startsWith('"') && encoded.endsWith('"')) {
+        encoded = encoded.substring(1, encoded.length - 1);
       }
+      // Decode URI-encoded JSON (avoids all WebView escaping issues)
+      final jsonStr = Uri.decodeComponent(encoded);
 
       final data = json.decode(jsonStr) as Map<String, dynamic>;
       final title = data['title'] as String? ?? 'Imported Set';
@@ -106,9 +200,8 @@ class _WebImportScreenState extends State<WebImportScreen> {
       if (cardsData.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'No flashcards found. Try scrolling down to load all cards first.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).noFlashcardsFound),
             ),
           );
         }
@@ -120,6 +213,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
           id: const Uuid().v4(),
           term: c['term'] as String? ?? '',
           definition: c['definition'] as String? ?? '',
+          imageUrl: c['imageUrl'] as String? ?? '',
         );
       }).toList();
 
@@ -136,7 +230,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).importFailed('$e'))),
         );
       }
     }
@@ -144,9 +238,11 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     if (kIsWeb) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Import')),
+        appBar: AppBar(title: Text(l10n.importTitle)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -160,19 +256,19 @@ class _WebImportScreenState extends State<WebImportScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Use the mobile app to import',
+                  l10n.useAppToImport,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'WebView import is only available on mobile devices.',
+                  l10n.webViewMobileOnly,
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => context.go('/'),
-                  child: const Text('Go Back'),
+                  child: Text(l10n.goBack),
                 ),
               ],
             ),
@@ -183,7 +279,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import from Quizlet'),
+        title: Text(l10n.importFromQuizlet),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.go('/'),
@@ -199,7 +295,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
                   child: TextField(
                     controller: _urlController,
                     decoration: InputDecoration(
-                      hintText: 'Enter Quizlet URL',
+                      hintText: l10n.enterQuizletUrl,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 10),
@@ -228,10 +324,13 @@ class _WebImportScreenState extends State<WebImportScreen> {
         ],
       ),
       floatingActionButton: _isOnQuizletSet
-          ? FloatingActionButton.extended(
-              onPressed: _scrapeAndImport,
-              icon: const Icon(Icons.download),
-              label: const Text('Import Set'),
+          ? GestureDetector(
+              onLongPress: _debugScrape,
+              child: FloatingActionButton.extended(
+                onPressed: _scrapeAndImport,
+                icon: const Icon(Icons.download),
+                label: Text(l10n.importSet),
+              ),
             )
           : null,
     );

@@ -1,14 +1,15 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
-/// Shows a dialog for picking the number of questions/pairs.
+/// Shows a dialog for picking the number of questions.
 /// Returns the selected count, or null if dismissed.
 Future<int?> showCountPickerDialog({
   required BuildContext context,
   required int maxCount,
   int minCount = 2,
   int? defaultCount,
-  String label = 'items',
 }) {
   return showDialog<int>(
     context: context,
@@ -16,7 +17,6 @@ Future<int?> showCountPickerDialog({
       maxCount: maxCount,
       minCount: minCount,
       initialCount: defaultCount ?? min(10, maxCount),
-      label: label,
     ),
   );
 }
@@ -25,13 +25,11 @@ class _CountPickerDialog extends StatefulWidget {
   final int maxCount;
   final int minCount;
   final int initialCount;
-  final String label;
 
   const _CountPickerDialog({
     required this.maxCount,
     required this.minCount,
     required this.initialCount,
-    required this.label,
   });
 
   @override
@@ -39,45 +37,80 @@ class _CountPickerDialog extends StatefulWidget {
 }
 
 class _CountPickerDialogState extends State<_CountPickerDialog> {
-  late int _count;
+  late final TextEditingController _textController;
 
   @override
   void initState() {
     super.initState();
-    _count = widget.initialCount.clamp(widget.minCount, widget.maxCount);
+    final initial =
+        widget.initialCount.clamp(widget.minCount, widget.maxCount);
+    _textController = TextEditingController(text: '$initial');
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  int get _parsedCount {
+    final v = int.tryParse(_textController.text) ?? widget.minCount;
+    return v.clamp(widget.minCount, widget.maxCount);
+  }
+
+  void _setCount(int n) {
+    _textController.text = '$n';
+    _textController.selection =
+        TextSelection.collapsed(offset: _textController.text.length);
   }
 
   @override
   Widget build(BuildContext context) {
-    final presets = [5, 10, 20].where((n) => n <= widget.maxCount && n >= widget.minCount).toList();
+    final l10n = AppLocalizations.of(context);
+    final presets = [5, 10, 20]
+        .where((n) => n <= widget.maxCount && n >= widget.minCount)
+        .toList();
 
     return AlertDialog(
-      title: Text('How many ${widget.label}?'),
+      title: Text(l10n.howMany),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            '$_count',
-            style: Theme.of(context).textTheme.headlineMedium,
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 120,
+            child: TextField(
+              controller: _textController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium,
+              decoration: InputDecoration(
+                hintText: '${widget.minCount}–${widget.maxCount}',
+                hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
-          Slider(
-            value: _count.toDouble(),
-            min: widget.minCount.toDouble(),
-            max: widget.maxCount.toDouble(),
-            divisions: max(1, widget.maxCount - widget.minCount),
-            onChanged: (v) => setState(() => _count = v.round()),
-          ),
+          const SizedBox(height: 20),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
             children: [
               ...presets.map((n) => ActionChip(
                     label: Text('$n'),
-                    onPressed: () => setState(() => _count = n),
+                    onPressed: () => _setCount(n),
                   )),
               ActionChip(
-                label: const Text('All'),
-                onPressed: () =>
-                    setState(() => _count = widget.maxCount),
+                label: Text(l10n.allTerms),
+                onPressed: () => _setCount(widget.maxCount),
               ),
             ],
           ),
@@ -86,11 +119,11 @@ class _CountPickerDialogState extends State<_CountPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, _count),
-          child: const Text('Start'),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _parsedCount),
+          child: Text(l10n.start),
         ),
       ],
     );

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/quiz_option_tile.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -90,21 +91,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _showResults() {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Quiz Complete!'),
+        title: Text(l10n.quizComplete),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '$_score / ${_shuffledCards.length}',
+              l10n.quizResult(_score, _shuffledCards.length),
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              '${(_score / _shuffledCards.length * 100).round()}% correct',
+              l10n.percentCorrect(
+                  (_score / _shuffledCards.length * 100).round()),
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],
@@ -115,14 +118,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               Navigator.pop(context);
               setState(() => _initQuiz());
             },
-            child: const Text('Try Again'),
+            child: Text(l10n.tryAgain),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text('Done'),
+            child: Text(l10n.done),
           ),
         ],
       ),
@@ -134,10 +137,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final studySet =
         ref.watch(studySetsProvider.notifier).getById(widget.setId);
 
+    final l10n = AppLocalizations.of(context);
+
     if (studySet == null || studySet.cards.length < 4) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Quiz')),
-        body: const Center(child: Text('Need at least 4 cards for quiz mode')),
+        appBar: AppBar(title: Text(l10n.quiz)),
+        body: Center(child: Text(l10n.needAtLeast4Cards)),
       );
     }
 
@@ -154,7 +159,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
-                'Score: $_score',
+                l10n.scoreLabel(_score),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -162,7 +167,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           IconButton(
             icon: const Icon(Icons.home),
             onPressed: () => context.go('/'),
-            tooltip: 'Home',
+            tooltip: l10n.home,
           ),
         ],
       ),
@@ -179,7 +184,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 children: [
                   const SizedBox(height: 16),
                   Text(
-                    'What is the definition of:',
+                    l10n.whatIsDefinitionOf,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                         ),

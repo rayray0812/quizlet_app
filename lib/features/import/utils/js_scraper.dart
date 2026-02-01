@@ -1,80 +1,89 @@
 class JsScraper {
   /// JavaScript to inject into Quizlet pages to extract flashcard data.
-  /// Uses multiple fallback selectors since Quizlet changes DOM frequently.
+  /// Returns encodeURIComponent'd JSON to avoid WebView escaping issues.
   static const String scrapeScript = '''
     (function() {
       var cards = [];
+      var title = '';
 
-      // Strategy 1: Modern Quizlet layout (2024+)
-      var termElements = document.querySelectorAll('[data-testid="TextContent"]');
-      if (termElements.length >= 2) {
-        var rows = document.querySelectorAll('.SetPageTerms-term, .SetPageTerm-content');
-        if (rows.length > 0) {
-          rows.forEach(function(row) {
-            var texts = row.querySelectorAll('[data-testid="TextContent"]');
-            if (texts.length >= 2) {
-              cards.push({
-                term: texts[0].innerText.trim(),
-                definition: texts[1].innerText.trim()
-              });
+      // Strategy 1: __NEXT_DATA__ dehydrated redux state
+      try {
+        var nd = document.getElementById('__NEXT_DATA__');
+        if (nd) {
+          var parsed = JSON.parse(nd.textContent);
+          var pp = parsed.props && parsed.props.pageProps;
+          if (pp && pp.dehydratedReduxStateKey) {
+            var state = JSON.parse(pp.dehydratedReduxStateKey);
+            var sp = state.setPage;
+            if (sp && sp.set && sp.set.title) {
+              title = sp.set.title;
             }
-          });
-        }
-      }
-
-      // Strategy 2: Fallback with class-based selectors
-      if (cards.length === 0) {
-        var termRows = document.querySelectorAll('.TermText');
-        for (var i = 0; i < termRows.length; i += 2) {
-          if (i + 1 < termRows.length) {
-            cards.push({
-              term: termRows[i].innerText.trim(),
-              definition: termRows[i + 1].innerText.trim()
-            });
+            // Terms might be in setPage.originalOrder + termIdToQuestionMap
+            if (sp && sp.originalOrder && sp.originalOrder.length > 0) {
+              // Not sure of structure, skip to DOM
+            }
           }
         }
-      }
+      } catch(e) {}
 
-      // Strategy 3: Try aria-label based approach
+      // Strategy 2: DOM — pair TermText within each SetPageTerm container
       if (cards.length === 0) {
-        var termContainers = document.querySelectorAll('[class*="SetPageTerm"]');
-        termContainers.forEach(function(container) {
-          var spans = container.querySelectorAll('span[class*="TermText"]');
-          if (spans.length >= 2) {
+        var containers = document.querySelectorAll('[class*="SetPageTerm"]');
+        containers.forEach(function(container) {
+          var texts = container.querySelectorAll('.TermText');
+          if (texts.length >= 2) {
+            var img = container.querySelector('img');
             cards.push({
-              term: spans[0].innerText.trim(),
-              definition: spans[1].innerText.trim()
+              term: texts[0].innerText.trim(),
+              definition: texts[1].innerText.trim(),
+              imageUrl: img ? img.src : ''
             });
           }
         });
       }
 
-      // Strategy 4: Generic fallback - look for paired content divs
+      // Strategy 3: Flat TermText pairing
       if (cards.length === 0) {
-        var allSpans = document.querySelectorAll('a.SetPageTerm-wordText span, a.SetPageTerm-definitionText span');
-        for (var j = 0; j < allSpans.length; j += 2) {
-          if (j + 1 < allSpans.length) {
+        var allTermTexts = document.querySelectorAll('.TermText');
+        for (var i = 0; i < allTermTexts.length; i += 2) {
+          if (i + 1 < allTermTexts.length) {
             cards.push({
-              term: allSpans[j].innerText.trim(),
-              definition: allSpans[j + 1].innerText.trim()
+              term: allTermTexts[i].innerText.trim(),
+              definition: allTermTexts[i + 1].innerText.trim(),
+              imageUrl: ''
             });
           }
         }
       }
 
-      // Get title
-      var title = '';
-      var titleEl = document.querySelector('.SetPage-titleWrapper h1, [data-testid="set-title"], .UIHeading--one');
-      if (titleEl) {
-        title = titleEl.innerText.trim();
-      } else {
-        title = document.title.replace(' | Quizlet', '').replace(' Flashcards', '').trim();
+      // Strategy 4: data-testid selectors
+      if (cards.length === 0) {
+        var rows = document.querySelectorAll('.SetPageTerms-term, .SetPageTerm-content');
+        rows.forEach(function(row) {
+          var texts = row.querySelectorAll('[data-testid="TextContent"]');
+          if (texts.length >= 2) {
+            var img = row.querySelector('img');
+            cards.push({
+              term: texts[0].innerText.trim(),
+              definition: texts[1].innerText.trim(),
+              imageUrl: img ? img.src : ''
+            });
+          }
+        });
       }
 
-      return JSON.stringify({
-        title: title,
-        cards: cards
-      });
+      // Get title if not found yet
+      if (!title) {
+        var titleEl = document.querySelector('.SetPage-titleWrapper h1, [data-testid="set-title"], .UIHeading--one');
+        if (titleEl) {
+          title = titleEl.innerText.trim();
+        } else {
+          title = document.title.replace(' | Quizlet', '').replace(' Flashcards', '').trim();
+        }
+      }
+
+      var result = JSON.stringify({ title: title, cards: cards });
+      return encodeURIComponent(result);
     })();
   ''';
 }

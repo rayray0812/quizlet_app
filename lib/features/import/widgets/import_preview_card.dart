@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 
 class ImportPreviewCard extends StatelessWidget {
@@ -18,20 +19,34 @@ class ImportPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              radius: 14,
+              radius: 15,
               child: Text(
                 '${index + 1}',
                 style: const TextStyle(fontSize: 12),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
+            if (flashcard.imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: flashcard.imageUrl,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,7 +57,7 @@ class ImportPreviewCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     flashcard.definition,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -53,11 +68,14 @@ class ImportPreviewCard extends StatelessWidget {
               ),
             ),
             if (onDelete != null)
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: onDelete,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: onDelete,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
           ],
         ),

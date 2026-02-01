@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 import 'package:quizlet_app/features/study/widgets/flip_card.dart';
 
 /// A single card in the swipe stack, with term/definition and swipe gesture.
@@ -25,18 +26,15 @@ class SwipeCardStackState extends State<SwipeCardStack>
   late Animation<Offset> _animOffset;
   bool _isAnimating = false;
 
-  double get _screenWidth =>
-      MediaQuery.of(context).size.width;
-
-  double get _dragRatio =>
-      _screenWidth > 0 ? _dragOffset.dx / _screenWidth : 0;
+  double get _screenWidth => MediaQuery.of(context).size.width;
 
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      // 縮短動畫時間讓滑動感覺更流暢
+      duration: const Duration(milliseconds: 220),
     );
   }
 
@@ -68,44 +66,42 @@ class SwipeCardStackState extends State<SwipeCardStack>
 
   void _animateOut(bool remembered) {
     _isAnimating = true;
-    final targetX = remembered ? _screenWidth * 1.5 : -_screenWidth * 1.5;
-    _animOffset =
-        Tween<Offset>(begin: _dragOffset, end: Offset(targetX, _dragOffset.dy))
-            .animate(CurvedAnimation(
-                parent: _animController, curve: Curves.easeOut));
+    // 先記錄當前索引，避免動畫完成後索引已變化
+    final currentIndex = _topIndex;
+    _animOffset = Tween<Offset>(
+      begin: _dragOffset,
+      end: Offset(
+        remembered ? _screenWidth * 1.5 : -_screenWidth * 1.5,
+        _dragOffset.dy,
+      ),
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward(from: 0).then((_) {
-      widget.onSwiped(_topIndex, remembered);
-      setState(() {
-        _topIndex++;
-        _dragOffset = Offset.zero;
-        _isAnimating = false;
+      widget.onSwiped(currentIndex, remembered);
+      // 使用 WidgetsBinding 確保 UI 更新流暢
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _topIndex++;
+            _dragOffset = Offset.zero;
+            _isAnimating = false;
+          });
+        }
       });
     });
-    _animController.addListener(_animListener);
   }
 
   void _animateBack() {
     _isAnimating = true;
-    _animOffset =
-        Tween<Offset>(begin: _dragOffset, end: Offset.zero)
-            .animate(CurvedAnimation(
-                parent: _animController, curve: Curves.easeOut));
+    _animOffset = Tween<Offset>(
+      begin: _dragOffset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward(from: 0).then((_) {
       setState(() {
         _dragOffset = Offset.zero;
         _isAnimating = false;
       });
     });
-    _animController.addListener(_animListener);
-  }
-
-  void _animListener() {
-    setState(() {
-      _dragOffset = _animOffset.value;
-    });
-    if (_animController.isCompleted) {
-      _animController.removeListener(_animListener);
-    }
   }
 
   @override
@@ -118,8 +114,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
       alignment: Alignment.center,
       children: [
         // Background cards (rendered bottom to top)
-        for (var i = stackSize - 1; i >= 1; i--)
-          _buildBackCard(i),
+        for (var i = stackSize - 1; i >= 1; i--) _buildBackCard(i),
         // Top (draggable) card
         _buildTopCard(),
       ],
@@ -134,69 +129,83 @@ class SwipeCardStackState extends State<SwipeCardStack>
       child: Transform.scale(
         scale: scale,
         child: IgnorePointer(
-          child: Opacity(
-            opacity: 0.7,
-            child: _cardContent(_topIndex + offset),
-          ),
+          // 移除 Opacity 讓卡片完全不透明
+          child: _cardContent(_topIndex + offset),
         ),
       ),
     );
   }
 
   Widget _buildTopCard() {
-    final rotation = _dragRatio * 0.3; // max ~17 degrees
-
     return GestureDetector(
       onPanUpdate: _onPanUpdate,
       onPanEnd: _onPanEnd,
-      child: Transform.translate(
-        offset: _dragOffset,
-        child: Transform.rotate(
-          angle: rotation,
-          child: Stack(
-            children: [
-              _cardContent(_topIndex),
-              // Right swipe overlay (remembered)
-              if (_dragRatio > 0.05)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.green.withValues(alpha: (_dragRatio.abs() * 0.5).clamp(0, 0.4)),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      'KNOW',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withValues(alpha: (_dragRatio.abs() * 2).clamp(0, 1)),
+      child: AnimatedBuilder(
+        animation: _animController,
+        builder: (context, child) {
+          final offset = _isAnimating ? _animOffset.value : _dragOffset;
+          final ratio = _screenWidth > 0 ? offset.dx / _screenWidth : 0.0;
+          final rotation = ratio * 0.3;
+
+          return Transform.translate(
+            offset: offset,
+            child: Transform.rotate(
+              angle: rotation,
+              child: Stack(
+                children: [
+                  child!,
+                  // Right swipe overlay (remembered)
+                  if (ratio > 0.05)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.green.withValues(
+                            alpha: (ratio.abs() * 0.5).clamp(0, 0.4),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          AppLocalizations.of(context).know.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withValues(
+                              alpha: (ratio.abs() * 2).clamp(0, 1),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              // Left swipe overlay (not remembered)
-              if (_dragRatio < -0.05)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.red.withValues(alpha: (_dragRatio.abs() * 0.5).clamp(0, 0.4)),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      "DON'T KNOW",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white.withValues(alpha: (_dragRatio.abs() * 2).clamp(0, 1)),
+                  // Left swipe overlay (not remembered)
+                  if (ratio < -0.05)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.red.withValues(
+                            alpha: (ratio.abs() * 0.5).clamp(0, 0.4),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          AppLocalizations.of(context).dontKnow.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withValues(
+                              alpha: (ratio.abs() * 2).clamp(0, 1),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
+        child: _cardContent(_topIndex),
       ),
     );
   }
@@ -210,6 +219,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
         key: ValueKey('swipe_card_$index'),
         frontText: data.term,
         backText: data.definition,
+        imageUrl: data.imageUrl,
       ),
     );
   }
@@ -218,6 +228,11 @@ class SwipeCardStackState extends State<SwipeCardStack>
 class SwipeCardData {
   final String term;
   final String definition;
+  final String imageUrl;
 
-  const SwipeCardData({required this.term, required this.definition});
+  const SwipeCardData({
+    required this.term,
+    required this.definition,
+    this.imageUrl = '',
+  });
 }
