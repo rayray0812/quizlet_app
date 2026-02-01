@@ -15,6 +15,8 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
                   term: c['term'] as String,
                   definition: c['definition'] as String,
                   difficultyLevel: c['difficultyLevel'] as int? ?? 0,
+                  imageUrl: c['imageUrl'] as String? ?? '',
+                  tags: (c['tags'] as List?)?.cast<String>() ?? [],
                 ))
             .toList() ??
         [];
@@ -42,6 +44,8 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
                 'term': c.term,
                 'definition': c.definition,
                 'difficultyLevel': c.difficultyLevel,
+                'imageUrl': c.imageUrl,
+                'tags': c.tags,
               })
           .toList(),
       'isSynced': obj.isSynced,

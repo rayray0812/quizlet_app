@@ -9,6 +9,7 @@ import 'package:quizlet_app/providers/sync_provider.dart';
 import 'package:quizlet_app/providers/locale_provider.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
 import 'package:quizlet_app/features/home/widgets/study_set_card.dart';
+import 'package:quizlet_app/features/home/widgets/today_review_card.dart';
 import 'package:quizlet_app/services/import_export_service.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -24,6 +25,16 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.myStudySets),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => context.push('/search'),
+            tooltip: l10n.search,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => context.push('/stats'),
+            tooltip: l10n.statistics,
+          ),
           IconButton(
             icon: const Icon(Icons.language),
             onPressed: () => _showLanguageMenu(context, ref),
@@ -94,9 +105,12 @@ class HomeScreen extends ConsumerWidget {
             )
           : ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: studySets.length,
+              itemCount: studySets.length + 1, // +1 for today review banner
               itemBuilder: (context, index) {
-                final set = studySets[index];
+                if (index == 0) {
+                  return const TodayReviewCard();
+                }
+                final set = studySets[index - 1];
                 return StudySetCard(
                   studySet: set,
                   onTap: () => context.push('/study/${set.id}'),
@@ -171,7 +185,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.file_open),
-              title: const Text('Import from File (JSON/CSV)'),
+              title: Text(l10n.importFromFile),
               onTap: () {
                 Navigator.pop(context);
                 _importFromFile(context, ref);

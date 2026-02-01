@@ -116,6 +116,61 @@ class AppLocalizations {
 
   // -- Study Set Card --
   String cards(int count) => '';
+
+  // -- New keys (R7) --
+  String get editCards => '';
+  String savedNCards(int count) => '';
+  String get start => '';
+  String get know => '';
+  String get dontKnow => '';
+  String get greatJob => '';
+  String get roundComplete => '';
+  String reviewNUnknownCards(int count) => '';
+  String get swipeToSort => '';
+  String get importFromFile => '';
+  String get enterQuizletUrl => '';
+  String get tapToFlip => '';
+  String get definitionLabel => '';
+  String get exportAsJson => '';
+  String get exportAsCsv => '';
+  String get howMany => '';
+  String get autoFetchImage => '';
+  String get allTerms => '';
+  String get addCards => '';
+  String get pleaseEnterQuizletUrl => '';
+
+  // -- SRS --
+  String get srsReview => '';
+  String get srsReviewDesc => '';
+  String get quickBrowse => '';
+  String get quickBrowseDesc => '';
+  String get noDueCards => '';
+  String get reviewComplete => '';
+  String reviewedNCards(int count) => '';
+  String nDueCards(int count) => '';
+  String get todayReview => '';
+  String get newCards => '';
+  String get learningCards => '';
+  String get reviewCards => '';
+
+  // -- Stats --
+  String get statistics => '';
+  String get todayReviews => '';
+  String get streak => '';
+  String get totalReviews => '';
+  String get last30Days => '';
+  String get ratingBreakdown => '';
+  String nDays(int count) => '';
+
+  // -- Tags / Search --
+  String get tags => '';
+  String get addTag => '';
+  String get search => '';
+  String get customStudy => '';
+  String get selectTags => '';
+  String nMatchingCards(int count) => '';
+  String get startReview => '';
+  String get noResults => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -247,7 +302,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get gameComplete => '\u904A\u6232\u5B8C\u6210\uFF01';
   @override
-  String timeSeconds(int seconds) => '${seconds}\u79D2';
+  String timeSeconds(int seconds) => '$seconds\u79D2';
   @override
   String attemptsForPairs(int attempts, int pairs) => '$attempts \u6B21\u5617\u8A66\uFF0C$pairs \u7D44\u914D\u5C0D';
   @override
@@ -289,7 +344,109 @@ class AppLocalizationsZh extends AppLocalizations {
 
   // -- Study Set Card --
   @override
-  String cards(int count) => '$count \u5F35\u5361\u7247';
+  String cards(int count) => '$count 張卡片';
+
+  // -- New keys (R7) --
+  @override
+  String get editCards => '編輯卡片';
+  @override
+  String savedNCards(int count) => '已儲存 $count 張卡片';
+  @override
+  String get start => '開始';
+  @override
+  String get know => '記得';
+  @override
+  String get dontKnow => '不記得';
+  @override
+  String get greatJob => '太棒了！';
+  @override
+  String get roundComplete => '本輪完成';
+  @override
+  String reviewNUnknownCards(int count) => '複習 $count 張不記得的卡片';
+  @override
+  String get swipeToSort => '滑動分類';
+  @override
+  String get importFromFile => '從檔案匯入（JSON/CSV）';
+  @override
+  String get enterQuizletUrl => '輸入 Quizlet 網址';
+  @override
+  String get tapToFlip => '點擊翻轉';
+  @override
+  String get definitionLabel => '定義';
+  @override
+  String get exportAsJson => '匯出 JSON';
+  @override
+  String get exportAsCsv => '匯出 CSV';
+  @override
+  String get howMany => '要幾題？';
+  @override
+  String get autoFetchImage => '自動配圖';
+  @override
+  String get allTerms => '所有單字';
+  @override
+  String get addCards => '新增卡片';
+  @override
+  String get pleaseEnterQuizletUrl => '請輸入 Quizlet 網址';
+
+  // -- SRS --
+  @override
+  String get srsReview => 'SRS 複習';
+  @override
+  String get srsReviewDesc => '間隔重複，高效記憶';
+  @override
+  String get quickBrowse => '快速瀏覽（滑動）';
+  @override
+  String get quickBrowseDesc => '左右滑動瀏覽所有卡片';
+  @override
+  String get noDueCards => '沒有待複習的卡片';
+  @override
+  String get reviewComplete => '複習完成！';
+  @override
+  String reviewedNCards(int count) => '已複習 $count 張卡片';
+  @override
+  String nDueCards(int count) => '$count 張待複習';
+  @override
+  String get todayReview => '今日複習';
+  @override
+  String get newCards => '新卡';
+  @override
+  String get learningCards => '學習中';
+  @override
+  String get reviewCards => '待複習';
+
+  // -- Stats --
+  @override
+  String get statistics => '學習統計';
+  @override
+  String get todayReviews => '今日複習數';
+  @override
+  String get streak => '連續天數';
+  @override
+  String get totalReviews => '總複習次數';
+  @override
+  String get last30Days => '近 30 天';
+  @override
+  String get ratingBreakdown => '評分比例';
+  @override
+  String nDays(int count) => '$count 天';
+
+  // -- Tags / Search --
+  @override
+  String get tags => '標籤';
+  @override
+  String get addTag => '新增標籤';
+  @override
+  String get search => '搜尋';
+  @override
+  String get customStudy => '自訂學習';
+  @override
+  String get selectTags => '選擇標籤';
+  @override
+  String nMatchingCards(int count) => '$count 張符合的卡片';
+  @override
+  String get startReview => '開始複習';
+  @override
+  String get noResults => '沒有結果';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -470,6 +627,108 @@ class AppLocalizationsEn extends AppLocalizations {
   // -- Study Set Card --
   @override
   String cards(int count) => '$count cards';
+
+  // -- New keys (R7) --
+  @override
+  String get editCards => 'Edit Cards';
+  @override
+  String savedNCards(int count) => 'Saved $count cards';
+  @override
+  String get start => 'Start';
+  @override
+  String get know => 'Know';
+  @override
+  String get dontKnow => "Don't know";
+  @override
+  String get greatJob => 'Great job!';
+  @override
+  String get roundComplete => 'Round Complete';
+  @override
+  String reviewNUnknownCards(int count) => 'Review $count unknown cards';
+  @override
+  String get swipeToSort => 'Swipe to sort';
+  @override
+  String get importFromFile => 'Import from File (JSON/CSV)';
+  @override
+  String get enterQuizletUrl => 'Enter Quizlet URL';
+  @override
+  String get tapToFlip => 'TAP TO FLIP';
+  @override
+  String get definitionLabel => 'DEFINITION';
+  @override
+  String get exportAsJson => 'Export as JSON';
+  @override
+  String get exportAsCsv => 'Export as CSV';
+  @override
+  String get howMany => 'How many?';
+  @override
+  String get autoFetchImage => 'Auto Image';
+  @override
+  String get allTerms => 'All Terms';
+  @override
+  String get addCards => 'Add Cards';
+  @override
+  String get pleaseEnterQuizletUrl => 'Please enter a Quizlet URL';
+
+  // -- SRS --
+  @override
+  String get srsReview => 'SRS Review';
+  @override
+  String get srsReviewDesc => 'Spaced repetition for efficient memorization';
+  @override
+  String get quickBrowse => 'Quick Browse (Swipe)';
+  @override
+  String get quickBrowseDesc => 'Swipe through all cards';
+  @override
+  String get noDueCards => 'No cards due for review';
+  @override
+  String get reviewComplete => 'Review Complete!';
+  @override
+  String reviewedNCards(int count) => 'Reviewed $count cards';
+  @override
+  String nDueCards(int count) => '$count due';
+  @override
+  String get todayReview => "Today's Review";
+  @override
+  String get newCards => 'New';
+  @override
+  String get learningCards => 'Learning';
+  @override
+  String get reviewCards => 'Review';
+
+  // -- Stats --
+  @override
+  String get statistics => 'Statistics';
+  @override
+  String get todayReviews => 'Today';
+  @override
+  String get streak => 'Streak';
+  @override
+  String get totalReviews => 'Total Reviews';
+  @override
+  String get last30Days => 'Last 30 Days';
+  @override
+  String get ratingBreakdown => 'Rating Breakdown';
+  @override
+  String nDays(int count) => '$count days';
+
+  // -- Tags / Search --
+  @override
+  String get tags => 'Tags';
+  @override
+  String get addTag => 'Add Tag';
+  @override
+  String get search => 'Search';
+  @override
+  String get customStudy => 'Custom Study';
+  @override
+  String get selectTags => 'Select Tags';
+  @override
+  String nMatchingCards(int count) => '$count matching cards';
+  @override
+  String get startReview => 'Start Review';
+  @override
+  String get noResults => 'No results';
 }
 
 class _AppLocalizationsDelegate

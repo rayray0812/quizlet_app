@@ -7,6 +7,8 @@ import 'package:quizlet_app/core/constants/app_constants.dart';
 import 'package:quizlet_app/core/constants/supabase_constants.dart';
 import 'package:quizlet_app/models/adapters/study_set_adapter.dart';
 import 'package:quizlet_app/models/adapters/flashcard_adapter.dart';
+import 'package:quizlet_app/models/adapters/card_progress_adapter.dart';
+import 'package:quizlet_app/models/adapters/review_log_adapter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +17,11 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(StudySetAdapter());
   Hive.registerAdapter(FlashcardAdapter());
+  Hive.registerAdapter(CardProgressAdapter());
+  Hive.registerAdapter(ReviewLogAdapter());
   await Hive.openBox(AppConstants.hiveStudySetsBox);
+  await Hive.openBox(AppConstants.hiveCardProgressBox);
+  await Hive.openBox(AppConstants.hiveReviewLogsBox);
   await Hive.openBox('settings');
 
   // Initialize Supabase

@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/home/widgets/card_edit_row.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/services/unsplash_service.dart';
 
 class CardEditorScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -19,6 +21,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   final List<TextEditingController> _termControllers = [];
   final List<TextEditingController> _defControllers = [];
   final List<String> _cardIds = [];
+  final List<String> _imageUrls = [];
+  final List<List<String>> _tags = [];
 
   @override
   void initState() {
@@ -30,6 +34,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         _termControllers.add(TextEditingController(text: card.term));
         _defControllers.add(TextEditingController(text: card.definition));
         _cardIds.add(card.id);
+        _imageUrls.add(card.imageUrl);
+        _tags.add(List<String>.from(card.tags));
       }
     }
     // Start with one empty card if set has none
@@ -54,6 +60,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       _termControllers.add(TextEditingController());
       _defControllers.add(TextEditingController());
       _cardIds.add(const Uuid().v4());
+      _imageUrls.add('');
+      _tags.add([]);
     });
   }
 
@@ -64,7 +72,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       _termControllers.removeAt(index);
       _defControllers.removeAt(index);
       _cardIds.removeAt(index);
+      _imageUrls.removeAt(index);
+      _tags.removeAt(index);
     });
+  }
+
+  Future<void> _autoImage(int index) async {
+    final term = _termControllers[index].text.trim();
+    if (term.isEmpty) return;
+    final url = await UnsplashService().searchPhoto(term);
+    if (url.isNotEmpty && mounted) {
+      setState(() => _imageUrls[index] = url);
+    }
   }
 
   void _save() {
@@ -81,6 +100,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           id: _cardIds[i],
           term: term,
           definition: def,
+          imageUrl: _imageUrls[i],
+          tags: _tags[i],
         ));
       }
     }
@@ -89,22 +110,24 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         .read(studySetsProvider.notifier)
         .update(studySet.copyWith(cards: cards));
 
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved ${cards.length} cards')),
+      SnackBar(content: Text(l10n.savedNCards(cards.length))),
     );
     context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Cards'),
+        title: Text(l10n.editCards),
         actions: [
           TextButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.check),
-            label: const Text('Save'),
+            label: Text(l10n.save),
           ),
         ],
       ),
@@ -119,7 +142,20 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   index: index,
                   termController: _termControllers[index],
                   definitionController: _defControllers[index],
+                  imageUrl: _imageUrls[index],
+                  tags: _tags[index],
                   onDelete: () => _removeCard(index),
+                  onAutoImage: () => _autoImage(index),
+                  onAddTag: (tag) {
+                    setState(() {
+                      if (!_tags[index].contains(tag)) {
+                        _tags[index].add(tag);
+                      }
+                    });
+                  },
+                  onRemoveTag: (tag) {
+                    setState(() => _tags[index].remove(tag));
+                  },
                 );
               },
             ),

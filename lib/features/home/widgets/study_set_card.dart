@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quizlet_app/models/study_set.dart';
+import 'package:quizlet_app/providers/fsrs_provider.dart';
+import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
-class StudySetCard extends StatelessWidget {
+class StudySetCard extends ConsumerWidget {
   final StudySet studySet;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
@@ -16,7 +19,9 @@ class StudySetCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dueCount = ref.watch(dueCountForSetProvider(studySet.id));
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
@@ -61,9 +66,35 @@ class StudySetCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${studySet.cards.length} cards',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Row(
+                      children: [
+                        Text(
+                          '${studySet.cards.length} cards',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        if (dueCount > 0) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .error
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              l10n.nDueCards(dueCount),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

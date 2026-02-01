@@ -10,6 +10,8 @@ class Flashcard with _$Flashcard {
     required String term,
     required String definition,
     @Default(0) int difficultyLevel,
+    @Default('') String imageUrl,
+    @Default([]) List<String> tags,
   }) = _Flashcard;
 
   factory Flashcard.fromJson(Map<String, dynamic> json) =>

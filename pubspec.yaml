@@ -41,11 +41,21 @@ dependencies:
   # Utils
   uuid: ^4.5.1
   connectivity_plus: ^6.1.4
+  http: ^1.2.2
+
+  # Image
+  cached_network_image: ^3.4.1
 
   # Import/Export
   file_picker: ^8.1.6
   share_plus: ^10.1.4
   path_provider: ^2.1.5
+
+  # SRS (Spaced Repetition)
+  fsrs: ^2.0.1
+
+  # Charts
+  fl_chart: ^0.69.2
 
 dev_dependencies:
   flutter_test:

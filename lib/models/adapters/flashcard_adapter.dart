@@ -13,6 +13,8 @@ class FlashcardAdapter extends TypeAdapter<Flashcard> {
       term: map['term'] as String,
       definition: map['definition'] as String,
       difficultyLevel: map['difficultyLevel'] as int? ?? 0,
+      imageUrl: map['imageUrl'] as String? ?? '',
+      tags: (map['tags'] as List?)?.cast<String>() ?? [],
     );
   }
 
@@ -23,6 +25,8 @@ class FlashcardAdapter extends TypeAdapter<Flashcard> {
       'term': obj.term,
       'definition': obj.definition,
       'difficultyLevel': obj.difficultyLevel,
+      'imageUrl': obj.imageUrl,
+      'tags': obj.tags,
     });
   }
 }

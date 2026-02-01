@@ -25,6 +25,8 @@ mixin _$Flashcard {
   String get term => throw _privateConstructorUsedError;
   String get definition => throw _privateConstructorUsedError;
   int get difficultyLevel => throw _privateConstructorUsedError;
+  String get imageUrl => throw _privateConstructorUsedError;
+  List<String> get tags => throw _privateConstructorUsedError;
 
   /// Serializes this Flashcard to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -41,7 +43,14 @@ abstract class $FlashcardCopyWith<$Res> {
   factory $FlashcardCopyWith(Flashcard value, $Res Function(Flashcard) then) =
       _$FlashcardCopyWithImpl<$Res, Flashcard>;
   @useResult
-  $Res call({String id, String term, String definition, int difficultyLevel});
+  $Res call({
+    String id,
+    String term,
+    String definition,
+    int difficultyLevel,
+    String imageUrl,
+    List<String> tags,
+  });
 }
 
 /// @nodoc
@@ -63,6 +72,8 @@ class _$FlashcardCopyWithImpl<$Res, $Val extends Flashcard>
     Object? term = null,
     Object? definition = null,
     Object? difficultyLevel = null,
+    Object? imageUrl = null,
+    Object? tags = null,
   }) {
     return _then(
       _value.copyWith(
@@ -82,6 +93,14 @@ class _$FlashcardCopyWithImpl<$Res, $Val extends Flashcard>
                 ? _value.difficultyLevel
                 : difficultyLevel // ignore: cast_nullable_to_non_nullable
                       as int,
+            imageUrl: null == imageUrl
+                ? _value.imageUrl
+                : imageUrl // ignore: cast_nullable_to_non_nullable
+                      as String,
+            tags: null == tags
+                ? _value.tags
+                : tags // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
           )
           as $Val,
     );
@@ -97,7 +116,14 @@ abstract class _$$FlashcardImplCopyWith<$Res>
   ) = __$$FlashcardImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String term, String definition, int difficultyLevel});
+  $Res call({
+    String id,
+    String term,
+    String definition,
+    int difficultyLevel,
+    String imageUrl,
+    List<String> tags,
+  });
 }
 
 /// @nodoc
@@ -118,6 +144,8 @@ class __$$FlashcardImplCopyWithImpl<$Res>
     Object? term = null,
     Object? definition = null,
     Object? difficultyLevel = null,
+    Object? imageUrl = null,
+    Object? tags = null,
   }) {
     return _then(
       _$FlashcardImpl(
@@ -137,6 +165,14 @@ class __$$FlashcardImplCopyWithImpl<$Res>
             ? _value.difficultyLevel
             : difficultyLevel // ignore: cast_nullable_to_non_nullable
                   as int,
+        imageUrl: null == imageUrl
+            ? _value.imageUrl
+            : imageUrl // ignore: cast_nullable_to_non_nullable
+                  as String,
+        tags: null == tags
+            ? _value._tags
+            : tags // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
       ),
     );
   }
@@ -150,7 +186,9 @@ class _$FlashcardImpl implements _Flashcard {
     required this.term,
     required this.definition,
     this.difficultyLevel = 0,
-  });
+    this.imageUrl = '',
+    final List<String> tags = const [],
+  }) : _tags = tags;
 
   factory _$FlashcardImpl.fromJson(Map<String, dynamic> json) =>
       _$$FlashcardImplFromJson(json);
@@ -164,10 +202,21 @@ class _$FlashcardImpl implements _Flashcard {
   @override
   @JsonKey()
   final int difficultyLevel;
+  @override
+  @JsonKey()
+  final String imageUrl;
+  final List<String> _tags;
+  @override
+  @JsonKey()
+  List<String> get tags {
+    if (_tags is EqualUnmodifiableListView) return _tags;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_tags);
+  }
 
   @override
   String toString() {
-    return 'Flashcard(id: $id, term: $term, definition: $definition, difficultyLevel: $difficultyLevel)';
+    return 'Flashcard(id: $id, term: $term, definition: $definition, difficultyLevel: $difficultyLevel, imageUrl: $imageUrl, tags: $tags)';
   }
 
   @override
@@ -180,13 +229,23 @@ class _$FlashcardImpl implements _Flashcard {
             (identical(other.definition, definition) ||
                 other.definition == definition) &&
             (identical(other.difficultyLevel, difficultyLevel) ||
-                other.difficultyLevel == difficultyLevel));
+                other.difficultyLevel == difficultyLevel) &&
+            (identical(other.imageUrl, imageUrl) ||
+                other.imageUrl == imageUrl) &&
+            const DeepCollectionEquality().equals(other._tags, _tags));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, term, definition, difficultyLevel);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    term,
+    definition,
+    difficultyLevel,
+    imageUrl,
+    const DeepCollectionEquality().hash(_tags),
+  );
 
   /// Create a copy of Flashcard
   /// with the given fields replaced by the non-null parameter values.
@@ -208,6 +267,8 @@ abstract class _Flashcard implements Flashcard {
     required final String term,
     required final String definition,
     final int difficultyLevel,
+    final String imageUrl,
+    final List<String> tags,
   }) = _$FlashcardImpl;
 
   factory _Flashcard.fromJson(Map<String, dynamic> json) =
@@ -221,6 +282,10 @@ abstract class _Flashcard implements Flashcard {
   String get definition;
   @override
   int get difficultyLevel;
+  @override
+  String get imageUrl;
+  @override
+  List<String> get tags;
 
   /// Create a copy of Flashcard
   /// with the given fields replaced by the non-null parameter values.
