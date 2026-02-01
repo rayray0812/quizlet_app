@@ -1,14 +1,16 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/matching_tile.dart';
 
 class MatchingGameScreen extends ConsumerStatefulWidget {
   final String setId;
+  final int? pairCount;
 
-  const MatchingGameScreen({super.key, required this.setId});
+  const MatchingGameScreen({super.key, required this.setId, this.pairCount});
 
   @override
   ConsumerState<MatchingGameScreen> createState() => _MatchingGameScreenState();
@@ -34,9 +36,9 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
         ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet == null) return;
 
-    // Take up to 6 cards for a manageable grid
+    final maxPairs = widget.pairCount ?? 6;
     final cards = List.of(studySet.cards)..shuffle(Random());
-    _gameCards = cards.take(min(6, cards.length)).toList();
+    _gameCards = cards.take(min(maxPairs, cards.length)).toList();
 
     // Create tiles: one for each term and one for each definition
     _tiles = [];
@@ -160,6 +162,11 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: () => setState(() => _initGame()),
             tooltip: 'Restart',
+          ),
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: () => context.go('/'),
+            tooltip: 'Home',
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/features/auth/screens/login_screen.dart';
 import 'package:quizlet_app/features/auth/screens/signup_screen.dart';
 import 'package:quizlet_app/features/home/screens/home_screen.dart';
+import 'package:quizlet_app/features/home/screens/card_editor_screen.dart';
 import 'package:quizlet_app/features/import/screens/web_import_screen.dart';
 import 'package:quizlet_app/features/import/screens/review_import_screen.dart';
 import 'package:quizlet_app/features/study/screens/study_mode_picker_screen.dart';
@@ -37,6 +38,13 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/edit/:setId',
+      builder: (context, state) {
+        final setId = state.pathParameters['setId']!;
+        return CardEditorScreen(setId: setId);
+      },
+    ),
+    GoRoute(
       path: '/study/:setId',
       builder: (context, state) {
         final setId = state.pathParameters['setId']!;
@@ -54,14 +62,18 @@ final appRouter = GoRouter(
           path: 'quiz',
           builder: (context, state) {
             final setId = state.pathParameters['setId']!;
-            return QuizScreen(setId: setId);
+            final extra = state.extra as Map<String, dynamic>?;
+            final questionCount = extra?['questionCount'] as int?;
+            return QuizScreen(setId: setId, questionCount: questionCount);
           },
         ),
         GoRoute(
           path: 'match',
           builder: (context, state) {
             final setId = state.pathParameters['setId']!;
-            return MatchingGameScreen(setId: setId);
+            final extra = state.extra as Map<String, dynamic>?;
+            final pairCount = extra?['pairCount'] as int?;
+            return MatchingGameScreen(setId: setId, pairCount: pairCount);
           },
         ),
       ],

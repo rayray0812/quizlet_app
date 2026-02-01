@@ -16,6 +16,7 @@ void main() async {
   Hive.registerAdapter(StudySetAdapter());
   Hive.registerAdapter(FlashcardAdapter());
   await Hive.openBox(AppConstants.hiveStudySetsBox);
+  await Hive.openBox('settings');
 
   // Initialize Supabase
   await Supabase.initialize(

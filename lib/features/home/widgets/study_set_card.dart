@@ -5,12 +5,14 @@ class StudySetCard extends StatelessWidget {
   final StudySet studySet;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const StudySetCard({
     super.key,
     required this.studySet,
     required this.onTap,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -71,6 +73,12 @@ class StudySetCard extends StatelessWidget {
                   Icons.cloud_done_outlined,
                   size: 20,
                   color: Theme.of(context).colorScheme.primary,
+                ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: onEdit,
+                  tooltip: 'Edit cards',
                 ),
               if (onDelete != null)
                 IconButton(

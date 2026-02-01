@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
+import 'package:quizlet_app/services/import_export_service.dart';
+import 'package:quizlet_app/features/study/widgets/count_picker_dialog.dart';
 
 class StudyModePickerScreen extends ConsumerWidget {
   final String setId;
@@ -24,6 +26,39 @@ class StudyModePickerScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(studySet.title),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              final service = ImportExportService();
+              if (value == 'json') {
+                await service.exportAsJson(studySet);
+              } else if (value == 'csv') {
+                await service.exportAsCsv(studySet);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'json',
+                child: ListTile(
+                  leading: Icon(Icons.code),
+                  title: Text('Export as JSON'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'csv',
+                child: ListTile(
+                  leading: Icon(Icons.table_chart),
+                  title: Text('Export as CSV'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -44,7 +79,7 @@ class StudyModePickerScreen extends ConsumerWidget {
               description: 'Swipe through cards and flip to reveal answers',
               onTap: studySet.cards.isEmpty
                   ? null
-                  : () => context.go('/study/$setId/flashcards'),
+                  : () => context.push('/study/$setId/flashcards'),
             ),
             const SizedBox(height: 12),
             _StudyModeCard(
@@ -52,7 +87,18 @@ class StudyModePickerScreen extends ConsumerWidget {
               title: 'Quiz',
               description: 'Multiple choice questions to test your knowledge',
               onTap: hasEnoughCards
-                  ? () => context.go('/study/$setId/quiz')
+                  ? () async {
+                      final count = await showCountPickerDialog(
+                        context: context,
+                        maxCount: studySet.cards.length,
+                        minCount: 4,
+                        label: 'questions',
+                      );
+                      if (count != null && context.mounted) {
+                        context.push('/study/$setId/quiz',
+                            extra: {'questionCount': count});
+                      }
+                    }
                   : null,
               disabledReason:
                   hasEnoughCards ? null : 'Need at least 4 cards for quiz',
@@ -63,7 +109,19 @@ class StudyModePickerScreen extends ConsumerWidget {
               title: 'Matching Game',
               description: 'Match terms with their definitions',
               onTap: studySet.cards.length >= 2
-                  ? () => context.go('/study/$setId/match')
+                  ? () async {
+                      final count = await showCountPickerDialog(
+                        context: context,
+                        maxCount: studySet.cards.length,
+                        minCount: 2,
+                        defaultCount: 6,
+                        label: 'pairs',
+                      );
+                      if (count != null && context.mounted) {
+                        context.push('/study/$setId/match',
+                            extra: {'pairCount': count});
+                      }
+                    }
                   : null,
               disabledReason: studySet.cards.length >= 2
                   ? null

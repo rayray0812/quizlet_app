@@ -39,7 +39,7 @@ class SignupScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () => context.go('/login'),
+              onPressed: () => context.push('/login'),
               child: const Text('Already have an account? Log In'),
             ),
             TextButton(

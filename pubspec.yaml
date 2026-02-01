@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -39,6 +41,11 @@ dependencies:
   # Utils
   uuid: ^4.5.1
   connectivity_plus: ^6.1.4
+
+  # Import/Export
+  file_picker: ^8.1.6
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

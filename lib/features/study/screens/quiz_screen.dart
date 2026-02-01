@@ -1,14 +1,16 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/quiz_option_tile.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String setId;
+  final int? questionCount;
 
-  const QuizScreen({super.key, required this.setId});
+  const QuizScreen({super.key, required this.setId, this.questionCount});
 
   @override
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
@@ -20,7 +22,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _score = 0;
   int? _selectedOption;
   late List<Flashcard> _shuffledCards;
-  late List<List<int>> _options; // indices into original cards for each question
+  late List<Flashcard> _allCards;
+  late List<List<int>> _options; // indices into _allCards for each question
 
   @override
   void initState() {
@@ -33,12 +36,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet == null || studySet.cards.length < 4) return;
 
-    _shuffledCards = List.of(studySet.cards)..shuffle(_random);
+    _allCards = studySet.cards;
+    _shuffledCards = List.of(_allCards)..shuffle(_random);
+
+    // Limit to questionCount if specified
+    final limit = widget.questionCount ?? _shuffledCards.length;
+    _shuffledCards = _shuffledCards.take(min(limit, _shuffledCards.length)).toList();
+
     _options = [];
 
     for (var i = 0; i < _shuffledCards.length; i++) {
-      final correctIndex = studySet.cards.indexOf(_shuffledCards[i]);
-      final wrongIndices = List.generate(studySet.cards.length, (i) => i)
+      final correctIndex = _allCards.indexOf(_shuffledCards[i]);
+      final wrongIndices = List.generate(_allCards.length, (i) => i)
         ..remove(correctIndex)
         ..shuffle(_random);
 
@@ -58,11 +67,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   void _selectOption(int optionIndex) {
     if (_selectedOption != null) return;
 
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
-    if (studySet == null) return;
-
-    final correctIndex = studySet.cards.indexOf(_shuffledCards[_currentIndex]);
+    final correctIndex = _allCards.indexOf(_shuffledCards[_currentIndex]);
 
     setState(() {
       _selectedOption = optionIndex;
@@ -139,7 +144,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_options.isEmpty) return const SizedBox();
 
     final currentCard = _shuffledCards[_currentIndex];
-    final correctIndex = studySet.cards.indexOf(currentCard);
+    final correctIndex = _allCards.indexOf(currentCard);
 
     return Scaffold(
       appBar: AppBar(
@@ -153,6 +158,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: () => context.go('/'),
+            tooltip: 'Home',
           ),
         ],
       ),
@@ -184,7 +194,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   const SizedBox(height: 32),
                   ...List.generate(4, (i) {
                     final optionCardIndex = _options[_currentIndex][i];
-                    final optionCard = studySet.cards[optionCardIndex];
+                    final optionCard = _allCards[optionCardIndex];
 
                     QuizOptionState state = QuizOptionState.normal;
                     if (_selectedOption != null) {

@@ -17,6 +17,7 @@ class WebImportScreen extends StatefulWidget {
 
 class _WebImportScreenState extends State<WebImportScreen> {
   late final WebViewController? _controller;
+  late final TextEditingController _urlController;
   String _currentUrl = '';
   bool _isLoading = true;
 
@@ -28,6 +29,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
   @override
   void initState() {
     super.initState();
+    _urlController = TextEditingController(text: 'https://quizlet.com');
     if (!kIsWeb) {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -37,12 +39,14 @@ class _WebImportScreenState extends State<WebImportScreen> {
               setState(() {
                 _currentUrl = url;
                 _isLoading = true;
+                _urlController.text = url;
               });
             },
             onPageFinished: (url) {
               setState(() {
                 _currentUrl = url;
                 _isLoading = false;
+                _urlController.text = url;
               });
             },
           ),
@@ -51,6 +55,32 @@ class _WebImportScreenState extends State<WebImportScreen> {
     } else {
       _controller = null;
     }
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  void _navigateToUrl() {
+    if (_controller == null) return;
+    var url = _urlController.text.trim();
+    if (url.isEmpty) return;
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+      _urlController.text = url;
+    }
+
+    if (!url.contains('quizlet.com')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a Quizlet URL')),
+      );
+      return;
+    }
+
+    _controller.loadRequest(Uri.parse(url));
   }
 
   Future<void> _scrapeAndImport() async {
@@ -101,7 +131,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
       );
 
       if (mounted) {
-        context.go('/import/review', extra: studySet);
+        context.push('/import/review', extra: studySet);
       }
     } catch (e) {
       if (mounted) {
@@ -159,10 +189,42 @@ class _WebImportScreenState extends State<WebImportScreen> {
           onPressed: () => context.go('/'),
         ),
       ),
-      body: Stack(
+      body: Column(
         children: [
-          WebViewWidget(controller: _controller!),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _urlController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter Quizlet URL',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) => _navigateToUrl(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _navigateToUrl,
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: 'Go',
+                ),
+              ],
+            ),
+          ),
           if (_isLoading) const LinearProgressIndicator(),
+          Expanded(
+            child: WebViewWidget(controller: _controller!),
+          ),
         ],
       ),
       floatingActionButton: _isOnQuizletSet
