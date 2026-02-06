@@ -44,7 +44,8 @@ class SupabaseService {
       'description': studySet.description,
       'cards': studySet.cards.map((c) => c.toJson()).toList(),
       'created_at': studySet.createdAt.toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': (studySet.updatedAt ?? DateTime.now().toUtc())
+          .toIso8601String(),
     });
   }
 
@@ -58,18 +59,58 @@ class SupabaseService {
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
+    return (response as List).map(_rowToStudySet).toList();
+  }
+
+  /// Fetch only id + updated_at for delta comparison (lightweight).
+  Future<List<({String id, DateTime updatedAt})>>
+  fetchStudySetManifest() async {
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await _client
+        .from(SupabaseConstants.studySetsTable)
+        .select('id, updated_at')
+        .eq('user_id', userId);
+
     return (response as List).map((row) {
-      final cardsJson = (row['cards'] as List?) ?? [];
-      return StudySet(
+      return (
         id: row['id'] as String,
-        title: row['title'] as String,
-        description: row['description'] as String? ?? '',
-        createdAt: DateTime.parse(row['created_at'] as String),
-        cards: cardsJson
-            .map((c) => Flashcard.fromJson(Map<String, dynamic>.from(c)))
-            .toList(),
-        isSynced: true,
+        updatedAt: DateTime.parse(row['updated_at'] as String),
       );
     }).toList();
+  }
+
+  /// Fetch full data for specific set IDs only.
+  Future<List<StudySet>> fetchStudySetsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+
+    final userId = currentUser?.id;
+    if (userId == null) return [];
+
+    final response = await _client
+        .from(SupabaseConstants.studySetsTable)
+        .select()
+        .eq('user_id', userId)
+        .inFilter('id', ids);
+
+    return (response as List).map(_rowToStudySet).toList();
+  }
+
+  StudySet _rowToStudySet(dynamic row) {
+    final cardsJson = (row['cards'] as List?) ?? [];
+    return StudySet(
+      id: row['id'] as String,
+      title: row['title'] as String,
+      description: row['description'] as String? ?? '',
+      createdAt: DateTime.parse(row['created_at'] as String),
+      updatedAt: row['updated_at'] != null
+          ? DateTime.parse(row['updated_at'] as String)
+          : null,
+      cards: cardsJson
+          .map((c) => Flashcard.fromJson(Map<String, dynamic>.from(c)))
+          .toList(),
+      isSynced: true,
+    );
   }
 }

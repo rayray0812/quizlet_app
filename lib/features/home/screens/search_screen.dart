@@ -5,7 +5,9 @@ import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final bool embedded;
+
+  const SearchScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -27,7 +29,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final studySets = ref.watch(studySetsProvider);
 
     // Search results grouped by set
-    final results = <String, List<Flashcard>>{};
+    final results = <({String setTitle, List<Flashcard> cards})>[];
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
       for (final set in studySets) {
@@ -36,78 +38,101 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             c.definition.toLowerCase().contains(q) ||
             c.tags.any((t) => t.toLowerCase().contains(q)));
         if (matched.isNotEmpty) {
-          results[set.title] = matched.toList();
+          results.add((setTitle: set.title, cards: matched.toList()));
         }
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.search,
-            border: InputBorder.none,
-          ),
-          onChanged: (v) => setState(() => _query = v.trim()),
-        ),
-      ),
-      body: _query.isEmpty
-          ? Center(
-              child: Text(
-                l10n.search,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-            )
-          : results.isEmpty
-              ? Center(child: Text(l10n.noResults))
-              : ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: results.entries.map((entry) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                          child: Text(
-                            entry.key,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
+    final body = _query.isEmpty
+        ? Center(
+            child: Text(
+              l10n.search,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          )
+        : results.isEmpty
+            ? Center(child: Text(l10n.noResults))
+            : ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: results.map((entry) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: Text(
+                          entry.setTitle,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
-                        ...entry.value.map((card) => ListTile(
-                              title: Text(card.term),
-                              subtitle: Text(
-                                card.definition,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: card.tags.isNotEmpty
-                                  ? Wrap(
-                                      spacing: 4,
-                                      children: card.tags
-                                          .take(2)
-                                          .map((t) => Chip(
-                                                label: Text(t,
-                                                    style: const TextStyle(
-                                                        fontSize: 10)),
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                padding: EdgeInsets.zero,
-                                              ))
-                                          .toList(),
-                                    )
-                                  : null,
-                            )),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                      ),
+                      ...entry.cards.map((card) => ListTile(
+                            title: Text(card.term),
+                            subtitle: Text(
+                              card.definition,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: card.tags.isNotEmpty
+                                ? Wrap(
+                                    spacing: 4,
+                                    children: card.tags
+                                        .take(2)
+                                        .map((t) => Chip(
+                                              label: Text(t,
+                                                  style: const TextStyle(
+                                                      fontSize: 10)),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                            ))
+                                        .toList(),
+                                  )
+                                : null,
+                          )),
+                    ],
+                  );
+                }).toList(),
+              );
+
+    final searchField = TextField(
+      controller: _controller,
+      autofocus: true,
+      decoration: InputDecoration(
+        hintText: l10n.search,
+        border: InputBorder.none,
+      ),
+      onChanged: (v) => setState(() => _query = v.trim()),
+    );
+
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: searchField,
+        ),
+        body: body,
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              hintText: l10n.search,
+              prefixIcon: const Icon(Icons.search_rounded),
+            ),
+            onChanged: (v) => setState(() => _query = v.trim()),
+          ),
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 }

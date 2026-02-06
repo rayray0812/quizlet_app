@@ -11,6 +11,7 @@ class StudySet with _$StudySet {
     required String title,
     @Default('') String description,
     required DateTime createdAt,
+    DateTime? updatedAt,
     @Default([]) List<Flashcard> cards,
     @Default(false) bool isSynced,
   }) = _StudySet;

@@ -1,6 +1,6 @@
 {
-    "name": "quizlet_app",
-    "short_name": "quizlet_app",
+    "name": "拾憶",
+    "short_name": "拾憶",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

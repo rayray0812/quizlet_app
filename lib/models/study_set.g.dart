@@ -12,6 +12,9 @@ _$StudySetImpl _$$StudySetImplFromJson(Map<String, dynamic> json) =>
       title: json['title'] as String,
       description: json['description'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] == null
+          ? null
+          : DateTime.parse(json['updatedAt'] as String),
       cards:
           (json['cards'] as List<dynamic>?)
               ?.map((e) => Flashcard.fromJson(e as Map<String, dynamic>))
@@ -26,6 +29,7 @@ Map<String, dynamic> _$$StudySetImplToJson(_$StudySetImpl instance) =>
       'title': instance.title,
       'description': instance.description,
       'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt?.toIso8601String(),
       'cards': instance.cards,
       'isSynced': instance.isSynced,
     };

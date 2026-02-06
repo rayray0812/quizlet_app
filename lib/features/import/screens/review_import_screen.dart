@@ -5,6 +5,7 @@ import 'package:quizlet_app/models/study_set.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/import/widgets/import_preview_card.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 class ReviewImportScreen extends ConsumerStatefulWidget {
   final StudySet studySet;
@@ -61,10 +62,13 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
       appBar: AppBar(
         title: const Text('Review Import'),
         actions: [
-          TextButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.check),
-            label: const Text('Save'),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilledButton.icon(
+              onPressed: _save,
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Save'),
+            ),
           ),
         ],
       ),
@@ -76,7 +80,6 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Set Title',
-                border: OutlineInputBorder(),
               ),
             ),
           ),
@@ -84,9 +87,19 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(
-                  '${_cards.length} cards',
-                  style: Theme.of(context).textTheme.titleSmall,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.indigo.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_cards.length} cards',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.indigo,
+                    ),
+                  ),
                 ),
                 const Spacer(),
               ],

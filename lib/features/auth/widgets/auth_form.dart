@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 class AuthForm extends StatefulWidget {
   final String buttonText;
+  final Color buttonColor;
   final Future<void> Function(String email, String password) onSubmit;
 
   const AuthForm({
     super.key,
     required this.buttonText,
     required this.onSubmit,
+    this.buttonColor = AppTheme.indigo,
   });
 
   @override
@@ -42,10 +45,34 @@ class _AuthFormState extends State<AuthForm> {
         _passwordController.text,
       );
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _friendlyError(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _friendlyError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('invalid login') || lower.contains('invalid email or password')) {
+      return 'Invalid email or password.';
+    }
+    if (lower.contains('email not confirmed')) {
+      return 'Please verify your email before logging in.';
+    }
+    if (lower.contains('user already registered')) {
+      return 'This email is already registered.';
+    }
+    if (lower.contains('network') || lower.contains('socketexception')) {
+      return 'Network error. Please check your connection.';
+    }
+    if (lower.contains('weak password')) {
+      return 'Password is too weak. Use at least 6 characters.';
+    }
+    // Strip "Exception: " prefix if present
+    if (raw.startsWith('Exception: ')) {
+      return raw.substring('Exception: '.length);
+    }
+    return raw;
   }
 
   @override
@@ -79,19 +106,42 @@ class _AuthFormState extends State<AuthForm> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _error!,
+                style: const TextStyle(
+                  color: AppTheme.red,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ],
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.buttonColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
             child: _isLoading
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
                   )
                 : Text(widget.buttonText),
           ),

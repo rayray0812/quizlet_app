@@ -23,7 +23,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  bool _showFront = true;
 
   @override
   void initState() {
@@ -36,13 +35,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _animation.addListener(() {
-      if (_animation.value >= 0.5 && _showFront) {
-        setState(() => _showFront = false);
-      } else if (_animation.value < 0.5 && !_showFront) {
-        setState(() => _showFront = true);
-      }
-    });
   }
 
   @override
@@ -50,7 +42,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.frontText != widget.frontText) {
       _controller.reset();
-      _showFront = true;
     }
   }
 
@@ -77,29 +68,32 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
         animation: _animation,
         builder: (context, child) {
           final angle = _animation.value * pi;
+          final isFront = _animation.value < 0.5;
           return Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()
               ..setEntry(3, 2, 0.001)
               ..rotateY(angle),
-            child: _showFront
-                ? _buildSide(
-                    widget.frontText,
-                    Theme.of(context).colorScheme.primaryContainer,
-                    Theme.of(context).colorScheme.onPrimaryContainer,
-                    AppLocalizations.of(context).tapToFlip,
-                    showImage: true,
-                  )
-                : Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()..rotateY(pi),
-                    child: _buildSide(
-                      widget.backText,
-                      Theme.of(context).colorScheme.secondaryContainer,
-                      Theme.of(context).colorScheme.onSecondaryContainer,
-                      AppLocalizations.of(context).definitionLabel,
+            child: RepaintBoundary(
+              child: isFront
+                  ? _buildSide(
+                      widget.frontText,
+                      Theme.of(context).colorScheme.primaryContainer,
+                      Theme.of(context).colorScheme.onPrimaryContainer,
+                      AppLocalizations.of(context).tapToFlip,
+                      showImage: true,
+                    )
+                  : Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()..rotateY(pi),
+                      child: _buildSide(
+                        widget.backText,
+                        Theme.of(context).colorScheme.secondaryContainer,
+                        Theme.of(context).colorScheme.onSecondaryContainer,
+                        AppLocalizations.of(context).definitionLabel,
+                      ),
                     ),
-                  ),
+            ),
           );
         },
       ),
@@ -114,7 +108,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     bool showImage = false,
   }) {
     final hasImage = showImage && widget.imageUrl.isNotEmpty;
-    // 使用螢幕比例計算卡片高度，讓卡片更大更像 Quizlet
     final screenHeight = MediaQuery.of(context).size.height;
     final cardHeight = screenHeight * 0.55;
     final imageHeight = screenHeight * 0.22;
@@ -124,12 +117,12 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
       height: cardHeight,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -138,14 +131,15 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
           if (hasImage)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+                top: Radius.circular(20),
               ),
               child: CachedNetworkImage(
                 imageUrl: widget.imageUrl,
                 height: imageHeight,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                // 提高快取解析度以改善圖片畫質
+                fadeInDuration: const Duration(milliseconds: 120),
+                fadeOutDuration: Duration.zero,
                 memCacheHeight: 600,
                 memCacheWidth: 800,
                 placeholder: (_, __) => Container(
@@ -162,13 +156,13 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
                 errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: textColor.withValues(alpha: 0.5),
+              color: textColor.withValues(alpha: 0.45),
               letterSpacing: 1.2,
             ),
           ),
@@ -176,15 +170,16 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 16,
+                  horizontal: 32,
+                  vertical: 20,
                 ),
                 child: Text(
                   text,
                   style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
                     color: textColor,
+                    height: 1.3,
                   ),
                   textAlign: TextAlign.center,
                 ),

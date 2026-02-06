@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 enum QuizOptionState { normal, correct, incorrect }
 
-class QuizOptionTile extends StatelessWidget {
+class QuizOptionTile extends StatefulWidget {
   final String text;
   final QuizOptionState state;
   final VoidCallback? onTap;
@@ -15,55 +16,88 @@ class QuizOptionTile extends StatelessWidget {
   });
 
   @override
+  State<QuizOptionTile> createState() => _QuizOptionTileState();
+}
+
+class _QuizOptionTileState extends State<QuizOptionTile> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     Color bgColor;
     Color borderColor;
     Color textColor;
+    Widget? trailing;
 
-    switch (state) {
+    switch (widget.state) {
       case QuizOptionState.correct:
-        bgColor = Colors.green.shade50;
-        borderColor = Colors.green;
-        textColor = Colors.green.shade800;
+        bgColor = AppTheme.green.withValues(alpha: 0.08);
+        borderColor = AppTheme.green;
+        textColor = AppTheme.green;
+        trailing = const Icon(Icons.check_circle_rounded, color: AppTheme.green);
       case QuizOptionState.incorrect:
-        bgColor = Colors.red.shade50;
-        borderColor = Colors.red;
-        textColor = Colors.red.shade800;
+        bgColor = AppTheme.red.withValues(alpha: 0.08);
+        borderColor = AppTheme.red;
+        textColor = AppTheme.red;
+        trailing = const Icon(Icons.cancel_rounded, color: AppTheme.red);
       case QuizOptionState.normal:
-        bgColor = Theme.of(context).colorScheme.surface;
-        borderColor = Theme.of(context).colorScheme.outline;
+        bgColor = Theme.of(context).cardColor;
+        borderColor = Colors.grey.shade200;
         textColor = Theme.of(context).colorScheme.onSurface;
+        trailing = null;
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Material(
-        color: bgColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: borderColor, width: 1.5),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 16,
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: GestureDetector(
+        onTapDown: widget.onTap != null ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: widget.onTap != null
+            ? (_) {
+                setState(() => _pressed = false);
+                widget.onTap!();
+              }
+            : null,
+        onTapCancel: widget.onTap != null ? () => setState(() => _pressed = false) : null,
+        child: AnimatedScale(
+          scale: _pressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: borderColor,
+                width: widget.state == QuizOptionState.normal ? 1.5 : 2,
+              ),
+              boxShadow: widget.state == QuizOptionState.normal
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.text,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                if (state == QuizOptionState.correct)
-                  const Icon(Icons.check_circle, color: Colors.green),
-                if (state == QuizOptionState.incorrect)
-                  const Icon(Icons.cancel, color: Colors.red),
-              ],
+                  if (trailing != null) trailing,
+                ],
+              ),
             ),
           ),
         ),

@@ -25,7 +25,10 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
       id: map['id'] as String,
       title: map['title'] as String,
       description: map['description'] as String? ?? '',
-      createdAt: DateTime.parse(map['createdAt'] as String),
+      createdAt: DateTime.parse(map['createdAt'] as String).toUtc(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'] as String).toUtc()
+          : null,
       cards: cardsList,
       isSynced: map['isSynced'] as bool? ?? false,
     );
@@ -37,7 +40,8 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
       'id': obj.id,
       'title': obj.title,
       'description': obj.description,
-      'createdAt': obj.createdAt.toIso8601String(),
+      'createdAt': obj.createdAt.toUtc().toIso8601String(),
+      'updatedAt': obj.updatedAt?.toUtc().toIso8601String(),
       'cards': obj.cards
           .map((c) => {
                 'id': c.id,

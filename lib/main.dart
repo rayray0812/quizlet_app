@@ -19,16 +19,24 @@ void main() async {
   Hive.registerAdapter(FlashcardAdapter());
   Hive.registerAdapter(CardProgressAdapter());
   Hive.registerAdapter(ReviewLogAdapter());
-  await Hive.openBox(AppConstants.hiveStudySetsBox);
-  await Hive.openBox(AppConstants.hiveCardProgressBox);
-  await Hive.openBox(AppConstants.hiveReviewLogsBox);
-  await Hive.openBox('settings');
+  try {
+    await Hive.openBox(AppConstants.hiveStudySetsBox);
+    await Hive.openBox(AppConstants.hiveCardProgressBox);
+    await Hive.openBox(AppConstants.hiveReviewLogsBox);
+    await Hive.openBox(AppConstants.hiveSettingsBox);
+  } catch (e) {
+    debugPrint('Hive openBox failed: $e');
+  }
 
-  // Initialize Supabase
-  await Supabase.initialize(
-    url: SupabaseConstants.supabaseUrl,
-    anonKey: SupabaseConstants.supabaseAnonKey,
-  );
+  // Initialize Supabase (may fail with placeholder credentials — app still works offline)
+  try {
+    await Supabase.initialize(
+      url: SupabaseConstants.supabaseUrl,
+      anonKey: SupabaseConstants.supabaseAnonKey,
+    );
+  } catch (e) {
+    debugPrint('Supabase init failed (offline mode): $e');
+  }
 
   runApp(const ProviderScope(child: QuizletApp()));
 }

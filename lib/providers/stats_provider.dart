@@ -1,18 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quizlet_app/models/review_log.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
+
+/// Single source of truth for all review logs — avoids repeated Hive scans.
+final allReviewLogsProvider = Provider<List<ReviewLog>>((ref) {
+  final localStorage = ref.watch(localStorageServiceProvider);
+  return localStorage.getAllReviewLogs();
+});
 
 /// Today's review count.
 final todayReviewCountProvider = Provider<int>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
-  final today = DateTime.now().toUtc();
-  final logs = localStorage.getReviewLogsForDate(today);
-  return logs.length;
+  final allLogs = ref.watch(allReviewLogsProvider);
+  final now = DateTime.now().toUtc();
+  final todayStart = DateTime.utc(now.year, now.month, now.day);
+  final todayEnd = todayStart.add(const Duration(days: 1));
+  return allLogs.where((log) {
+    return !log.reviewedAt.isBefore(todayStart) &&
+        log.reviewedAt.isBefore(todayEnd);
+  }).length;
 });
 
 /// Consecutive days with at least one review (streak).
 final streakProvider = Provider<int>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
-  final allLogs = localStorage.getAllReviewLogs();
+  final allLogs = ref.watch(allReviewLogsProvider);
   if (allLogs.isEmpty) return 0;
 
   // Collect unique review dates
@@ -23,11 +33,8 @@ final streakProvider = Provider<int>((ref) {
   }
 
   final sorted = reviewDates.toList()..sort((a, b) => b.compareTo(a));
-  final today = DateTime.utc(
-    DateTime.now().toUtc().year,
-    DateTime.now().toUtc().month,
-    DateTime.now().toUtc().day,
-  );
+  final now = DateTime.now().toUtc();
+  final today = DateTime.utc(now.year, now.month, now.day);
 
   // Streak must include today or yesterday
   if (sorted.first != today &&
@@ -49,22 +56,28 @@ final streakProvider = Provider<int>((ref) {
 
 /// Total review count.
 final totalReviewCountProvider = Provider<int>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
-  return localStorage.getAllReviewLogs().length;
+  return ref.watch(allReviewLogsProvider).length;
 });
 
 /// Daily review counts for the last 30 days.
 /// Returns a list of (date, count) pairs.
 final dailyCountsProvider = Provider<List<({DateTime date, int count})>>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
+  final allLogs = ref.watch(allReviewLogsProvider);
   final now = DateTime.now().toUtc();
-  final result = <({DateTime date, int count})>[];
+  final todayDate = DateTime.utc(now.year, now.month, now.day);
 
+  // Build a date→count map from all logs
+  final dateCountMap = <DateTime, int>{};
+  for (final log in allLogs) {
+    final d = log.reviewedAt.toUtc();
+    final key = DateTime.utc(d.year, d.month, d.day);
+    dateCountMap[key] = (dateCountMap[key] ?? 0) + 1;
+  }
+
+  final result = <({DateTime date, int count})>[];
   for (int i = 29; i >= 0; i--) {
-    final date = DateTime.utc(now.year, now.month, now.day)
-        .subtract(Duration(days: i));
-    final logs = localStorage.getReviewLogsForDate(date);
-    result.add((date: date, count: logs.length));
+    final date = todayDate.subtract(Duration(days: i));
+    result.add((date: date, count: dateCountMap[date] ?? 0));
   }
 
   return result;
@@ -73,8 +86,7 @@ final dailyCountsProvider = Provider<List<({DateTime date, int count})>>((ref) {
 /// Rating counts: again, hard, good, easy.
 final ratingCountsProvider =
     Provider<({int again, int hard, int good, int easy})>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
-  final allLogs = localStorage.getAllReviewLogs();
+  final allLogs = ref.watch(allReviewLogsProvider);
 
   int again = 0, hard = 0, good = 0, easy = 0;
   for (final log in allLogs) {
@@ -99,17 +111,17 @@ final ratingCountsProvider =
 
 /// Heatmap data: date → count for the last 365 days.
 final heatmapDataProvider = Provider<Map<DateTime, int>>((ref) {
-  final localStorage = ref.watch(localStorageServiceProvider);
+  final allLogs = ref.watch(allReviewLogsProvider);
   final now = DateTime.now().toUtc();
   final from = DateTime.utc(now.year, now.month, now.day)
       .subtract(const Duration(days: 364));
   final to = DateTime.utc(now.year, now.month, now.day)
       .add(const Duration(days: 1));
-  final logs = localStorage.getReviewLogsInRange(from, to);
 
   final map = <DateTime, int>{};
-  for (final log in logs) {
+  for (final log in allLogs) {
     final d = log.reviewedAt.toUtc();
+    if (d.isBefore(from) || !d.isBefore(to)) continue;
     final key = DateTime.utc(d.year, d.month, d.day);
     map[key] = (map[key] ?? 0) + 1;
   }

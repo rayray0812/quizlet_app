@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/providers/tag_provider.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 class CustomStudyScreen extends ConsumerStatefulWidget {
   const CustomStudyScreen({super.key});
@@ -43,7 +44,7 @@ class _CustomStudyScreenState extends ConsumerState<CustomStudyScreen> {
             child: Text(
               l10n.selectTags,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
           ),
@@ -55,8 +56,23 @@ class _CustomStudyScreenState extends ConsumerState<CustomStudyScreen> {
               children: allTags.map((tag) {
                 final selected = _selectedTags.contains(tag);
                 return FilterChip(
-                  label: Text(tag),
+                  label: Text(
+                    tag,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: selected ? Colors.white : null,
+                    ),
+                  ),
                   selected: selected,
+                  selectedColor: AppTheme.indigo,
+                  checkmarkColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  side: BorderSide(
+                    color: selected
+                        ? AppTheme.indigo
+                        : Theme.of(context).colorScheme.outlineVariant,
+                    width: 1.5,
+                  ),
                   onSelected: (v) {
                     setState(() {
                       if (v) {
@@ -87,13 +103,16 @@ class _CustomStudyScreenState extends ConsumerState<CustomStudyScreen> {
               padding: const EdgeInsets.all(20),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
+                child: ElevatedButton.icon(
                   onPressed: matchingCount > 0
-                      ? () => context.go('/review')
+                      ? () => context.go('/review', extra: {'tags': _selectedTags.toList()})
                       : null,
-                  icon: const Icon(Icons.play_arrow),
+                  icon: const Icon(Icons.play_arrow_rounded),
                   label: Text(
                     '${l10n.startReview} (${l10n.nMatchingCards(matchingCount)})',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
               ),

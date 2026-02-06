@@ -25,6 +25,7 @@ mixin _$StudySet {
   String get title => throw _privateConstructorUsedError;
   String get description => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
   List<Flashcard> get cards => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
 
@@ -48,6 +49,7 @@ abstract class $StudySetCopyWith<$Res> {
     String title,
     String description,
     DateTime createdAt,
+    DateTime? updatedAt,
     List<Flashcard> cards,
     bool isSynced,
   });
@@ -72,6 +74,7 @@ class _$StudySetCopyWithImpl<$Res, $Val extends StudySet>
     Object? title = null,
     Object? description = null,
     Object? createdAt = null,
+    Object? updatedAt = freezed,
     Object? cards = null,
     Object? isSynced = null,
   }) {
@@ -93,6 +96,10 @@ class _$StudySetCopyWithImpl<$Res, $Val extends StudySet>
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            updatedAt: freezed == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
             cards: null == cards
                 ? _value.cards
                 : cards // ignore: cast_nullable_to_non_nullable
@@ -121,6 +128,7 @@ abstract class _$$StudySetImplCopyWith<$Res>
     String title,
     String description,
     DateTime createdAt,
+    DateTime? updatedAt,
     List<Flashcard> cards,
     bool isSynced,
   });
@@ -144,6 +152,7 @@ class __$$StudySetImplCopyWithImpl<$Res>
     Object? title = null,
     Object? description = null,
     Object? createdAt = null,
+    Object? updatedAt = freezed,
     Object? cards = null,
     Object? isSynced = null,
   }) {
@@ -165,6 +174,10 @@ class __$$StudySetImplCopyWithImpl<$Res>
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        updatedAt: freezed == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
         cards: null == cards
             ? _value._cards
             : cards // ignore: cast_nullable_to_non_nullable
@@ -186,6 +199,7 @@ class _$StudySetImpl implements _StudySet {
     required this.title,
     this.description = '',
     required this.createdAt,
+    this.updatedAt,
     final List<Flashcard> cards = const [],
     this.isSynced = false,
   }) : _cards = cards;
@@ -202,6 +216,8 @@ class _$StudySetImpl implements _StudySet {
   final String description;
   @override
   final DateTime createdAt;
+  @override
+  final DateTime? updatedAt;
   final List<Flashcard> _cards;
   @override
   @JsonKey()
@@ -217,7 +233,7 @@ class _$StudySetImpl implements _StudySet {
 
   @override
   String toString() {
-    return 'StudySet(id: $id, title: $title, description: $description, createdAt: $createdAt, cards: $cards, isSynced: $isSynced)';
+    return 'StudySet(id: $id, title: $title, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, cards: $cards, isSynced: $isSynced)';
   }
 
   @override
@@ -231,6 +247,8 @@ class _$StudySetImpl implements _StudySet {
                 other.description == description) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt) &&
             const DeepCollectionEquality().equals(other._cards, _cards) &&
             (identical(other.isSynced, isSynced) ||
                 other.isSynced == isSynced));
@@ -244,6 +262,7 @@ class _$StudySetImpl implements _StudySet {
     title,
     description,
     createdAt,
+    updatedAt,
     const DeepCollectionEquality().hash(_cards),
     isSynced,
   );
@@ -268,6 +287,7 @@ abstract class _StudySet implements StudySet {
     required final String title,
     final String description,
     required final DateTime createdAt,
+    final DateTime? updatedAt,
     final List<Flashcard> cards,
     final bool isSynced,
   }) = _$StudySetImpl;
@@ -283,6 +303,8 @@ abstract class _StudySet implements StudySet {
   String get description;
   @override
   DateTime get createdAt;
+  @override
+  DateTime? get updatedAt;
   @override
   List<Flashcard> get cards;
   @override

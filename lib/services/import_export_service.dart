@@ -1,5 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:developer' as developer;
+import 'dart:io' if (dart.library.html) 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,6 +12,7 @@ import 'package:quizlet_app/models/flashcard.dart';
 class ImportExportService {
   /// Export a study set as JSON and share via system share sheet.
   Future<void> exportAsJson(StudySet studySet) async {
+    if (kIsWeb) return; // File export not supported on web
     final data = {
       'title': studySet.title,
       'description': studySet.description,
@@ -28,6 +31,7 @@ class ImportExportService {
 
   /// Export a study set as CSV and share via system share sheet.
   Future<void> exportAsCsv(StudySet studySet) async {
+    if (kIsWeb) return; // File export not supported on web
     final buffer = StringBuffer();
     buffer.writeln('term,definition');
     for (final card in studySet.cards) {
@@ -46,12 +50,22 @@ class ImportExportService {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json', 'csv'],
+      withData: true, // Ensures bytes are available on web
     );
     if (result == null || result.files.isEmpty) return null;
 
-    final file = File(result.files.single.path!);
-    final content = await file.readAsString();
-    final ext = result.files.single.extension?.toLowerCase();
+    final platformFile = result.files.single;
+    final String content;
+    final String? ext = platformFile.extension?.toLowerCase();
+
+    // On web, path is null — use bytes instead
+    if (kIsWeb || platformFile.path == null) {
+      final bytes = platformFile.bytes;
+      if (bytes == null) return null;
+      content = utf8.decode(bytes);
+    } else {
+      content = await File(platformFile.path!).readAsString();
+    }
 
     if (ext == 'json') {
       return _parseJson(content);
@@ -80,26 +94,32 @@ class ImportExportService {
         id: const Uuid().v4(),
         title: title,
         description: description,
-        createdAt: DateTime.now(),
+        createdAt: DateTime.now().toUtc(),
         cards: cards,
       );
-    } catch (_) {
+    } catch (e) {
+      developer.log('JSON import parse error: $e', name: 'ImportExportService');
       return null;
     }
   }
 
   StudySet? _parseCsv(String content) {
     try {
-      final lines = const LineSplitter().convert(content);
+      final rows = _parseCsvContent(content);
       final cards = <Flashcard>[];
 
-      for (var i = 0; i < lines.length; i++) {
-        final line = lines[i].trim();
-        if (line.isEmpty) continue;
-        // Skip header row
-        if (i == 0 && line.toLowerCase().startsWith('term')) continue;
+      for (var i = 0; i < rows.length; i++) {
+        final parts = rows[i];
+        if (parts.isEmpty) continue;
 
-        final parts = _parseCsvLine(line);
+        // Skip header row
+        if (i == 0 &&
+            parts.first.trim().toLowerCase() == 'term' &&
+            parts.length > 1 &&
+            parts[1].trim().toLowerCase() == 'definition') {
+          continue;
+        }
+
         if (parts.length >= 2) {
           cards.add(Flashcard(
             id: const Uuid().v4(),
@@ -114,46 +134,81 @@ class ImportExportService {
       return StudySet(
         id: const Uuid().v4(),
         title: 'Imported Set',
-        createdAt: DateTime.now(),
+        createdAt: DateTime.now().toUtc(),
         cards: cards,
       );
-    } catch (_) {
+    } catch (e) {
+      developer.log('CSV import parse error: $e', name: 'ImportExportService');
       return null;
     }
   }
 
-  /// Parse a single CSV line respecting quoted fields.
-  List<String> _parseCsvLine(String line) {
-    final result = <String>[];
-    final buffer = StringBuffer();
+  /// Testing hook for CSV parser behavior.
+  StudySet? parseCsvForTesting(String content) => _parseCsv(content);
+
+  /// Parse CSV content with support for quoted fields and embedded newlines.
+  List<List<String>> _parseCsvContent(String content) {
+    final rows = <List<String>>[];
+    var row = <String>[];
+    final field = StringBuffer();
     var inQuotes = false;
 
-    for (var i = 0; i < line.length; i++) {
-      final ch = line[i];
+    void commitField() {
+      row.add(field.toString());
+      field.clear();
+    }
+
+    void commitRow() {
+      if (row.isEmpty) return;
+      final hasNonEmpty = row.any((cell) => cell.trim().isNotEmpty);
+      if (hasNonEmpty) {
+        rows.add(row);
+      }
+      row = <String>[];
+    }
+
+    for (var i = 0; i < content.length; i++) {
+      final ch = content[i];
+
       if (inQuotes) {
         if (ch == '"') {
-          if (i + 1 < line.length && line[i + 1] == '"') {
-            buffer.write('"');
+          if (i + 1 < content.length && content[i + 1] == '"') {
+            field.write('"');
             i++;
           } else {
             inQuotes = false;
           }
         } else {
-          buffer.write(ch);
+          field.write(ch);
         }
-      } else {
-        if (ch == '"') {
-          inQuotes = true;
-        } else if (ch == ',') {
-          result.add(buffer.toString());
-          buffer.clear();
-        } else {
-          buffer.write(ch);
-        }
+        continue;
       }
+
+      if (ch == '"') {
+        inQuotes = true;
+        continue;
+      }
+
+      if (ch == ',') {
+        commitField();
+        continue;
+      }
+
+      if (ch == '\n' || ch == '\r') {
+        if (ch == '\r' && i + 1 < content.length && content[i + 1] == '\n') {
+          i++;
+        }
+        commitField();
+        commitRow();
+        continue;
+      }
+
+      field.write(ch);
     }
-    result.add(buffer.toString());
-    return result;
+
+    commitField();
+    commitRow();
+    return rows;
   }
 
   String _csvEscape(String value) {
@@ -164,6 +219,7 @@ class ImportExportService {
   }
 
   String _sanitizeFilename(String name) {
-    return name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(' ', '_');
+    final sanitized = name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(' ', '_');
+    return sanitized.isEmpty ? 'export' : sanitized;
   }
 }

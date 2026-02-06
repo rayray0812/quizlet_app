@@ -14,9 +14,9 @@ class AppLocalizations {
 
   static final Map<String, AppLocalizations Function(Locale)> _localizedValues =
       {
-    'en': (locale) => AppLocalizationsEn(locale),
-    'zh': (locale) => AppLocalizationsZh(locale),
-  };
+        'en': (locale) => AppLocalizationsEn(locale),
+        'zh': (locale) => AppLocalizationsZh(locale),
+      };
 
   static AppLocalizations _create(Locale locale) {
     final factory = _localizedValues[locale.languageCode];
@@ -41,6 +41,11 @@ class AppLocalizations {
   String get createNewSet => '';
   String get importFromQuizlet => '';
   String get profile => '';
+  String get settings => '';
+  String get theme => '';
+  String get systemMode => '';
+  String get lightMode => '';
+  String get darkMode => '';
   String signedInAs(String email) => '';
   String get close => '';
   String get signOut => '';
@@ -182,7 +187,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get noStudySetsYet => '\u9084\u6C92\u6709\u5B78\u7FD2\u96C6';
   @override
-  String get importOrCreate => '\u5F9E Quizlet \u532F\u5165\u6216\u81EA\u5DF1\u5EFA\u7ACB';
+  String get importOrCreate =>
+      '\u5F9E\u7DB2\u9801\u532F\u5165\u6216\u81EA\u5DF1\u5EFA\u7ACB';
   @override
   String get importBtn => '\u532F\u5165';
   @override
@@ -190,7 +196,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get deleteStudySet => '\u522A\u9664\u5B78\u7FD2\u96C6\uFF1F';
   @override
-  String deleteStudySetConfirm(String title) => '\u78BA\u5B9A\u8981\u522A\u9664\u300C$title\u300D\u55CE\uFF1F';
+  String deleteStudySetConfirm(String title) =>
+      '\u78BA\u5B9A\u8981\u522A\u9664\u300C$title\u300D\u55CE\uFF1F';
   @override
   String get cancel => '\u53D6\u6D88';
   @override
@@ -206,9 +213,19 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get createNewSet => '\u5EFA\u7ACB\u65B0\u5B78\u7FD2\u96C6';
   @override
-  String get importFromQuizlet => '\u5F9E Quizlet \u532F\u5165';
+  String get importFromQuizlet => '\u7DB2\u9801\u532F\u5165';
   @override
   String get profile => '\u500B\u4EBA\u6A94\u6848';
+  @override
+  String get settings => '\u8A2D\u5B9A';
+  @override
+  String get theme => '\u4E3B\u984C';
+  @override
+  String get systemMode => '\u8DDF\u96A8\u7CFB\u7D71';
+  @override
+  String get lightMode => '\u6DFA\u8272';
+  @override
+  String get darkMode => '\u6DF1\u8272';
   @override
   String signedInAs(String email) => '\u5DF2\u767B\u5165\uFF1A\n$email';
   @override
@@ -232,9 +249,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get password => '\u5BC6\u78BC';
   @override
-  String get enterValidEmail => '\u8ACB\u8F38\u5165\u6709\u6548\u7684\u96FB\u5B50\u4FE1\u7BB1';
+  String get enterValidEmail =>
+      '\u8ACB\u8F38\u5165\u6709\u6548\u7684\u96FB\u5B50\u4FE1\u7BB1';
   @override
-  String get passwordMinLength => '\u5BC6\u78BC\u81F3\u5C11\u9700\u8981 6 \u500B\u5B57\u5143';
+  String get passwordMinLength =>
+      '\u5BC6\u78BC\u81F3\u5C11\u9700\u8981 6 \u500B\u5B57\u5143';
   @override
   String get noAccountSignUp => '\u6C92\u6709\u5E33\u865F\uFF1F\u8A3B\u518A';
   @override
@@ -246,21 +265,26 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get flashcards => '\u7FFB\u5361\u7247';
   @override
-  String get flashcardsDesc => '\u6ED1\u52D5\u700F\u89BD\u5361\u7247\uFF0C\u9EDE\u64CA\u7FFB\u8F49\u67E5\u770B\u7B54\u6848';
+  String get flashcardsDesc =>
+      '\u6ED1\u52D5\u700F\u89BD\u5361\u7247\uFF0C\u9EDE\u64CA\u7FFB\u8F49\u67E5\u770B\u7B54\u6848';
   @override
   String get quiz => '\u6E2C\u9A57';
   @override
-  String get quizDesc => '\u56DB\u9078\u4E00\u6E2C\u9A57\u4F60\u7684\u77E5\u8B58';
+  String get quizDesc =>
+      '\u56DB\u9078\u4E00\u6E2C\u9A57\u4F60\u7684\u77E5\u8B58';
   @override
   String get matchingGame => '\u914D\u5C0D\u904A\u6232';
   @override
-  String get matchingGameDesc => '\u5C07\u8853\u8A9E\u8207\u5B9A\u7FA9\u914D\u5C0D';
+  String get matchingGameDesc =>
+      '\u5C07\u8853\u8A9E\u8207\u5B9A\u7FA9\u914D\u5C0D';
   @override
   String nCards(int count) => '$count \u5F35\u5361\u7247';
   @override
-  String get needAtLeast4Cards => '\u81F3\u5C11\u9700\u8981 4 \u5F35\u5361\u7247\u624D\u80FD\u6E2C\u9A57';
+  String get needAtLeast4Cards =>
+      '\u81F3\u5C11\u9700\u8981 4 \u5F35\u5361\u7247\u624D\u80FD\u6E2C\u9A57';
   @override
-  String get needAtLeast2Cards => '\u81F3\u5C11\u9700\u8981 2 \u5F35\u5361\u7247\u624D\u80FD\u914D\u5C0D';
+  String get needAtLeast2Cards =>
+      '\u81F3\u5C11\u9700\u8981 2 \u5F35\u5361\u7247\u624D\u80FD\u914D\u5C0D';
   @override
   String get studySetNotFound => '\u627E\u4E0D\u5230\u5B78\u7FD2\u96C6';
   @override
@@ -282,7 +306,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String scoreLabel(int score) => '\u5206\u6578\uFF1A$score';
   @override
-  String get whatIsDefinitionOf => '\u4EE5\u4E0B\u8A5E\u5F59\u7684\u5B9A\u7FA9\u662F\uFF1F';
+  String get whatIsDefinitionOf =>
+      '\u4EE5\u4E0B\u8A5E\u5F59\u7684\u5B9A\u7FA9\u662F\uFF1F';
   @override
   String get quizComplete => '\u6E2C\u9A57\u5B8C\u6210\uFF01';
   @override
@@ -296,7 +321,8 @@ class AppLocalizationsZh extends AppLocalizations {
 
   // -- Matching --
   @override
-  String matched(int matched, int total) => '\u5DF2\u914D\u5C0D\uFF1A$matched / $total';
+  String matched(int matched, int total) =>
+      '\u5DF2\u914D\u5C0D\uFF1A$matched / $total';
   @override
   String get restart => '\u91CD\u65B0\u958B\u59CB';
   @override
@@ -304,7 +330,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String timeSeconds(int seconds) => '$seconds\u79D2';
   @override
-  String attemptsForPairs(int attempts, int pairs) => '$attempts \u6B21\u5617\u8A66\uFF0C$pairs \u7D44\u914D\u5C0D';
+  String attemptsForPairs(int attempts, int pairs) =>
+      '$attempts \u6B21\u5617\u8A66\uFF0C$pairs \u7D44\u914D\u5C0D';
   @override
   String get playAgain => '\u518D\u73A9\u4E00\u6B21';
 
@@ -312,15 +339,18 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get importTitle => '\u532F\u5165';
   @override
-  String get useAppToImport => '\u8ACB\u4F7F\u7528\u624B\u6A5F\u7248 App \u532F\u5165';
+  String get useAppToImport =>
+      '\u8ACB\u4F7F\u7528\u624B\u6A5F\u7248 App \u532F\u5165';
   @override
-  String get webViewMobileOnly => 'WebView \u532F\u5165\u50C5\u9650\u624B\u6A5F\u88DD\u7F6E\u4F7F\u7528';
+  String get webViewMobileOnly =>
+      'WebView \u532F\u5165\u50C5\u9650\u624B\u6A5F\u88DD\u7F6E\u4F7F\u7528';
   @override
   String get goBack => '\u8FD4\u56DE';
   @override
   String get importSet => '\u532F\u5165\u5B78\u7FD2\u96C6';
   @override
-  String get noFlashcardsFound => '\u627E\u4E0D\u5230\u5361\u7247\u3002\u8ACB\u5148\u5411\u4E0B\u6372\u52D5\u8F09\u5165\u6240\u6709\u5361\u7247\u3002';
+  String get noFlashcardsFound =>
+      '\u627E\u4E0D\u5230\u5361\u7247\u3002\u8ACB\u5148\u5411\u4E0B\u6372\u52D5\u8F09\u5165\u6240\u6709\u5361\u7247\u3002';
   @override
   String importFailed(String error) => '\u532F\u5165\u5931\u6557\uFF1A$error';
   @override
@@ -330,7 +360,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get setTitle => '\u5B78\u7FD2\u96C6\u6A19\u984C';
   @override
-  String get addAtLeastOneCard => '\u81F3\u5C11\u65B0\u589E\u4E00\u5F35\u5361\u7247';
+  String get addAtLeastOneCard =>
+      '\u81F3\u5C11\u65B0\u589E\u4E00\u5F35\u5361\u7247';
   @override
   String get importedSet => '\u532F\u5165\u7684\u5B78\u7FD2\u96C6';
 
@@ -368,7 +399,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get importFromFile => '從檔案匯入（JSON/CSV）';
   @override
-  String get enterQuizletUrl => '輸入 Quizlet 網址';
+  String get enterQuizletUrl => '\u8F38\u5165\u5B78\u7FD2\u96C6\u7DB2\u5740';
   @override
   String get tapToFlip => '點擊翻轉';
   @override
@@ -386,7 +417,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get addCards => '新增卡片';
   @override
-  String get pleaseEnterQuizletUrl => '請輸入 Quizlet 網址';
+  String get pleaseEnterQuizletUrl =>
+      '\u8ACB\u8F38\u5165\u6709\u6548\u7684\u7DB2\u5740';
 
   // -- SRS --
   @override
@@ -458,7 +490,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noStudySetsYet => 'No study sets yet';
   @override
-  String get importOrCreate => 'Import from Quizlet or create your own';
+  String get importOrCreate => 'Import from Web or create your own';
   @override
   String get importBtn => 'Import';
   @override
@@ -483,9 +515,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get createNewSet => 'Create New Set';
   @override
-  String get importFromQuizlet => 'Import from Quizlet';
+  String get importFromQuizlet => 'Web Import';
   @override
   String get profile => 'Profile';
+  @override
+  String get settings => 'Settings';
+  @override
+  String get theme => 'Theme';
+  @override
+  String get systemMode => 'System';
+  @override
+  String get lightMode => 'Light';
+  @override
+  String get darkMode => 'Dark';
   @override
   String signedInAs(String email) => 'Signed in as:\n$email';
   @override
@@ -523,13 +565,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get flashcards => 'Flashcards';
   @override
-  String get flashcardsDesc =>
-      'Swipe through cards and flip to reveal answers';
+  String get flashcardsDesc => 'Swipe through cards and flip to reveal answers';
   @override
   String get quiz => 'Quiz';
   @override
-  String get quizDesc =>
-      'Multiple choice questions to test your knowledge';
+  String get quizDesc => 'Multiple choice questions to test your knowledge';
   @override
   String get matchingGame => 'Matching Game';
   @override
@@ -650,7 +690,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get importFromFile => 'Import from File (JSON/CSV)';
   @override
-  String get enterQuizletUrl => 'Enter Quizlet URL';
+  String get enterQuizletUrl => 'Enter Web URL';
   @override
   String get tapToFlip => 'TAP TO FLIP';
   @override
@@ -668,7 +708,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get addCards => 'Add Cards';
   @override
-  String get pleaseEnterQuizletUrl => 'Please enter a Quizlet URL';
+  String get pleaseEnterQuizletUrl => 'Please enter a valid URL';
 
   // -- SRS --
   @override
@@ -736,8 +776,7 @@ class _AppLocalizationsDelegate
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) =>
-      ['en', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => ['en', 'zh'].contains(locale.languageCode);
 
   @override
   Future<AppLocalizations> load(Locale locale) async {

@@ -16,6 +16,20 @@ import 'package:quizlet_app/features/home/screens/search_screen.dart';
 import 'package:quizlet_app/features/study/screens/custom_study_screen.dart';
 import 'package:quizlet_app/models/study_set.dart';
 
+StudySet? extractStudySetExtra(Object? extra) {
+  return extra is StudySet ? extra : null;
+}
+
+Map<String, dynamic> extractMapExtra(Object? extra) {
+  return extra is Map<String, dynamic> ? extra : const <String, dynamic>{};
+}
+
+int? extractOptionalIntExtra(Object? extra, String key) {
+  final data = extractMapExtra(extra);
+  final value = data[key];
+  return value is int ? value : null;
+}
+
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -38,25 +52,34 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/import/review',
       builder: (context, state) {
-        final studySet = state.extra as StudySet;
+        final studySet = extractStudySetExtra(state.extra);
+        if (studySet == null) {
+          return const HomeScreen();
+        }
         return ReviewImportScreen(studySet: studySet);
       },
     ),
-    // Cross-set SRS review (from today's review banner)
+    // Cross-set SRS review (from today's review banner or custom study)
     GoRoute(
       path: '/review',
-      builder: (context, state) => const SrsReviewScreen(),
+      builder: (context, state) {
+        final extra = state.extra;
+        final tags = extra is Map<String, dynamic>
+            ? (extra['tags'] as List<dynamic>?)?.cast<String>()
+            : null;
+        return SrsReviewScreen(filterTags: tags);
+      },
     ),
     GoRoute(
       path: '/review/summary',
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>;
+        final data = extractMapExtra(state.extra);
         return ReviewSummaryScreen(
-          totalReviewed: extra['totalReviewed'] as int,
-          againCount: extra['againCount'] as int,
-          hardCount: extra['hardCount'] as int,
-          goodCount: extra['goodCount'] as int,
-          easyCount: extra['easyCount'] as int,
+          totalReviewed: data['totalReviewed'] as int? ?? 0,
+          againCount: data['againCount'] as int? ?? 0,
+          hardCount: data['hardCount'] as int? ?? 0,
+          goodCount: data['goodCount'] as int? ?? 0,
+          easyCount: data['easyCount'] as int? ?? 0,
         );
       },
     ),
@@ -104,8 +127,8 @@ final appRouter = GoRouter(
           path: 'quiz',
           builder: (context, state) {
             final setId = state.pathParameters['setId']!;
-            final extra = state.extra as Map<String, dynamic>?;
-            final questionCount = extra?['questionCount'] as int?;
+            final questionCount =
+                extractOptionalIntExtra(state.extra, 'questionCount');
             return QuizScreen(setId: setId, questionCount: questionCount);
           },
         ),
@@ -113,8 +136,7 @@ final appRouter = GoRouter(
           path: 'match',
           builder: (context, state) {
             final setId = state.pathParameters['setId']!;
-            final extra = state.extra as Map<String, dynamic>?;
-            final pairCount = extra?['pairCount'] as int?;
+            final pairCount = extractOptionalIntExtra(state.extra, 'pairCount');
             return MatchingGameScreen(setId: setId, pairCount: pairCount);
           },
         ),

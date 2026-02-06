@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 import 'package:quizlet_app/providers/stats_provider.dart';
 import 'package:quizlet_app/features/stats/widgets/daily_chart.dart';
 import 'package:quizlet_app/features/stats/widgets/review_heatmap.dart';
 import 'package:quizlet_app/features/stats/widgets/accuracy_donut.dart';
 
 class StatsScreen extends ConsumerWidget {
-  const StatsScreen({super.key});
+  final bool embedded;
+
+  const StatsScreen({super.key, this.embedded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,9 +21,7 @@ class StatsScreen extends ConsumerWidget {
     final dailyCounts = ref.watch(dailyCountsProvider);
     final ratingCounts = ref.watch(ratingCountsProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.statistics)),
-      body: ListView(
+    final content = ListView(
         padding: const EdgeInsets.all(20),
         children: [
           // Summary cards
@@ -29,19 +30,22 @@ class StatsScreen extends ConsumerWidget {
               _SummaryCard(
                 label: l10n.todayReviews,
                 value: '$todayCount',
-                icon: Icons.today,
+                icon: Icons.menu_book_rounded,
+                color: AppTheme.indigo,
               ),
               const SizedBox(width: 12),
               _SummaryCard(
                 label: l10n.streak,
                 value: l10n.nDays(streakDays),
-                icon: Icons.local_fire_department,
+                icon: Icons.local_fire_department_rounded,
+                color: AppTheme.orange,
               ),
               const SizedBox(width: 12),
               _SummaryCard(
                 label: l10n.totalReviews,
                 value: '$totalCount',
-                icon: Icons.bar_chart,
+                icon: Icons.bar_chart_rounded,
+                color: AppTheme.green,
               ),
             ],
           ),
@@ -51,7 +55,7 @@ class StatsScreen extends ConsumerWidget {
           Text(
             l10n.last30Days,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
           const SizedBox(height: 12),
@@ -69,7 +73,7 @@ class StatsScreen extends ConsumerWidget {
           Text(
             l10n.ratingBreakdown,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
           const SizedBox(height: 12),
@@ -78,8 +82,16 @@ class StatsScreen extends ConsumerWidget {
             child: AccuracyDonut(ratingCounts: ratingCounts),
           ),
         ],
-      ),
-    );
+      );
+
+    if (!embedded) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.statistics)),
+        body: content,
+      );
+    }
+
+    return content;
   }
 }
 
@@ -87,33 +99,52 @@ class _SummaryCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  final Color color;
 
   const _SummaryCard({
     required this.label,
     required this.value,
     required this.icon,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
+      child: Container(
+        decoration: AppTheme.softCardDecoration(
+          fillColor: Theme.of(context).cardColor,
+          borderRadius: 16,
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           child: Column(
             children: [
-              Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 8),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 10),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ],

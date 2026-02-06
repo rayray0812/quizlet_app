@@ -94,13 +94,13 @@ class LocalStorageService {
     final start = DateTime.utc(date.year, date.month, date.day);
     final end = start.add(const Duration(days: 1));
     return getAllReviewLogs().where((log) {
-      return log.reviewedAt.isAfter(start) && log.reviewedAt.isBefore(end);
+      return !log.reviewedAt.isBefore(start) && log.reviewedAt.isBefore(end);
     }).toList();
   }
 
   List<ReviewLog> getReviewLogsInRange(DateTime from, DateTime to) {
     return getAllReviewLogs().where((log) {
-      return log.reviewedAt.isAfter(from) && log.reviewedAt.isBefore(to);
+      return !log.reviewedAt.isBefore(from) && log.reviewedAt.isBefore(to);
     }).toList();
   }
 

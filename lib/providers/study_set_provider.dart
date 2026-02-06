@@ -20,18 +20,21 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     _load();
   }
 
-  void _load() {
+  Future<void> _load() async {
     state = _localStorage.getAllStudySets();
-    _ensureCardProgress();
+    await _ensureCardProgress();
+    await _cleanOrphanedCardProgress();
   }
 
   /// Create CardProgress entries for any cards that don't have one yet.
-  void _ensureCardProgress() {
+  Future<void> _ensureCardProgress() async {
+    final allProgress = {
+      for (final p in _localStorage.getAllCardProgress()) p.cardId: p,
+    };
     for (final set in state) {
       for (final card in set.cards) {
-        final existing = _localStorage.getCardProgress(card.id);
-        if (existing == null) {
-          _localStorage.saveCardProgress(CardProgress(
+        if (!allProgress.containsKey(card.id)) {
+          await _localStorage.saveCardProgress(CardProgress(
             cardId: card.id,
             setId: set.id,
           ));
@@ -40,22 +43,46 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     }
   }
 
+  /// Remove CardProgress entries whose cardId no longer exists in any set.
+  Future<void> _cleanOrphanedCardProgress() async {
+    final validCardIds = <String>{};
+    for (final set in state) {
+      for (final card in set.cards) {
+        validCardIds.add(card.id);
+      }
+    }
+    final allProgress = _localStorage.getAllCardProgress();
+    for (final progress in allProgress) {
+      if (!validCardIds.contains(progress.cardId)) {
+        await _localStorage.deleteCardProgress(progress.cardId);
+      }
+    }
+  }
+
   Future<void> add(StudySet studySet) async {
-    await _localStorage.saveStudySet(studySet);
-    _load();
+    final stamped = studySet.copyWith(updatedAt: DateTime.now().toUtc());
+    await _localStorage.saveStudySet(stamped);
+    await _load();
   }
 
   Future<void> remove(String id) async {
+    await _localStorage.deleteCardProgressForSet(id);
     await _localStorage.deleteStudySet(id);
-    _load();
+    await _load();
   }
 
   Future<void> update(StudySet studySet) async {
-    await _localStorage.saveStudySet(studySet);
-    _load();
+    final stamped = studySet.copyWith(
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+    await _localStorage.saveStudySet(stamped);
+    await _load();
   }
 
-  void refresh() => _load();
+  void refresh() {
+    _load();
+  }
 
   StudySet? getById(String id) {
     return _localStorage.getStudySet(id);

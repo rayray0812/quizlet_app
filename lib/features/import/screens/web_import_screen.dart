@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +8,7 @@ import 'package:quizlet_app/features/import/utils/js_scraper.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/models/study_set.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 class WebImportScreen extends StatefulWidget {
   const WebImportScreen({super.key});
@@ -23,9 +24,14 @@ class _WebImportScreenState extends State<WebImportScreen> {
   bool _isLoading = true;
 
   bool get _isOnQuizletSet =>
-      _currentUrl.contains('quizlet.com/') &&
-      !_currentUrl.endsWith('quizlet.com/') &&
-      !_currentUrl.endsWith('quizlet.com');
+      _isQuizletHost(_currentUrl) &&
+      (Uri.tryParse(_currentUrl)?.pathSegments.isNotEmpty ?? false);
+
+  bool _isQuizletHost(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl);
+    final host = uri?.host.toLowerCase() ?? '';
+    return host == 'quizlet.com' || host.endsWith('.quizlet.com');
+  }
 
   @override
   void initState() {
@@ -74,7 +80,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
       _urlController.text = url;
     }
 
-    if (!url.contains('quizlet.com')) {
+    if (!_isQuizletHost(url)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).pleaseEnterQuizletUrl)),
       );
@@ -96,7 +102,6 @@ class _WebImportScreenState extends State<WebImportScreen> {
             var pp = parsed.props.pageProps;
             var state = JSON.parse(pp.dehydratedReduxStateKey);
 
-            // setPage structure
             var sp = state.setPage;
             info.push('setPage keys: ' + Object.keys(sp).join(', '));
             if (sp.set) {
@@ -109,10 +114,8 @@ class _WebImportScreenState extends State<WebImportScreen> {
               if (Array.isArray(sp.terms)) info.push('setPage.terms len=' + sp.terms.length);
             }
 
-            // cards structure
             var cd = state.cards;
             info.push('cards keys: ' + Object.keys(cd).join(', '));
-            // show first few sub-keys
             Object.keys(cd).forEach(function(k) {
               var v = cd[k];
               if (v && typeof v === 'object' && !Array.isArray(v)) {
@@ -125,7 +128,6 @@ class _WebImportScreenState extends State<WebImportScreen> {
               }
             });
 
-            // also check studiableData
             if (state.studiableData) {
               info.push('studiableData keys: ' + Object.keys(state.studiableData).join(', '));
             }
@@ -134,7 +136,6 @@ class _WebImportScreenState extends State<WebImportScreen> {
             info.push('ERROR: ' + e.message);
           }
 
-          // DOM TermText sample
           var tt = document.querySelectorAll('.TermText');
           if (tt.length > 0) {
             info.push('TermText[0]: ' + tt[0].innerText.substring(0, 40));
@@ -186,11 +187,9 @@ class _WebImportScreenState extends State<WebImportScreen> {
       );
 
       String encoded = result.toString();
-      // Remove surrounding quotes from WebView return value
       if (encoded.startsWith('"') && encoded.endsWith('"')) {
         encoded = encoded.substring(1, encoded.length - 1);
       }
-      // Decode URI-encoded JSON (avoids all WebView escaping issues)
       final jsonStr = Uri.decodeComponent(encoded);
 
       final data = json.decode(jsonStr) as Map<String, dynamic>;
@@ -288,7 +287,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
                 Expanded(
@@ -298,10 +297,12 @@ class _WebImportScreenState extends State<WebImportScreen> {
                       hintText: l10n.enterQuizletUrl,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                          horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
                     keyboardType: TextInputType.url,
                     textInputAction: TextInputAction.go,
@@ -311,13 +312,28 @@ class _WebImportScreenState extends State<WebImportScreen> {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   onPressed: _navigateToUrl,
-                  icon: const Icon(Icons.arrow_forward),
-                  tooltip: 'Go',
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.indigo,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
-          if (_isLoading) const LinearProgressIndicator(),
+          if (_isLoading)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  minHeight: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: WebViewWidget(controller: _controller!),
           ),
@@ -325,10 +341,10 @@ class _WebImportScreenState extends State<WebImportScreen> {
       ),
       floatingActionButton: _isOnQuizletSet
           ? GestureDetector(
-              onLongPress: _debugScrape,
+              onLongPress: kDebugMode ? _debugScrape : null,
               child: FloatingActionButton.extended(
                 onPressed: _scrapeAndImport,
-                icon: const Icon(Icons.download),
+                icon: const Icon(Icons.download_rounded),
                 label: Text(l10n.importSet),
               ),
             )

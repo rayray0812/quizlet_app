@@ -16,7 +16,7 @@ class UnsplashService {
           '${ApiConstants.unsplashBaseUrl}/search/photos?query=${Uri.encodeComponent(query)}&per_page=1&orientation=landscape');
       final response = await http.get(uri, headers: {
         'Authorization': 'Client-ID ${ApiConstants.unsplashAccessKey}',
-      });
+      }).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;

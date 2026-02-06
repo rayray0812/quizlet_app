@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:quizlet_app/models/flashcard.dart';
 import 'package:quizlet_app/providers/study_set_provider.dart';
 import 'package:quizlet_app/features/study/widgets/quiz_option_tile.dart';
+import 'package:quizlet_app/features/study/widgets/rounded_progress_bar.dart';
+import 'package:quizlet_app/features/study/widgets/study_result_widgets.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -24,7 +27,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int? _selectedOption;
   late List<Flashcard> _shuffledCards;
   late List<Flashcard> _allCards;
-  late List<List<int>> _options; // indices into _allCards for each question
+  late List<List<int>> _options;
 
   @override
   void initState() {
@@ -33,16 +36,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _initQuiz() {
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
+    final studySet = ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet == null || studySet.cards.length < 4) return;
 
     _allCards = studySet.cards;
     _shuffledCards = List.of(_allCards)..shuffle(_random);
 
-    // Limit to questionCount if specified
     final limit = widget.questionCount ?? _shuffledCards.length;
-    _shuffledCards = _shuffledCards.take(min(limit, _shuffledCards.length)).toList();
+    _shuffledCards = _shuffledCards
+        .take(min(limit, _shuffledCards.length))
+        .toList();
 
     _options = [];
 
@@ -52,10 +55,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ..remove(correctIndex)
         ..shuffle(_random);
 
-      final optionIndices = [
-        correctIndex,
-        ...wrongIndices.take(3),
-      ]..shuffle(_random);
+      final optionIndices = [correctIndex, ...wrongIndices.take(3)]
+        ..shuffle(_random);
 
       _options.add(optionIndices);
     }
@@ -92,50 +93,60 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   void _showResults() {
     final l10n = AppLocalizations.of(context);
+    final percent = (_score / _shuffledCards.length * 100).round();
+    final accent = percent >= 80 ? AppTheme.green : AppTheme.orange;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text(l10n.quizComplete),
+        contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              l10n.quizResult(_score, _shuffledCards.length),
-              style: Theme.of(context).textTheme.headlineLarge,
+            StudyResultHeader(
+              accentColor: accent,
+              icon: percent >= 80
+                  ? Icons.emoji_events_rounded
+                  : Icons.auto_graph_rounded,
+              title: l10n.quizComplete,
+              primaryText: l10n.quizResult(_score, _shuffledCards.length),
+              badgeText: l10n.percentCorrect(percent),
             ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.percentCorrect(
-                  (_score / _shuffledCards.length * 100).round()),
-              style: Theme.of(context).textTheme.titleMedium,
+            const SizedBox(height: 16),
+            StudyResultDialogActions(
+              leftLabel: l10n.tryAgain,
+              rightLabel: l10n.done,
+              onLeft: () {
+                Navigator.pop(context);
+                setState(() => _initQuiz());
+              },
+              onRight: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _initQuiz());
-            },
-            child: Text(l10n.tryAgain),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: Text(l10n.done),
-          ),
-        ],
       ),
     );
   }
 
+  void _goHomeSmooth() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+    context.go('/');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final studySet =
-        ref.watch(studySetsProvider.notifier).getById(widget.setId);
+    final studySet = ref
+        .watch(studySetsProvider)
+        .where((s) => s.id == widget.setId)
+        .firstOrNull;
 
     final l10n = AppLocalizations.of(context);
 
@@ -150,6 +161,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
     final currentCard = _shuffledCards[_currentIndex];
     final correctIndex = _allCards.indexOf(currentCard);
+    final progress = (_currentIndex + 1) / _shuffledCards.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -165,36 +177,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () => context.go('/'),
+            icon: const Icon(Icons.home_rounded),
+            onPressed: _goHomeSmooth,
             tooltip: l10n.home,
           ),
         ],
       ),
       body: Column(
         children: [
-          LinearProgressIndicator(
-            value: (_currentIndex + 1) / _shuffledCards.length,
-          ),
+          RoundedProgressBar(value: progress),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 16),
                   Text(
                     l10n.whatIsDefinitionOf,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     currentCard.term,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 32),
                   ...List.generate(4, (i) {
@@ -213,8 +222,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     return QuizOptionTile(
                       text: optionCard.definition,
                       state: state,
-                      onTap:
-                          _selectedOption == null ? () => _selectOption(i) : null,
+                      onTap: _selectedOption == null
+                          ? () => _selectOption(i)
+                          : null,
                     );
                   }),
                 ],

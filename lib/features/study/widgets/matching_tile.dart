@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 enum MatchingTileState { normal, selected, matched, incorrect }
 
-class MatchingTile extends StatelessWidget {
+class MatchingTile extends StatefulWidget {
   final String text;
   final MatchingTileState state;
   final VoidCallback? onTap;
@@ -15,49 +16,80 @@ class MatchingTile extends StatelessWidget {
   });
 
   @override
+  State<MatchingTile> createState() => _MatchingTileState();
+}
+
+class _MatchingTileState extends State<MatchingTile> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     Color bgColor;
     Color borderColor;
     double opacity;
 
-    switch (state) {
+    switch (widget.state) {
       case MatchingTileState.selected:
-        bgColor = Theme.of(context).colorScheme.primaryContainer;
-        borderColor = Theme.of(context).colorScheme.primary;
+        bgColor = AppTheme.indigo.withValues(alpha: 0.08);
+        borderColor = AppTheme.indigo;
         opacity = 1.0;
       case MatchingTileState.matched:
-        bgColor = Colors.green.shade100;
-        borderColor = Colors.green;
-        opacity = 0.6;
+        bgColor = AppTheme.green.withValues(alpha: 0.1);
+        borderColor = AppTheme.green;
+        opacity = 0.5;
       case MatchingTileState.incorrect:
-        bgColor = Colors.red.shade100;
-        borderColor = Colors.red;
+        bgColor = AppTheme.red.withValues(alpha: 0.08);
+        borderColor = AppTheme.red;
         opacity = 1.0;
       case MatchingTileState.normal:
-        bgColor = Theme.of(context).colorScheme.surface;
-        borderColor = Theme.of(context).colorScheme.outlineVariant;
+        bgColor = Theme.of(context).cardColor;
+        borderColor = Colors.grey.shade200;
         opacity = 1.0;
     }
 
-    return Opacity(
-      opacity: opacity,
-      child: Material(
-        color: bgColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: borderColor, width: 2),
-        ),
-        child: InkWell(
-          onTap: state == MatchingTileState.matched ? null : onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.all(8),
+    final canTap = widget.state != MatchingTileState.matched && widget.onTap != null;
+
+    return GestureDetector(
+      onTapDown: canTap ? (_) => setState(() => _pressed = true) : null,
+      onTapUp: canTap
+          ? (_) {
+              setState(() => _pressed = false);
+              widget.onTap!();
+            }
+          : null,
+      onTapCancel: canTap ? () => setState(() => _pressed = false) : null,
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: AnimatedOpacity(
+          opacity: opacity,
+          duration: const Duration(milliseconds: 300),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: borderColor,
+                width: widget.state == MatchingTileState.normal ? 1.5 : 2,
+              ),
+              boxShadow: widget.state == MatchingTileState.normal
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [],
+            ),
+            padding: const EdgeInsets.all(12),
             alignment: Alignment.center,
             child: Text(
-              text,
+              widget.text,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,

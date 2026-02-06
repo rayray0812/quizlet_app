@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:quizlet_app/core/theme/app_theme.dart';
 
 /// Shows a dialog for picking the number of questions.
 /// Returns the selected count, or null if dismissed.
@@ -84,33 +85,32 @@ class _CountPickerDialogState extends State<_CountPickerDialog> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
               decoration: InputDecoration(
-                hintText: '${widget.minCount}–${widget.maxCount}',
+                hintText: '${widget.minCount}\u2013${widget.maxCount}',
                 hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                     ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             alignment: WrapAlignment.center,
             children: [
-              ...presets.map((n) => ActionChip(
-                    label: Text('$n'),
-                    onPressed: () => _setCount(n),
+              ...presets.map((n) => _QuickChip(
+                    label: '$n',
+                    onTap: () => _setCount(n),
                   )),
-              ActionChip(
-                label: Text(l10n.allTerms),
-                onPressed: () => _setCount(widget.maxCount),
+              _QuickChip(
+                label: l10n.allTerms,
+                onTap: () => _setCount(widget.maxCount),
               ),
             ],
           ),
@@ -121,11 +121,29 @@ class _CountPickerDialogState extends State<_CountPickerDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(l10n.cancel),
         ),
-        FilledButton(
+        ElevatedButton(
           onPressed: () => Navigator.pop(context, _parsedCount),
           child: Text(l10n.start),
         ),
       ],
+    );
+  }
+}
+
+class _QuickChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      onPressed: onTap,
+      backgroundColor: AppTheme.indigo.withValues(alpha: 0.08),
+      side: BorderSide(color: AppTheme.indigo.withValues(alpha: 0.2)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 }
