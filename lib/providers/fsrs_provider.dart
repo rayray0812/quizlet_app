@@ -16,22 +16,25 @@ final allCardProgressProvider = Provider<List<CardProgress>>((ref) {
   return localStorage.getAllCardProgress();
 });
 
-/// Emits current UTC time immediately, then every minute.
-final dueNowProvider = StreamProvider<DateTime>((ref) async* {
-  yield DateTime.now().toUtc();
+/// Clock source for due-card calculations (injectable for tests).
+final dueClockProvider = Provider<DateTime Function()>((ref) {
+  return () => DateTime.now().toUtc();
+});
+
+/// Emits immediately, then every minute to invalidate due-card providers.
+final dueTickerProvider = StreamProvider<int>((ref) async* {
+  yield 0;
   yield* Stream.periodic(
     const Duration(minutes: 1),
-    (_) => DateTime.now().toUtc(),
+    (count) => count + 1,
   );
 });
 
 /// Due cards across all study sets.
 final dueCardsProvider = Provider<List<CardProgress>>((ref) {
+  ref.watch(dueTickerProvider);
   final all = ref.watch(allCardProgressProvider);
-  final now = ref.watch(dueNowProvider).maybeWhen(
-        data: (value) => value,
-        orElse: () => DateTime.now().toUtc(),
-      );
+  final now = ref.watch(dueClockProvider).call();
   return all.where((p) {
     if (p.due == null) return true; // New cards
     return p.due!.isBefore(now) || p.due!.isAtSameMomentAs(now);

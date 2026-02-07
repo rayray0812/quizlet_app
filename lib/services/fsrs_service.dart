@@ -100,10 +100,12 @@ class FsrsService {
 
   /// Convert our CardProgress to an fsrs Card.
   fsrs.Card _toFsrsCard(CardProgress progress, DateTime now) {
+    final fsrsCardId = toFsrsCardId(progress.cardId);
+
     // State 0 = New ??treat as learning with step 0
     if (progress.state == 0 || progress.lastReview == null) {
       return fsrs.Card(
-        cardId: progress.cardId.hashCode,
+        cardId: fsrsCardId,
         state: fsrs.State.learning,
         step: 0,
         stability: null,
@@ -114,7 +116,7 @@ class FsrsService {
     }
 
     return fsrs.Card(
-      cardId: progress.cardId.hashCode,
+      cardId: fsrsCardId,
       state: fsrs.State.fromValue(progress.state),
       step: progress.state == 2 ? null : 0, // review state has no step
       stability: progress.stability,
@@ -134,6 +136,19 @@ class FsrsService {
       final minutes = interval.inMinutes;
       return '${minutes < 1 ? 1 : minutes}m';
     }
+  }
+
+  /// Stable 31-bit hash used for fsrs.Card.cardId.
+  /// Avoids Dart String.hashCode instability across runs/platforms.
+  static int toFsrsCardId(String cardId) {
+    const int offsetBasis = 0x811C9DC5;
+    const int fnvPrime = 0x01000193;
+    var hash = offsetBasis;
+    for (final codeUnit in cardId.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * fnvPrime) & 0xFFFFFFFF;
+    }
+    return hash & 0x7FFFFFFF;
   }
 }
 

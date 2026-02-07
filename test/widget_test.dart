@@ -180,6 +180,19 @@ void main() {
       final r2 = service.reviewCard(r1.progress, 3);
       expect(r2.progress.reps, 2);
     });
+
+    test('toFsrsCardId is stable for same card id', () {
+      final a = FsrsService.toFsrsCardId('card-abc-123');
+      final b = FsrsService.toFsrsCardId('card-abc-123');
+      expect(a, b);
+      expect(a, greaterThanOrEqualTo(0));
+    });
+
+    test('toFsrsCardId differs for different ids', () {
+      final a = FsrsService.toFsrsCardId('card-a');
+      final b = FsrsService.toFsrsCardId('card-b');
+      expect(a, isNot(b));
+    });
   });
 }
 
