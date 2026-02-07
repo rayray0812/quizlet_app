@@ -13,6 +13,8 @@ class ReviewLog with _$ReviewLog {
     required int rating, // 1=Again, 2=Hard, 3=Good, 4=Easy
     required int state, // card state at time of review
     required DateTime reviewedAt,
+    @Default('srs') String reviewType,
+    int? speakingScore,
     @Default(0) int elapsedDays,
     @Default(0) int scheduledDays,
     @Default(0.0) double lastStability,

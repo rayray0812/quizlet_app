@@ -29,6 +29,8 @@ mixin _$ReviewLog {
   int get state =>
       throw _privateConstructorUsedError; // card state at time of review
   DateTime get reviewedAt => throw _privateConstructorUsedError;
+  String get reviewType => throw _privateConstructorUsedError;
+  int? get speakingScore => throw _privateConstructorUsedError;
   int get elapsedDays => throw _privateConstructorUsedError;
   int get scheduledDays => throw _privateConstructorUsedError;
   double get lastStability => throw _privateConstructorUsedError;
@@ -57,6 +59,8 @@ abstract class $ReviewLogCopyWith<$Res> {
     int rating,
     int state,
     DateTime reviewedAt,
+    String reviewType,
+    int? speakingScore,
     int elapsedDays,
     int scheduledDays,
     double lastStability,
@@ -86,6 +90,8 @@ class _$ReviewLogCopyWithImpl<$Res, $Val extends ReviewLog>
     Object? rating = null,
     Object? state = null,
     Object? reviewedAt = null,
+    Object? reviewType = null,
+    Object? speakingScore = freezed,
     Object? elapsedDays = null,
     Object? scheduledDays = null,
     Object? lastStability = null,
@@ -118,6 +124,14 @@ class _$ReviewLogCopyWithImpl<$Res, $Val extends ReviewLog>
                 ? _value.reviewedAt
                 : reviewedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            reviewType: null == reviewType
+                ? _value.reviewType
+                : reviewType // ignore: cast_nullable_to_non_nullable
+                      as String,
+            speakingScore: freezed == speakingScore
+                ? _value.speakingScore
+                : speakingScore // ignore: cast_nullable_to_non_nullable
+                      as int?,
             elapsedDays: null == elapsedDays
                 ? _value.elapsedDays
                 : elapsedDays // ignore: cast_nullable_to_non_nullable
@@ -160,6 +174,8 @@ abstract class _$$ReviewLogImplCopyWith<$Res>
     int rating,
     int state,
     DateTime reviewedAt,
+    String reviewType,
+    int? speakingScore,
     int elapsedDays,
     int scheduledDays,
     double lastStability,
@@ -188,6 +204,8 @@ class __$$ReviewLogImplCopyWithImpl<$Res>
     Object? rating = null,
     Object? state = null,
     Object? reviewedAt = null,
+    Object? reviewType = null,
+    Object? speakingScore = freezed,
     Object? elapsedDays = null,
     Object? scheduledDays = null,
     Object? lastStability = null,
@@ -220,6 +238,14 @@ class __$$ReviewLogImplCopyWithImpl<$Res>
             ? _value.reviewedAt
             : reviewedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        reviewType: null == reviewType
+            ? _value.reviewType
+            : reviewType // ignore: cast_nullable_to_non_nullable
+                  as String,
+        speakingScore: freezed == speakingScore
+            ? _value.speakingScore
+            : speakingScore // ignore: cast_nullable_to_non_nullable
+                  as int?,
         elapsedDays: null == elapsedDays
             ? _value.elapsedDays
             : elapsedDays // ignore: cast_nullable_to_non_nullable
@@ -255,6 +281,8 @@ class _$ReviewLogImpl implements _ReviewLog {
     required this.rating,
     required this.state,
     required this.reviewedAt,
+    this.reviewType = 'srs',
+    this.speakingScore,
     this.elapsedDays = 0,
     this.scheduledDays = 0,
     this.lastStability = 0.0,
@@ -281,6 +309,11 @@ class _$ReviewLogImpl implements _ReviewLog {
   final DateTime reviewedAt;
   @override
   @JsonKey()
+  final String reviewType;
+  @override
+  final int? speakingScore;
+  @override
+  @JsonKey()
   final int elapsedDays;
   @override
   @JsonKey()
@@ -297,7 +330,7 @@ class _$ReviewLogImpl implements _ReviewLog {
 
   @override
   String toString() {
-    return 'ReviewLog(id: $id, cardId: $cardId, setId: $setId, rating: $rating, state: $state, reviewedAt: $reviewedAt, elapsedDays: $elapsedDays, scheduledDays: $scheduledDays, lastStability: $lastStability, lastDifficulty: $lastDifficulty, isSynced: $isSynced)';
+    return 'ReviewLog(id: $id, cardId: $cardId, setId: $setId, rating: $rating, state: $state, reviewedAt: $reviewedAt, reviewType: $reviewType, speakingScore: $speakingScore, elapsedDays: $elapsedDays, scheduledDays: $scheduledDays, lastStability: $lastStability, lastDifficulty: $lastDifficulty, isSynced: $isSynced)';
   }
 
   @override
@@ -312,6 +345,10 @@ class _$ReviewLogImpl implements _ReviewLog {
             (identical(other.state, state) || other.state == state) &&
             (identical(other.reviewedAt, reviewedAt) ||
                 other.reviewedAt == reviewedAt) &&
+            (identical(other.reviewType, reviewType) ||
+                other.reviewType == reviewType) &&
+            (identical(other.speakingScore, speakingScore) ||
+                other.speakingScore == speakingScore) &&
             (identical(other.elapsedDays, elapsedDays) ||
                 other.elapsedDays == elapsedDays) &&
             (identical(other.scheduledDays, scheduledDays) ||
@@ -334,6 +371,8 @@ class _$ReviewLogImpl implements _ReviewLog {
     rating,
     state,
     reviewedAt,
+    reviewType,
+    speakingScore,
     elapsedDays,
     scheduledDays,
     lastStability,
@@ -363,6 +402,8 @@ abstract class _ReviewLog implements ReviewLog {
     required final int rating,
     required final int state,
     required final DateTime reviewedAt,
+    final String reviewType,
+    final int? speakingScore,
     final int elapsedDays,
     final int scheduledDays,
     final double lastStability,
@@ -385,6 +426,10 @@ abstract class _ReviewLog implements ReviewLog {
   int get state; // card state at time of review
   @override
   DateTime get reviewedAt;
+  @override
+  String get reviewType;
+  @override
+  int? get speakingScore;
   @override
   int get elapsedDays;
   @override

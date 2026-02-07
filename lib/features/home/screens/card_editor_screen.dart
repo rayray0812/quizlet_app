@@ -20,6 +20,7 @@ class CardEditorScreen extends ConsumerStatefulWidget {
 class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   final List<TextEditingController> _termControllers = [];
   final List<TextEditingController> _defControllers = [];
+  final List<TextEditingController> _exampleControllers = [];
   final List<String> _cardIds = [];
   final List<String> _imageUrls = [];
   final List<List<String>> _tags = [];
@@ -33,6 +34,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       for (final card in studySet.cards) {
         _termControllers.add(TextEditingController(text: card.term));
         _defControllers.add(TextEditingController(text: card.definition));
+        _exampleControllers.add(
+          TextEditingController(text: card.exampleSentence),
+        );
         _cardIds.add(card.id);
         _imageUrls.add(card.imageUrl);
         _tags.add(List<String>.from(card.tags));
@@ -52,6 +56,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     for (final c in _defControllers) {
       c.dispose();
     }
+    for (final c in _exampleControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -59,6 +66,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     setState(() {
       _termControllers.add(TextEditingController());
       _defControllers.add(TextEditingController());
+      _exampleControllers.add(TextEditingController());
       _cardIds.add(const Uuid().v4());
       _imageUrls.add('');
       _tags.add([]);
@@ -69,8 +77,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     setState(() {
       _termControllers[index].dispose();
       _defControllers[index].dispose();
+      _exampleControllers[index].dispose();
       _termControllers.removeAt(index);
       _defControllers.removeAt(index);
+      _exampleControllers.removeAt(index);
       _cardIds.removeAt(index);
       _imageUrls.removeAt(index);
       _tags.removeAt(index);
@@ -95,11 +105,13 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     for (var i = 0; i < _termControllers.length; i++) {
       final term = _termControllers[i].text.trim();
       final def = _defControllers[i].text.trim();
+      final example = _exampleControllers[i].text.trim();
       if (term.isNotEmpty || def.isNotEmpty) {
         cards.add(Flashcard(
           id: _cardIds[i],
           term: term,
           definition: def,
+          exampleSentence: example,
           imageUrl: _imageUrls[i],
           tags: _tags[i],
         ));
@@ -142,6 +154,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   index: index,
                   termController: _termControllers[index],
                   definitionController: _defControllers[index],
+                  exampleSentenceController: _exampleControllers[index],
                   imageUrl: _imageUrls[index],
                   tags: _tags[index],
                   onDelete: () => _removeCard(index),

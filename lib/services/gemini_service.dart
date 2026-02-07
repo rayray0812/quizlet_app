@@ -27,18 +27,25 @@ class GeminiService {
   static const _vocabularyPrompt =
       'Extract all term-definition pairs from this vocabulary list/word table image. '
       'Keep original language. For bilingual content, use one language as term and the other as definition. '
-      'Skip headers and page numbers.';
+      'Skip headers and page numbers. '
+      'Also include an example sentence for each term in the same language when possible. '
+      'If no clear sentence is available, return empty string for exampleSentence.';
 
   static const _textbookPrompt =
       'Extract 5-15 key concepts from this textbook/study material image as flashcard pairs. '
       'Create concise term (question/concept) and definition (answer/explanation). '
-      'Keep original language. Focus on testable knowledge points.';
+      'Keep original language. Focus on testable knowledge points. '
+      'Also provide an example sentence in the same language when possible; otherwise use empty string.';
 
   static final _responseSchema = Schema.array(
     items: Schema.object(
       properties: {
         'term': Schema.string(description: 'The term or question'),
         'definition': Schema.string(description: 'The definition or answer'),
+        'exampleSentence': Schema.string(
+          description:
+              'Optional example sentence for the term. Empty string when unavailable.',
+        ),
       },
       requiredProperties: ['term', 'definition'],
     ),
@@ -46,7 +53,7 @@ class GeminiService {
 
   /// Extract flashcards from an image using Gemini Flash.
   /// Tries models in order; falls back to the next on quota/rate errors.
-  /// Returns a list of {term, definition} maps.
+  /// Returns a list of {term, definition, exampleSentence} maps.
   /// Throws [ScanException] with a specific reason on failure.
   static Future<List<Map<String, String>>> extractFlashcards({
     required String apiKey,
@@ -182,8 +189,15 @@ class GeminiService {
       if (item is Map) {
         final term = (item['term'] ?? '').toString().trim();
         final definition = (item['definition'] ?? '').toString().trim();
+        final exampleSentence = (item['exampleSentence'] ?? '')
+            .toString()
+            .trim();
         if (term.isNotEmpty && definition.isNotEmpty) {
-          results.add({'term': term, 'definition': definition});
+          results.add({
+            'term': term,
+            'definition': definition,
+            'exampleSentence': exampleSentence,
+          });
         }
       }
     }

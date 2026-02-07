@@ -8,6 +8,10 @@ final allReviewLogsProvider = Provider<List<ReviewLog>>((ref) {
   return localStorage.getAllReviewLogs();
 });
 
+bool _isSpeakingLog(ReviewLog log) {
+  return log.reviewType == 'speaking' && log.speakingScore != null;
+}
+
 /// Today's review count.
 final todayReviewCountProvider = Provider<int>((ref) {
   final allLogs = ref.watch(allReviewLogsProvider);
@@ -127,5 +131,46 @@ final heatmapDataProvider = Provider<Map<DateTime, int>>((ref) {
   }
 
   return map;
+});
+
+/// Total speaking practice attempts.
+final totalSpeakingCountProvider = Provider<int>((ref) {
+  final allLogs = ref.watch(allReviewLogsProvider);
+  return allLogs.where(_isSpeakingLog).length;
+});
+
+/// Today's average speaking score (1-5). Null when no speaking logs today.
+final todaySpeakingAverageProvider = Provider<double?>((ref) {
+  final allLogs = ref.watch(allReviewLogsProvider);
+  final now = DateTime.now().toUtc();
+  final todayStart = DateTime.utc(now.year, now.month, now.day);
+  final todayEnd = todayStart.add(const Duration(days: 1));
+  final scores = allLogs
+      .where(_isSpeakingLog)
+      .where((log) {
+        return !log.reviewedAt.isBefore(todayStart) &&
+            log.reviewedAt.isBefore(todayEnd);
+      })
+      .map((log) => log.speakingScore!)
+      .toList();
+  if (scores.isEmpty) return null;
+  return scores.reduce((a, b) => a + b) / scores.length;
+});
+
+/// Last 30 days average speaking score (1-5). Null when no data.
+final last30DaysSpeakingAverageProvider = Provider<double?>((ref) {
+  final allLogs = ref.watch(allReviewLogsProvider);
+  final now = DateTime.now().toUtc();
+  final from = DateTime.utc(now.year, now.month, now.day)
+      .subtract(const Duration(days: 29));
+  final to = DateTime.utc(now.year, now.month, now.day)
+      .add(const Duration(days: 1));
+  final scores = allLogs
+      .where(_isSpeakingLog)
+      .where((log) => !log.reviewedAt.isBefore(from) && log.reviewedAt.isBefore(to))
+      .map((log) => log.speakingScore!)
+      .toList();
+  if (scores.isEmpty) return null;
+  return scores.reduce((a, b) => a + b) / scores.length;
 });
 

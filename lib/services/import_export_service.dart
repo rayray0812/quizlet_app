@@ -17,7 +17,13 @@ class ImportExportService {
       'title': studySet.title,
       'description': studySet.description,
       'cards': studySet.cards
-          .map((c) => {'term': c.term, 'definition': c.definition})
+          .map(
+            (c) => {
+              'term': c.term,
+              'definition': c.definition,
+              'exampleSentence': c.exampleSentence,
+            },
+          )
           .toList(),
     };
     final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
@@ -33,9 +39,11 @@ class ImportExportService {
   Future<void> exportAsCsv(StudySet studySet) async {
     if (kIsWeb) return; // File export not supported on web
     final buffer = StringBuffer();
-    buffer.writeln('term,definition');
+    buffer.writeln('term,definition,example_sentence');
     for (final card in studySet.cards) {
-      buffer.writeln('${_csvEscape(card.term)},${_csvEscape(card.definition)}');
+      buffer.writeln(
+        '${_csvEscape(card.term)},${_csvEscape(card.definition)},${_csvEscape(card.exampleSentence)}',
+      );
     }
     final dir = await getTemporaryDirectory();
     final file =
@@ -87,6 +95,7 @@ class ImportExportService {
           id: const Uuid().v4(),
           term: (c['term'] as String?) ?? '',
           definition: (c['definition'] as String?) ?? '',
+          exampleSentence: (c['exampleSentence'] as String?) ?? '',
         );
       }).toList();
 
@@ -125,6 +134,7 @@ class ImportExportService {
             id: const Uuid().v4(),
             term: parts[0],
             definition: parts[1],
+            exampleSentence: parts.length > 2 ? parts[2] : '',
           ));
         }
       }

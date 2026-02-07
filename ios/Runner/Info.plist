@@ -51,5 +51,9 @@
 	<string>拾憶需要存取相簿以選擇圖片建立單字卡</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>拾憶需要儲存匯出的檔案到相簿</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>拾憶需要使用麥克風來評分口說</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>拾憶需要語音辨識來分析你的口說內容</string>
 </dict>
 </plist>

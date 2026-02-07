@@ -6,6 +6,7 @@ class CardEditRow extends StatelessWidget {
   final int index;
   final TextEditingController termController;
   final TextEditingController definitionController;
+  final TextEditingController? exampleSentenceController;
   final String imageUrl;
   final List<String> tags;
   final VoidCallback onDelete;
@@ -18,6 +19,7 @@ class CardEditRow extends StatelessWidget {
     required this.index,
     required this.termController,
     required this.definitionController,
+    this.exampleSentenceController,
     this.imageUrl = '',
     this.tags = const [],
     required this.onDelete,
@@ -112,6 +114,21 @@ class CardEditRow extends StatelessWidget {
                 maxLines: null,
               ),
             ),
+            if (exampleSentenceController != null) ...[
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TextField(
+                  controller: exampleSentenceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Example sentence',
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  maxLines: null,
+                ),
+              ),
+            ],
 
             // Tags
             if (onAddTag != null) ...[

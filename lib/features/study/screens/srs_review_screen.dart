@@ -1,16 +1,19 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:math';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
-import 'package:recall_app/models/card_progress.dart';
-import 'package:recall_app/models/flashcard.dart';
-import 'package:recall_app/providers/study_set_provider.dart';
-import 'package:recall_app/providers/fsrs_provider.dart';
-import 'package:recall_app/features/study/widgets/rating_buttons.dart';
-import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:math';
+import 'package:recall_app/features/study/widgets/rating_buttons.dart';
+import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
 /// SRS review screen: show card front -> tap to flip -> rate Again/Hard/Good/Easy.
 class SrsReviewScreen extends ConsumerStatefulWidget {
@@ -29,6 +32,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   late Animation<double> _flipAnimation;
   bool _showFront = true;
   bool _isFlipped = false;
+  bool _isSubmittingRating = false;
+  int? _lastRating;
 
   List<_ReviewItem> _queue = [];
   int _currentIndex = 0;
@@ -36,6 +41,16 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   int _hardCount = 0;
   int _goodCount = 0;
   int _easyCount = 0;
+  late final FlutterTts _tts;
+  bool _isTtsReady = false;
+  String _lastSpokenCardId = '';
+  bool _suppressFlipOnce = false;
+  Set<String>? _supportedLanguages;
+  List<Map<String, String>>? _availableVoices;
+  String? _activeLanguage;
+  String? _activeVoiceKey;
+  bool _isSpeaking = false;
+  DateTime? _lastSpeakRequestedAt;
 
   @override
   void initState() {
@@ -56,6 +71,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _buildQueue());
+    _initTts();
   }
 
   void _buildQueue() {
@@ -103,21 +119,218 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
     items.shuffle();
     setState(() => _queue = items);
+    if (items.isNotEmpty) {
+      _speakCardTerm(items.first.card);
+    }
   }
 
   @override
   void dispose() {
+    if (_isTtsReady) {
+      _isSpeaking = false;
+      _tts.stop();
+    }
     _flipController.dispose();
     super.dispose();
   }
 
+  Future<void> _initTts() async {
+    _tts = FlutterTts();
+    try {
+      await _tts.awaitSpeakCompletion(true);
+      await _tts.setSpeechRate(0.48);
+      await _tts.setPitch(1.0);
+      await _tts.setVolume(1.0);
+      _isTtsReady = true;
+    } catch (_) {
+      _isTtsReady = false;
+    }
+  }
+
+  String _pickLanguage(String text) {
+    final hasJapaneseKana = RegExp(r'[\u3040-\u30FF]').hasMatch(text);
+    if (hasJapaneseKana) return 'ja-JP';
+    final hasChinese = RegExp(r'[\u3400-\u9FFF]').hasMatch(text);
+    return hasChinese ? 'zh-TW' : 'en-US';
+  }
+
+  String _normalizeLocaleCode(String code) {
+    return code.replaceAll('_', '-').toLowerCase();
+  }
+
+  Future<Set<String>> _loadSupportedLanguages() async {
+    if (_supportedLanguages != null) return _supportedLanguages!;
+    try {
+      final langs = await _tts.getLanguages;
+      final normalized = langs
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      _supportedLanguages = normalized;
+      return normalized;
+    } catch (_) {
+      _supportedLanguages = <String>{};
+      return _supportedLanguages!;
+    }
+  }
+
+  Future<List<Map<String, String>>> _loadAvailableVoices() async {
+    if (_availableVoices != null) return _availableVoices!;
+    try {
+      final voices = await _tts.getVoices;
+      final normalized = <Map<String, String>>[];
+      for (final voice in voices) {
+        if (voice is Map) {
+          final name = voice['name']?.toString().trim() ?? '';
+          final locale = voice['locale']?.toString().trim() ?? '';
+          if (name.isNotEmpty && locale.isNotEmpty) {
+            normalized.add({'name': name, 'locale': locale});
+          }
+        }
+      }
+      _availableVoices = normalized;
+      return normalized;
+    } catch (_) {
+      _availableVoices = const <Map<String, String>>[];
+      return _availableVoices!;
+    }
+  }
+
+  Future<String?> _resolveLanguage(String preferred) async {
+    final available = await _loadSupportedLanguages();
+    if (available.isEmpty) return null;
+    final lowerMap = <String, String>{
+      for (final lang in available) _normalizeLocaleCode(lang): lang,
+    };
+    final normalizedPreferred = _normalizeLocaleCode(preferred);
+    final candidates = preferred.startsWith('zh')
+        ? <String>[preferred, 'zh-TW', 'zh-CN', 'zh']
+        : preferred.startsWith('ja')
+        ? <String>[preferred, 'ja-JP', 'ja']
+        : <String>[preferred, 'en-US', 'en-GB', 'en'];
+    for (final candidate in candidates) {
+      final normalizedCandidate = _normalizeLocaleCode(candidate);
+      final exact = lowerMap[normalizedCandidate];
+      if (exact != null) return exact;
+      final prefix = '$normalizedCandidate-';
+      for (final entry in lowerMap.entries) {
+        if (entry.key == normalizedCandidate || entry.key.startsWith(prefix)) {
+          return entry.value;
+        }
+      }
+    }
+    if (normalizedPreferred.startsWith('en')) {
+      for (final entry in lowerMap.entries) {
+        if (entry.key.startsWith('en')) return entry.value;
+      }
+    }
+    if (normalizedPreferred.startsWith('ja')) {
+      for (final entry in lowerMap.entries) {
+        if (entry.key.startsWith('ja')) return entry.value;
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, String>?> _resolveVoice(String preferred) async {
+    final voices = await _loadAvailableVoices();
+    if (voices.isEmpty) return null;
+    final localeCandidates = preferred.startsWith('zh')
+        ? <String>['zh-tw', 'zh-cn', 'zh']
+        : preferred.startsWith('ja')
+        ? <String>['ja-jp', 'ja']
+        : <String>['en-us', 'en-gb', 'en-au', 'en'];
+    for (final candidate in localeCandidates) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale == candidate || locale.startsWith('$candidate-')) {
+          return voice;
+        }
+      }
+    }
+    if (preferred.startsWith('en')) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale.startsWith('en')) return voice;
+      }
+    }
+    if (preferred.startsWith('ja')) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale.startsWith('ja')) return voice;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _speakText(String text, {bool userInitiated = false}) async {
+    if (!_isTtsReady) {
+      await _initTts();
+      if (!_isTtsReady) return;
+    }
+    final value = text.trim();
+    if (value.isEmpty) return;
+    final now = DateTime.now();
+    final lastAt = _lastSpeakRequestedAt;
+    if (!userInitiated &&
+        lastAt != null &&
+        now.difference(lastAt).inMilliseconds < 120) {
+      return;
+    }
+    _lastSpeakRequestedAt = now;
+    try {
+      if (_isSpeaking) {
+        await _tts.stop();
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      }
+      final resolved = await _resolveLanguage(_pickLanguage(value));
+      if (resolved != null && resolved != _activeLanguage) {
+        try {
+          await _tts.setLanguage(resolved);
+          _activeLanguage = resolved;
+        } catch (_) {}
+      }
+      final voice = await _resolveVoice(_pickLanguage(value));
+      if (voice != null) {
+        final voiceKey = '${voice['name']}|${voice['locale']}';
+        if (voiceKey != _activeVoiceKey) {
+          try {
+            await _tts.setVoice(voice);
+            _activeVoiceKey = voiceKey;
+          } catch (_) {}
+        }
+      }
+      _isSpeaking = true;
+      await _tts.speak(value);
+    } catch (_) {
+    } finally {
+      _isSpeaking = false;
+    }
+  }
+
+  Future<void> _speakCardTerm(Flashcard card) async {
+    _lastSpokenCardId = card.id;
+    await _speakText(card.term);
+  }
+
   void _flip() {
-    if (_flipController.isAnimating) return;
+    if (_suppressFlipOnce) {
+      _suppressFlipOnce = false;
+      return;
+    }
+    if (_flipController.isAnimating || _isSubmittingRating) return;
+    HapticFeedback.selectionClick();
     setState(() => _isFlipped = true);
     _flipController.forward();
   }
 
   Future<void> _onRate(int rating) async {
+    if (_isSubmittingRating) return;
+    setState(() {
+      _isSubmittingRating = true;
+      _lastRating = rating;
+    });
+
     final item = _queue[_currentIndex];
     final fsrsService = ref.read(fsrsServiceProvider);
     final localStorage = ref.read(localStorageServiceProvider);
@@ -141,6 +354,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
     if (_currentIndex + 1 >= _queue.length) {
       final total = _againCount + _hardCount + _goodCount + _easyCount;
+      HapticFeedback.mediumImpact();
       context.go(
         '/review/summary',
         extra: {
@@ -152,12 +366,18 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         },
       );
     } else {
+      HapticFeedback.lightImpact();
+      await Future<void>.delayed(const Duration(milliseconds: 140));
+      if (!mounted) return;
       setState(() {
         _currentIndex++;
         _isFlipped = false;
         _showFront = true;
+        _isSubmittingRating = false;
+        _lastRating = null;
       });
       _flipController.reset();
+      _speakCardTerm(_queue[_currentIndex].card);
     }
   }
 
@@ -211,6 +431,13 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     }
 
     final item = _queue[_currentIndex];
+    if (_lastSpokenCardId != item.card.id && !_isSubmittingRating) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _lastSpokenCardId != item.card.id) {
+          _speakCardTerm(item.card);
+        }
+      });
+    }
     final fsrsService = ref.read(fsrsServiceProvider);
     final intervals = fsrsService.getSchedulingPreview(item.progress);
     final progress = _queue.isEmpty ? 0.0 : _currentIndex / _queue.length;
@@ -230,55 +457,105 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         children: [
           RoundedProgressBar(value: progress),
           Expanded(
-            child: GestureDetector(
-              onTap: _isFlipped ? null : _flip,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: AnimatedBuilder(
-                  animation: _flipAnimation,
-                  builder: (context, child) {
-                    final angle = _flipAnimation.value * pi;
-                    return Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..setEntry(3, 2, 0.001)
-                        ..rotateY(angle),
-                      child: _showFront
-                          ? _buildCardSide(
-                              text: item.card.term,
-                              label: l10n.tapToFlip,
-                              bgColor: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
-                              textColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimaryContainer,
-                              imageUrl: item.card.imageUrl,
-                            )
-                          : Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()..rotateY(pi),
-                              child: _buildCardSide(
-                                text: item.card.definition,
-                                label: l10n.definitionLabel,
-                                bgColor: Theme.of(
-                                  context,
-                                ).colorScheme.secondaryContainer,
-                                textColor: Theme.of(
-                                  context,
-                                ).colorScheme.onSecondaryContainer,
-                              ),
-                            ),
-                    );
-                  },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                GestureDetector(
+                  onTap: _isFlipped ? null : _flip,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: AnimatedScale(
+                      scale: _isSubmittingRating ? 0.98 : 1,
+                      duration: const Duration(milliseconds: 140),
+                      child: AnimatedBuilder(
+                        animation: _flipAnimation,
+                        builder: (context, child) {
+                          final angle = _flipAnimation.value * pi;
+                          return Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.001)
+                              ..rotateY(angle),
+                            child: _showFront
+                                ? _buildCardSide(
+                                    text: item.card.term,
+                                    label: l10n.tapToFlip,
+                                    onSpeak: () {
+                                      _suppressFlipOnce = true;
+                                      _speakText(
+                                        item.card.term,
+                                        userInitiated: true,
+                                      );
+                                    },
+                                    bgColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
+                                    textColor: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                                    imageUrl: item.card.imageUrl,
+                                  )
+                                : Transform(
+                                    alignment: Alignment.center,
+                                    transform: Matrix4.identity()..rotateY(pi),
+                                    child: _buildCardSide(
+                                      text: item.card.definition,
+                                      label: l10n.definitionLabel,
+                                      onSpeak: () {
+                                        _suppressFlipOnce = true;
+                                        _speakText(
+                                          item.card.definition,
+                                          userInitiated: true,
+                                        );
+                                      },
+                                      bgColor: Theme.of(
+                                        context,
+                                      ).colorScheme.secondaryContainer,
+                                      textColor: Theme.of(
+                                        context,
+                                      ).colorScheme.onSecondaryContainer,
+                                    ),
+                                  ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _isSubmittingRating ? 1 : 0,
+                    duration: const Duration(milliseconds: 100),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _ratingLabel(_lastRating),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           if (_isFlipped)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
-              child: RatingButtons(intervals: intervals, onRating: _onRate),
+              child: RatingButtons(
+                intervals: intervals,
+                onRating: _onRate,
+                enabled: !_isSubmittingRating,
+              ),
             )
           else
             Padding(
@@ -295,11 +572,27 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     );
   }
 
+  String _ratingLabel(int? rating) {
+    switch (rating) {
+      case 1:
+        return 'Again';
+      case 2:
+        return 'Hard';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Easy';
+      default:
+        return '';
+    }
+  }
+
   Widget _buildCardSide({
     required String text,
     required String label,
     required Color bgColor,
     required Color textColor,
+    VoidCallback? onSpeak,
     String imageUrl = '',
   }) {
     final hasImage = imageUrl.isNotEmpty;
@@ -336,13 +629,38 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
               ),
             ),
           const SizedBox(height: 16),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: textColor.withValues(alpha: 0.45),
-              letterSpacing: 1.2,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 32),
+                Expanded(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: textColor.withValues(alpha: 0.45),
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    onPressed: onSpeak,
+                    tooltip: AppLocalizations.of(context).listen,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.volume_up_rounded,
+                      color: textColor.withValues(alpha: 0.72),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -377,4 +695,3 @@ class _ReviewItem {
 
   _ReviewItem({required this.card, required this.progress});
 }
-

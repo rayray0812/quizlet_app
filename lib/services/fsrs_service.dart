@@ -1,4 +1,4 @@
-﻿import 'package:fsrs/fsrs.dart' as fsrs;
+import 'package:fsrs/fsrs.dart' as fsrs;
 import 'package:uuid/uuid.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/review_log.dart' as app;
@@ -8,11 +8,9 @@ class FsrsService {
   final fsrs.Scheduler _scheduler;
 
   FsrsService({fsrs.Scheduler? scheduler})
-      : _scheduler = scheduler ??
-            fsrs.Scheduler(
-              enableFuzzing: true,
-              desiredRetention: 0.9,
-            );
+    : _scheduler =
+          scheduler ??
+          fsrs.Scheduler(enableFuzzing: true, desiredRetention: 0.9);
 
   /// Review a card with a given rating (1=Again, 2=Hard, 3=Good, 4=Easy).
   /// Returns updated CardProgress and a ReviewLog entry.
@@ -151,4 +149,3 @@ class FsrsService {
     return hash & 0x7FFFFFFF;
   }
 }
-

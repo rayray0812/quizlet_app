@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
@@ -53,6 +53,10 @@ class LocalStorageService {
     return _progressBox.values.whereType<CardProgress>().toList();
   }
 
+  List<CardProgress> getUnsyncedCardProgress() {
+    return getAllCardProgress().where((p) => !p.isSynced).toList();
+  }
+
   List<CardProgress> getCardProgressForSet(String setId) {
     return getAllCardProgress().where((p) => p.setId == setId).toList();
   }
@@ -80,14 +84,29 @@ class LocalStorageService {
     await _progressBox.delete(cardId);
   }
 
+  Future<void> markCardProgressAsSynced(String cardId) async {
+    final progress = getCardProgress(cardId);
+    if (progress != null && !progress.isSynced) {
+      await saveCardProgress(progress.copyWith(isSynced: true));
+    }
+  }
+
   // ?? ReviewLog CRUD ??
 
   Future<void> saveReviewLog(ReviewLog log) async {
     await _reviewLogBox.put(log.id, log);
   }
 
+  ReviewLog? getReviewLog(String id) {
+    return _reviewLogBox.get(id) as ReviewLog?;
+  }
+
   List<ReviewLog> getAllReviewLogs() {
     return _reviewLogBox.values.whereType<ReviewLog>().toList();
+  }
+
+  List<ReviewLog> getUnsyncedReviewLogs() {
+    return getAllReviewLogs().where((log) => !log.isSynced).toList();
   }
 
   List<ReviewLog> getReviewLogsForDate(DateTime date) {
@@ -107,5 +126,11 @@ class LocalStorageService {
   List<ReviewLog> getReviewLogsForSet(String setId) {
     return getAllReviewLogs().where((log) => log.setId == setId).toList();
   }
-}
 
+  Future<void> markReviewLogAsSynced(String id) async {
+    final log = getReviewLog(id);
+    if (log != null && !log.isSynced) {
+      await saveReviewLog(log.copyWith(isSynced: true));
+    }
+  }
+}

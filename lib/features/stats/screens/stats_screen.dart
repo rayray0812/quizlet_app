@@ -20,6 +20,9 @@ class StatsScreen extends ConsumerWidget {
     final totalCount = ref.watch(totalReviewCountProvider);
     final dailyCounts = ref.watch(dailyCountsProvider);
     final ratingCounts = ref.watch(ratingCountsProvider);
+    final speakingTotal = ref.watch(totalSpeakingCountProvider);
+    final speakingTodayAvg = ref.watch(todaySpeakingAverageProvider);
+    final speakingLast30Avg = ref.watch(last30DaysSpeakingAverageProvider);
 
     final content = ListView(
         padding: const EdgeInsets.all(20),
@@ -45,6 +48,42 @@ class StatsScreen extends ConsumerWidget {
                 label: l10n.totalReviews,
                 value: '$totalCount',
                 icon: Icons.bar_chart_rounded,
+                color: AppTheme.green,
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Text(
+            l10n.speakingPractice,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _SummaryCard(
+                label: l10n.todaySpeakingAvg,
+                value: speakingTodayAvg == null
+                    ? '--'
+                    : speakingTodayAvg.toStringAsFixed(1),
+                icon: Icons.record_voice_over_rounded,
+                color: AppTheme.cyan,
+              ),
+              const SizedBox(width: 12),
+              _SummaryCard(
+                label: l10n.last30SpeakingAvg,
+                value: speakingLast30Avg == null
+                    ? '--'
+                    : speakingLast30Avg.toStringAsFixed(1),
+                icon: Icons.timeline_rounded,
+                color: AppTheme.indigo,
+              ),
+              const SizedBox(width: 12),
+              _SummaryCard(
+                label: l10n.speakingAttempts,
+                value: '$speakingTotal',
+                icon: Icons.mic_rounded,
                 color: AppTheme.green,
               ),
             ],

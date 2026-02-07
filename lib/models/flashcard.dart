@@ -9,6 +9,7 @@ class Flashcard with _$Flashcard {
     required String id,
     required String term,
     required String definition,
+    @Default('') String exampleSentence,
     @Default(0) int difficultyLevel,
     @Default('') String imageUrl,
     @Default([]) List<String> tags,

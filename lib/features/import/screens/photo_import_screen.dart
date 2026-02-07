@@ -29,6 +29,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
   _Stage _stage = _Stage.pickImage;
   bool _cancelled = false;
 
+  final List<Flashcard> _accumulatedCards = [];
+  int _photoCount = 0;
+
   Future<void> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
       source: source,
@@ -87,23 +90,24 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
                 id: const Uuid().v4(),
                 term: r['term']!,
                 definition: r['definition']!,
+                exampleSentence: (r['exampleSentence'] ?? '').trim(),
               ))
           .toList();
 
-      final now = DateTime.now();
-      final timestamp =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      setState(() {
+        _accumulatedCards.addAll(cards);
+        _photoCount++;
+        _imageBytes = null;
+        _stage = _Stage.pickImage;
+      });
 
-      final studySet = StudySet(
-        id: const Uuid().v4(),
-        title: '${l10n.photoToFlashcard} $timestamp',
-        createdAt: now.toUtc(),
-        cards: cards,
-      );
-
-      if (mounted && !_cancelled) {
-        context.push('/import/review', extra: studySet);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.photoAdded(cards.length)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } on ScanException catch (e) {
       if (!mounted || _cancelled) return;
@@ -151,6 +155,23 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     });
   }
 
+  void _reviewAndSave() {
+    final l10n = AppLocalizations.of(context);
+    final now = DateTime.now();
+    final timestamp =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final studySet = StudySet(
+      id: const Uuid().v4(),
+      title: '${l10n.photoToFlashcard} $timestamp',
+      createdAt: now.toUtc(),
+      cards: List.of(_accumulatedCards),
+    );
+
+    context.push('/import/review', extra: studySet);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -165,14 +186,73 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
             fontSize: 22,
           ),
         ),
+        actions: [
+          if (_accumulatedCards.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Chip(
+                avatar: Icon(Icons.photo_library_rounded, size: 16, color: AppTheme.orange),
+                label: Text(
+                  l10n.cardsFromPhotos(_accumulatedCards.length, _photoCount),
+                  style: const TextStyle(fontSize: 12),
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+        ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: switch (_stage) {
-          _Stage.pickImage => _buildPickImage(l10n),
-          _Stage.pickMode => _buildPickMode(l10n),
-          _Stage.analyzing => _buildAnalyzing(l10n),
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: switch (_stage) {
+                _Stage.pickImage => _buildPickImage(l10n),
+                _Stage.pickMode => _buildPickMode(l10n),
+                _Stage.analyzing => _buildAnalyzing(l10n),
+              },
+            ),
+          ),
+          if (_accumulatedCards.isNotEmpty) _buildBottomBar(l10n),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Icon(Icons.layers_rounded, size: 20, color: AppTheme.indigo),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.cardsFromPhotos(_accumulatedCards.length, _photoCount),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: _reviewAndSave,
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: Text(l10n.reviewAndSave),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -200,7 +280,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
             ),
             const SizedBox(height: 28),
             Text(
-              l10n.chooseImageSource,
+              _accumulatedCards.isEmpty
+                  ? l10n.chooseImageSource
+                  : l10n.addMorePhotos,
               style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),

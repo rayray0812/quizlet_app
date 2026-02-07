@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/services/fsrs_service.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
@@ -24,10 +24,7 @@ final dueClockProvider = Provider<DateTime Function()>((ref) {
 /// Emits immediately, then every minute to invalidate due-card providers.
 final dueTickerProvider = StreamProvider<int>((ref) async* {
   yield 0;
-  yield* Stream.periodic(
-    const Duration(minutes: 1),
-    (count) => count + 1,
-  );
+  yield* Stream.periodic(const Duration(minutes: 1), (count) => count + 1);
 });
 
 /// Due cards across all study sets.
@@ -47,8 +44,10 @@ final dueCountProvider = Provider<int>((ref) {
 });
 
 /// Due cards for a specific study set.
-final dueCardsForSetProvider =
-    Provider.family<List<CardProgress>, String>((ref, setId) {
+final dueCardsForSetProvider = Provider.family<List<CardProgress>, String>((
+  ref,
+  setId,
+) {
   final due = ref.watch(dueCardsProvider);
   return due.where((p) => p.setId == setId).toList();
 });
@@ -59,54 +58,56 @@ final dueCountForSetProvider = Provider.family<int, String>((ref, setId) {
 });
 
 /// Breakdown of due cards: new / learning / review.
-final dueBreakdownProvider = Provider<({int newCount, int learning, int review})>((ref) {
-  final due = ref.watch(dueCardsProvider);
-  int newCount = 0;
-  int learning = 0;
-  int review = 0;
+final dueBreakdownProvider =
+    Provider<({int newCount, int learning, int review})>((ref) {
+      final due = ref.watch(dueCardsProvider);
+      int newCount = 0;
+      int learning = 0;
+      int review = 0;
 
-  for (final p in due) {
-    switch (p.state) {
-      case 0:
-        newCount++;
-        break;
-      case 1:
-        learning++;
-        break;
-      case 2:
-      case 3:
-        review++;
-        break;
-    }
-  }
+      for (final p in due) {
+        switch (p.state) {
+          case 0:
+            newCount++;
+            break;
+          case 1:
+            learning++;
+            break;
+          case 2:
+          case 3:
+            review++;
+            break;
+        }
+      }
 
-  return (newCount: newCount, learning: learning, review: review);
-});
+      return (newCount: newCount, learning: learning, review: review);
+    });
 
 /// Breakdown for a specific set.
 final dueBreakdownForSetProvider =
-    Provider.family<({int newCount, int learning, int review}), String>(
-        (ref, setId) {
-  final due = ref.watch(dueCardsForSetProvider(setId));
-  int newCount = 0;
-  int learning = 0;
-  int review = 0;
+    Provider.family<({int newCount, int learning, int review}), String>((
+      ref,
+      setId,
+    ) {
+      final due = ref.watch(dueCardsForSetProvider(setId));
+      int newCount = 0;
+      int learning = 0;
+      int review = 0;
 
-  for (final p in due) {
-    switch (p.state) {
-      case 0:
-        newCount++;
-        break;
-      case 1:
-        learning++;
-        break;
-      case 2:
-      case 3:
-        review++;
-        break;
-    }
-  }
+      for (final p in due) {
+        switch (p.state) {
+          case 0:
+            newCount++;
+            break;
+          case 1:
+            learning++;
+            break;
+          case 2:
+          case 3:
+            review++;
+            break;
+        }
+      }
 
-  return (newCount: newCount, learning: learning, review: review);
-});
-
+      return (newCount: newCount, learning: learning, review: review);
+    });

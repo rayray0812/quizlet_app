@@ -12,6 +12,7 @@ import 'package:recall_app/features/study/screens/quiz_screen.dart';
 import 'package:recall_app/features/study/screens/matching_game_screen.dart';
 import 'package:recall_app/features/study/screens/srs_review_screen.dart';
 import 'package:recall_app/features/study/screens/review_summary_screen.dart';
+import 'package:recall_app/features/study/screens/speaking_practice_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/study/screens/custom_study_screen.dart';
@@ -126,6 +127,13 @@ final appRouter = GoRouter(
           builder: (context, state) {
             final setId = state.pathParameters['setId']!;
             return FlashcardScreen(setId: setId);
+          },
+        ),
+        GoRoute(
+          path: 'speaking',
+          builder: (context, state) {
+            final setId = state.pathParameters['setId']!;
+            return SpeakingPracticeScreen(setId: setId);
           },
         ),
         GoRoute(

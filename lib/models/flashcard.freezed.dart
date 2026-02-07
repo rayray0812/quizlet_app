@@ -24,6 +24,7 @@ mixin _$Flashcard {
   String get id => throw _privateConstructorUsedError;
   String get term => throw _privateConstructorUsedError;
   String get definition => throw _privateConstructorUsedError;
+  String get exampleSentence => throw _privateConstructorUsedError;
   int get difficultyLevel => throw _privateConstructorUsedError;
   String get imageUrl => throw _privateConstructorUsedError;
   List<String> get tags => throw _privateConstructorUsedError;
@@ -47,6 +48,7 @@ abstract class $FlashcardCopyWith<$Res> {
     String id,
     String term,
     String definition,
+    String exampleSentence,
     int difficultyLevel,
     String imageUrl,
     List<String> tags,
@@ -71,6 +73,7 @@ class _$FlashcardCopyWithImpl<$Res, $Val extends Flashcard>
     Object? id = null,
     Object? term = null,
     Object? definition = null,
+    Object? exampleSentence = null,
     Object? difficultyLevel = null,
     Object? imageUrl = null,
     Object? tags = null,
@@ -88,6 +91,10 @@ class _$FlashcardCopyWithImpl<$Res, $Val extends Flashcard>
             definition: null == definition
                 ? _value.definition
                 : definition // ignore: cast_nullable_to_non_nullable
+                      as String,
+            exampleSentence: null == exampleSentence
+                ? _value.exampleSentence
+                : exampleSentence // ignore: cast_nullable_to_non_nullable
                       as String,
             difficultyLevel: null == difficultyLevel
                 ? _value.difficultyLevel
@@ -120,6 +127,7 @@ abstract class _$$FlashcardImplCopyWith<$Res>
     String id,
     String term,
     String definition,
+    String exampleSentence,
     int difficultyLevel,
     String imageUrl,
     List<String> tags,
@@ -143,6 +151,7 @@ class __$$FlashcardImplCopyWithImpl<$Res>
     Object? id = null,
     Object? term = null,
     Object? definition = null,
+    Object? exampleSentence = null,
     Object? difficultyLevel = null,
     Object? imageUrl = null,
     Object? tags = null,
@@ -160,6 +169,10 @@ class __$$FlashcardImplCopyWithImpl<$Res>
         definition: null == definition
             ? _value.definition
             : definition // ignore: cast_nullable_to_non_nullable
+                  as String,
+        exampleSentence: null == exampleSentence
+            ? _value.exampleSentence
+            : exampleSentence // ignore: cast_nullable_to_non_nullable
                   as String,
         difficultyLevel: null == difficultyLevel
             ? _value.difficultyLevel
@@ -185,6 +198,7 @@ class _$FlashcardImpl implements _Flashcard {
     required this.id,
     required this.term,
     required this.definition,
+    this.exampleSentence = '',
     this.difficultyLevel = 0,
     this.imageUrl = '',
     final List<String> tags = const [],
@@ -199,6 +213,9 @@ class _$FlashcardImpl implements _Flashcard {
   final String term;
   @override
   final String definition;
+  @override
+  @JsonKey()
+  final String exampleSentence;
   @override
   @JsonKey()
   final int difficultyLevel;
@@ -216,7 +233,7 @@ class _$FlashcardImpl implements _Flashcard {
 
   @override
   String toString() {
-    return 'Flashcard(id: $id, term: $term, definition: $definition, difficultyLevel: $difficultyLevel, imageUrl: $imageUrl, tags: $tags)';
+    return 'Flashcard(id: $id, term: $term, definition: $definition, exampleSentence: $exampleSentence, difficultyLevel: $difficultyLevel, imageUrl: $imageUrl, tags: $tags)';
   }
 
   @override
@@ -228,6 +245,8 @@ class _$FlashcardImpl implements _Flashcard {
             (identical(other.term, term) || other.term == term) &&
             (identical(other.definition, definition) ||
                 other.definition == definition) &&
+            (identical(other.exampleSentence, exampleSentence) ||
+                other.exampleSentence == exampleSentence) &&
             (identical(other.difficultyLevel, difficultyLevel) ||
                 other.difficultyLevel == difficultyLevel) &&
             (identical(other.imageUrl, imageUrl) ||
@@ -242,6 +261,7 @@ class _$FlashcardImpl implements _Flashcard {
     id,
     term,
     definition,
+    exampleSentence,
     difficultyLevel,
     imageUrl,
     const DeepCollectionEquality().hash(_tags),
@@ -266,6 +286,7 @@ abstract class _Flashcard implements Flashcard {
     required final String id,
     required final String term,
     required final String definition,
+    final String exampleSentence,
     final int difficultyLevel,
     final String imageUrl,
     final List<String> tags,
@@ -280,6 +301,8 @@ abstract class _Flashcard implements Flashcard {
   String get term;
   @override
   String get definition;
+  @override
+  String get exampleSentence;
   @override
   int get difficultyLevel;
   @override

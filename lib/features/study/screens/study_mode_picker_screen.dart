@@ -1,26 +1,281 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/services/unsplash_service.dart';
 import 'package:recall_app/features/study/widgets/count_picker_dialog.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 
-class StudyModePickerScreen extends ConsumerWidget {
+class StudyModePickerScreen extends ConsumerStatefulWidget {
   final String setId;
 
   const StudyModePickerScreen({super.key, required this.setId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudyModePickerScreen> createState() =>
+      _StudyModePickerScreenState();
+}
+
+class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
+  bool _isAutoFetching = false;
+  late final FlutterTts _tts;
+  bool _isTtsReady = false;
+  Set<String>? _supportedLanguages;
+  List<Map<String, String>>? _availableVoices;
+  String? _activeLanguage;
+  String? _activeVoiceKey;
+  bool _isSpeaking = false;
+  DateTime? _lastSpeakRequestedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTts();
+  }
+
+  @override
+  void dispose() {
+    if (_isTtsReady) {
+      _isSpeaking = false;
+      _tts.stop();
+    }
+    super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    _tts = FlutterTts();
+    try {
+      await _tts.awaitSpeakCompletion(true);
+      await _tts.setSpeechRate(0.48);
+      await _tts.setPitch(1.0);
+      await _tts.setVolume(1.0);
+      _isTtsReady = true;
+    } catch (_) {
+      _isTtsReady = false;
+    }
+  }
+
+  String _pickLanguage(String text) {
+    final hasJapaneseKana = RegExp(r'[\u3040-\u30FF]').hasMatch(text);
+    if (hasJapaneseKana) return 'ja-JP';
+    final hasChinese = RegExp(r'[\u3400-\u9FFF]').hasMatch(text);
+    return hasChinese ? 'zh-TW' : 'en-US';
+  }
+
+  String _normalizeLocaleCode(String code) {
+    return code.replaceAll('_', '-').toLowerCase();
+  }
+
+  Future<Set<String>> _loadSupportedLanguages() async {
+    if (_supportedLanguages != null) return _supportedLanguages!;
+    try {
+      final langs = await _tts.getLanguages;
+      final normalized = langs
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      _supportedLanguages = normalized;
+      return normalized;
+    } catch (_) {
+      _supportedLanguages = <String>{};
+      return _supportedLanguages!;
+    }
+  }
+
+  Future<List<Map<String, String>>> _loadAvailableVoices() async {
+    if (_availableVoices != null) return _availableVoices!;
+    try {
+      final voices = await _tts.getVoices;
+      final normalized = <Map<String, String>>[];
+      for (final voice in voices) {
+        if (voice is Map) {
+          final name = voice['name']?.toString().trim() ?? '';
+          final locale = voice['locale']?.toString().trim() ?? '';
+          if (name.isNotEmpty && locale.isNotEmpty) {
+            normalized.add({'name': name, 'locale': locale});
+          }
+        }
+      }
+      _availableVoices = normalized;
+      return normalized;
+    } catch (_) {
+      _availableVoices = const <Map<String, String>>[];
+      return _availableVoices!;
+    }
+  }
+
+  Future<String?> _resolveLanguage(String preferred) async {
+    final available = await _loadSupportedLanguages();
+    if (available.isEmpty) return null;
+    final lowerMap = <String, String>{
+      for (final lang in available) _normalizeLocaleCode(lang): lang,
+    };
+    final normalizedPreferred = _normalizeLocaleCode(preferred);
+    final candidates = preferred.startsWith('zh')
+        ? <String>[preferred, 'zh-TW', 'zh-CN', 'zh']
+        : preferred.startsWith('ja')
+        ? <String>[preferred, 'ja-JP', 'ja']
+        : <String>[preferred, 'en-US', 'en-GB', 'en'];
+    for (final candidate in candidates) {
+      final normalizedCandidate = _normalizeLocaleCode(candidate);
+      final exact = lowerMap[normalizedCandidate];
+      if (exact != null) return exact;
+      final prefix = '$normalizedCandidate-';
+      for (final entry in lowerMap.entries) {
+        if (entry.key == normalizedCandidate || entry.key.startsWith(prefix)) {
+          return entry.value;
+        }
+      }
+    }
+    if (normalizedPreferred.startsWith('en')) {
+      for (final entry in lowerMap.entries) {
+        if (entry.key.startsWith('en')) return entry.value;
+      }
+    }
+    if (normalizedPreferred.startsWith('ja')) {
+      for (final entry in lowerMap.entries) {
+        if (entry.key.startsWith('ja')) return entry.value;
+      }
+    }
+    return null;
+  }
+
+  Future<Map<String, String>?> _resolveVoice(String preferred) async {
+    final voices = await _loadAvailableVoices();
+    if (voices.isEmpty) return null;
+    final localeCandidates = preferred.startsWith('zh')
+        ? <String>['zh-tw', 'zh-cn', 'zh']
+        : preferred.startsWith('ja')
+        ? <String>['ja-jp', 'ja']
+        : <String>['en-us', 'en-gb', 'en-au', 'en'];
+    for (final candidate in localeCandidates) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale == candidate || locale.startsWith('$candidate-')) {
+          return voice;
+        }
+      }
+    }
+    if (preferred.startsWith('en')) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale.startsWith('en')) return voice;
+      }
+    }
+    if (preferred.startsWith('ja')) {
+      for (final voice in voices) {
+        final locale = _normalizeLocaleCode(voice['locale']!);
+        if (locale.startsWith('ja')) return voice;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _speakText(String text, {bool userInitiated = false}) async {
+    if (!_isTtsReady) {
+      await _initTts();
+      if (!_isTtsReady) return;
+    }
+    final value = text.trim();
+    if (value.isEmpty) return;
+    final now = DateTime.now();
+    final lastAt = _lastSpeakRequestedAt;
+    if (!userInitiated &&
+        lastAt != null &&
+        now.difference(lastAt).inMilliseconds < 120) {
+      return;
+    }
+    _lastSpeakRequestedAt = now;
+    try {
+      if (_isSpeaking) {
+        await _tts.stop();
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      }
+      final resolved = await _resolveLanguage(_pickLanguage(value));
+      if (resolved != null && resolved != _activeLanguage) {
+        try {
+          await _tts.setLanguage(resolved);
+          _activeLanguage = resolved;
+        } catch (_) {}
+      }
+      final voice = await _resolveVoice(_pickLanguage(value));
+      if (voice != null) {
+        final voiceKey = '${voice['name']}|${voice['locale']}';
+        if (voiceKey != _activeVoiceKey) {
+          try {
+            await _tts.setVoice(voice);
+            _activeVoiceKey = voiceKey;
+          } catch (_) {}
+        }
+      }
+      _isSpeaking = true;
+      await _tts.speak(value);
+    } catch (_) {
+    } finally {
+      _isSpeaking = false;
+    }
+  }
+
+  Future<void> _autoFetchImages({
+    required BuildContext context,
+    required AppLocalizations l10n,
+    required StudySet studySet,
+  }) async {
+    if (_isAutoFetching) return;
+
+    setState(() => _isAutoFetching = true);
+    final unsplash = UnsplashService();
+    final updatedCards = <Flashcard>[];
+    Object? firstError;
+    var updatedCount = 0;
+
+    for (final card in studySet.cards) {
+      if (card.imageUrl.isEmpty && card.term.isNotEmpty) {
+        try {
+          final url = await unsplash.searchPhoto(card.term);
+          if (url.isNotEmpty) {
+            updatedCards.add(card.copyWith(imageUrl: url));
+            updatedCount++;
+          } else {
+            updatedCards.add(card);
+          }
+        } catch (e) {
+          firstError ??= e;
+          updatedCards.add(card);
+        }
+      } else {
+        updatedCards.add(card);
+      }
+    }
+
+    if (mounted && updatedCount > 0) {
+      await ref
+          .read(studySetsProvider.notifier)
+          .update(studySet.copyWith(cards: updatedCards));
+    }
+
+    if (mounted) {
+      setState(() => _isAutoFetching = false);
+      if (firstError != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.importFailed('$firstError'))),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final studySet = ref
         .watch(studySetsProvider)
-        .where((s) => s.id == setId)
+        .where((s) => s.id == widget.setId)
         .firstOrNull;
     final l10n = AppLocalizations.of(context);
 
@@ -37,6 +292,17 @@ class StudyModePickerScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(studySet.title),
         actions: [
+          if (_isAutoFetching)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) async {
@@ -46,19 +312,11 @@ class StudyModePickerScreen extends ConsumerWidget {
               } else if (value == 'csv') {
                 await service.exportAsCsv(studySet);
               } else if (value == 'auto_image') {
-                final unsplash = UnsplashService();
-                final updatedCards = <Flashcard>[];
-                for (final card in studySet.cards) {
-                  if (card.imageUrl.isEmpty && card.term.isNotEmpty) {
-                    final url = await unsplash.searchPhoto(card.term);
-                    updatedCards.add(card.copyWith(imageUrl: url));
-                  } else {
-                    updatedCards.add(card);
-                  }
-                }
-                ref
-                    .read(studySetsProvider.notifier)
-                    .update(studySet.copyWith(cards: updatedCards));
+                await _autoFetchImages(
+                  context: context,
+                  l10n: l10n,
+                  studySet: studySet,
+                );
               }
             },
             itemBuilder: (context) => [
@@ -82,6 +340,7 @@ class StudyModePickerScreen extends ConsumerWidget {
               ),
               PopupMenuItem(
                 value: 'auto_image',
+                enabled: !_isAutoFetching,
                 child: ListTile(
                   leading: const Icon(Icons.image_search),
                   title: Text(l10n.autoFetchImage),
@@ -172,7 +431,9 @@ class StudyModePickerScreen extends ConsumerWidget {
               children: [
                 Consumer(
                   builder: (context, ref, _) {
-                    final dueCount = ref.watch(dueCountForSetProvider(setId));
+                    final dueCount = ref.watch(
+                      dueCountForSetProvider(widget.setId),
+                    );
                     return _StudyModeCard(
                       icon: Icons.psychology_rounded,
                       iconColor: AppTheme.purple,
@@ -182,7 +443,7 @@ class StudyModePickerScreen extends ConsumerWidget {
                           : l10n.srsReviewDesc,
                       onTap: studySet.cards.isEmpty
                           ? null
-                          : () => context.push('/study/$setId/srs'),
+                          : () => context.push('/study/${widget.setId}/srs'),
                       badge: dueCount > 0 ? '$dueCount' : null,
                     );
                   },
@@ -195,7 +456,17 @@ class StudyModePickerScreen extends ConsumerWidget {
                   description: l10n.quickBrowseDesc,
                   onTap: studySet.cards.isEmpty
                       ? null
-                      : () => context.push('/study/$setId/flashcards'),
+                      : () => context.push('/study/${widget.setId}/flashcards'),
+                ),
+                const SizedBox(height: 12),
+                _StudyModeCard(
+                  icon: Icons.record_voice_over_rounded,
+                  iconColor: AppTheme.green,
+                  title: l10n.speakingPractice,
+                  description: l10n.speakingPracticeDesc,
+                  onTap: studySet.cards.isEmpty
+                      ? null
+                      : () => context.push('/study/${widget.setId}/speaking'),
                 ),
                 const SizedBox(height: 12),
                 _StudyModeCard(
@@ -212,7 +483,7 @@ class StudyModePickerScreen extends ConsumerWidget {
                           );
                           if (count != null && context.mounted) {
                             context.push(
-                              '/study/$setId/quiz',
+                              '/study/${widget.setId}/quiz',
                               extra: {'questionCount': count},
                             );
                           }
@@ -229,7 +500,7 @@ class StudyModePickerScreen extends ConsumerWidget {
                   title: l10n.matchingGame,
                   description: l10n.matchingGameDesc,
                   onTap: studySet.cards.length >= 2
-                      ? () => context.push('/study/$setId/match')
+                      ? () => context.push('/study/${widget.setId}/match')
                       : null,
                   disabledReason: studySet.cards.length >= 2
                       ? null
@@ -247,7 +518,7 @@ class StudyModePickerScreen extends ConsumerWidget {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => context.push('/edit/$setId'),
+                onPressed: () => context.push('/edit/${widget.setId}'),
                 icon: const Icon(Icons.edit_note_rounded, size: 20),
                 label: Text(
                   studySet.cards.isEmpty ? l10n.addCards : l10n.editCards,
@@ -286,6 +557,7 @@ class StudyModePickerScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 4,
                       child: Text(
                         card.term,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -304,11 +576,28 @@ class StudyModePickerScreen extends ConsumerWidget {
                       ),
                     ),
                     Expanded(
+                      flex: 5,
                       child: Text(
                         card.definition,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      onPressed: () =>
+                          _speakText(card.term, userInitiated: true),
+                      tooltip: l10n.listen,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 32,
+                        height: 32,
+                      ),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.volume_up_rounded,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -433,4 +722,3 @@ class _StudyModeCardState extends State<_StudyModeCard> {
     );
   }
 }
-

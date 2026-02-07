@@ -6,4 +6,7 @@
   static const int maxCardsPerSet = 500;
   static const int defaultNewCardsPerDay = 20;
   static const String hiveSettingsBox = 'settings';
+  static const String notificationChannelId = 'recall_daily_review';
+  static const int defaultNotificationHour = 20;
+  static const int defaultNotificationMinute = 0;
 }

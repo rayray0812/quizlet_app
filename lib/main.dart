@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,6 +9,7 @@ import 'package:recall_app/models/adapters/study_set_adapter.dart';
 import 'package:recall_app/models/adapters/flashcard_adapter.dart';
 import 'package:recall_app/models/adapters/card_progress_adapter.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
+import 'package:recall_app/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,16 +29,35 @@ void main() async {
     debugPrint('Hive openBox failed: $e');
   }
 
-  // Initialize Supabase (may fail with placeholder credentials ??app still works offline)
-  try {
-    await Supabase.initialize(
-      url: SupabaseConstants.supabaseUrl,
-      anonKey: SupabaseConstants.supabaseAnonKey,
+  // Initialize Notifications
+  await NotificationService.init();
+
+  // Re-schedule daily reminder if enabled (survives reboots)
+  final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+  if (settingsBox.get('notification_enabled', defaultValue: false) as bool) {
+    await NotificationService.scheduleDailyReminder(
+      hour: AppConstants.defaultNotificationHour,
+      minute: AppConstants.defaultNotificationMinute,
+      title: '\u8A72\u4F86\u8907\u7FD2\u4E86\uFF01',
+      body: '\u4F60\u6709\u5F85\u8907\u7FD2\u7684\u5361\u7247\uFF0C\u6253\u958B\u62FE\u61B6\u770B\u770B\u5427',
     );
-  } catch (e) {
-    debugPrint('Supabase init failed (offline mode): $e');
+  }
+
+  // Initialize Supabase only when credentials are provided.
+  if (SupabaseConstants.isConfigured) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConstants.supabaseUrl,
+        anonKey: SupabaseConstants.supabaseAnonKey,
+      );
+    } catch (e) {
+      debugPrint('Supabase init failed (offline mode): $e');
+    }
+  } else {
+    debugPrint(
+      'Supabase not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY with --dart-define.',
+    );
   }
 
   runApp(const ProviderScope(child: RecallApp()));
 }
-

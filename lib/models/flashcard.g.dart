@@ -11,6 +11,7 @@ _$FlashcardImpl _$$FlashcardImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       term: json['term'] as String,
       definition: json['definition'] as String,
+      exampleSentence: json['exampleSentence'] as String? ?? '',
       difficultyLevel: (json['difficultyLevel'] as num?)?.toInt() ?? 0,
       imageUrl: json['imageUrl'] as String? ?? '',
       tags:
@@ -23,6 +24,7 @@ Map<String, dynamic> _$$FlashcardImplToJson(_$FlashcardImpl instance) =>
       'id': instance.id,
       'term': instance.term,
       'definition': instance.definition,
+      'exampleSentence': instance.exampleSentence,
       'difficultyLevel': instance.difficultyLevel,
       'imageUrl': instance.imageUrl,
       'tags': instance.tags,

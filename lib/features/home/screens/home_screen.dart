@@ -17,6 +17,7 @@ import 'package:recall_app/features/home/widgets/study_set_card.dart';
 import 'package:recall_app/features/home/widgets/today_review_card.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
+import 'package:recall_app/providers/notification_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -300,6 +301,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         const SizedBox(height: 14),
         _GeminiApiKeyCard(ref: ref),
+        const SizedBox(height: 14),
+        _NotificationCard(ref: ref),
         const SizedBox(height: 14),
         Container(
           decoration: AppTheme.softCardDecoration(
@@ -744,6 +747,39 @@ class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NotificationCard extends ConsumerWidget {
+  final WidgetRef ref;
+
+  const _NotificationCard({required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final enabled = ref.watch(notificationProvider);
+
+    return Container(
+      decoration: AppTheme.softCardDecoration(
+        fillColor: Theme.of(context).cardColor,
+        borderRadius: 20,
+        elevation: 1.2,
+      ),
+      child: SwitchListTile(
+        secondary: const Icon(Icons.notifications_rounded),
+        title: Text(l10n.dailyReminder),
+        subtitle: Text(l10n.dailyReminderDesc),
+        value: enabled,
+        onChanged: (value) {
+          ref.read(notificationProvider.notifier).toggle(
+            value,
+            title: l10n.reminderTitle,
+            body: l10n.reminderBody,
+          );
+        },
       ),
     );
   }

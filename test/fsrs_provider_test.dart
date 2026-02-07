@@ -12,26 +12,22 @@ void main() {
         setId: 's1',
         due: now.subtract(const Duration(minutes: 1)),
       ),
-      CardProgress(
-        cardId: 'at-now',
-        setId: 's1',
-        due: now,
-      ),
+      CardProgress(cardId: 'at-now', setId: 's1', due: now),
       CardProgress(
         cardId: 'future',
         setId: 's1',
         due: now.add(const Duration(minutes: 1)),
       ),
-      const CardProgress(
-        cardId: 'new',
-        setId: 's1',
-      ),
+      const CardProgress(cardId: 'new', setId: 's1'),
     ];
 
     final container = ProviderContainer(
       overrides: [
         allCardProgressProvider.overrideWith((ref) => cards),
-        dueClockProvider.overrideWith((ref) => () => now),
+        dueClockProvider.overrideWith(
+          (ref) =>
+              () => now,
+        ),
         dueTickerProvider.overrideWith((ref) => Stream.value(0)),
       ],
     );
