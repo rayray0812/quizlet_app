@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:quizlet_app/core/router/app_router.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/constants/app_constants.dart';
-import 'package:quizlet_app/providers/locale_provider.dart';
-import 'package:quizlet_app/providers/theme_provider.dart';
+import 'package:recall_app/core/router/app_router.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/providers/locale_provider.dart';
+import 'package:recall_app/providers/theme_provider.dart';
 
-class QuizletApp extends ConsumerWidget {
-  const QuizletApp({super.key});
+class RecallApp extends ConsumerWidget {
+  const RecallApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,3 +34,4 @@ class QuizletApp extends ConsumerWidget {
     );
   }
 }
+

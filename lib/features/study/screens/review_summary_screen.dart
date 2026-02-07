@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class ReviewSummaryScreen extends StatefulWidget {
   final int totalReviewed;
@@ -328,3 +328,4 @@ class _AccuracyRing extends StatelessWidget {
     );
   }
 }
+

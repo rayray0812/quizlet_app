@@ -1,8 +1,8 @@
-import 'dart:math';
+﻿import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 /// Shows a dialog for picking the number of questions.
 /// Returns the selected count, or null if dismissed.
@@ -147,3 +147,4 @@ class _QuickChip extends StatelessWidget {
     );
   }
 }
+

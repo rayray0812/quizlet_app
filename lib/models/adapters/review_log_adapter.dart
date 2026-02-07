@@ -1,5 +1,5 @@
-import 'package:hive/hive.dart';
-import 'package:quizlet_app/models/review_log.dart';
+﻿import 'package:hive/hive.dart';
+import 'package:recall_app/models/review_log.dart';
 
 class ReviewLogAdapter extends TypeAdapter<ReviewLog> {
   @override
@@ -40,3 +40,4 @@ class ReviewLogAdapter extends TypeAdapter<ReviewLog> {
     });
   }
 }
+

@@ -1,7 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/models/card_progress.dart';
-import 'package:quizlet_app/services/fsrs_service.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/services/fsrs_service.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
 /// Singleton FsrsService provider.
 final fsrsServiceProvider = Provider<FsrsService>((ref) {
@@ -16,10 +16,22 @@ final allCardProgressProvider = Provider<List<CardProgress>>((ref) {
   return localStorage.getAllCardProgress();
 });
 
+/// Emits current UTC time immediately, then every minute.
+final dueNowProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now().toUtc();
+  yield* Stream.periodic(
+    const Duration(minutes: 1),
+    (_) => DateTime.now().toUtc(),
+  );
+});
+
 /// Due cards across all study sets.
 final dueCardsProvider = Provider<List<CardProgress>>((ref) {
   final all = ref.watch(allCardProgressProvider);
-  final now = DateTime.now().toUtc();
+  final now = ref.watch(dueNowProvider).maybeWhen(
+        data: (value) => value,
+        orElse: () => DateTime.now().toUtc(),
+      );
   return all.where((p) {
     if (p.due == null) return true; // New cards
     return p.due!.isBefore(now) || p.due!.isAtSameMomentAs(now);
@@ -94,3 +106,4 @@ final dueBreakdownForSetProvider =
 
   return (newCount: newCount, learning: learning, review: review);
 });
+

@@ -1,14 +1,14 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:quizlet_app/features/import/utils/js_scraper.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/features/import/utils/js_scraper.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class WebImportScreen extends StatefulWidget {
   const WebImportScreen({super.key});
@@ -23,20 +23,13 @@ class _WebImportScreenState extends State<WebImportScreen> {
   String _currentUrl = '';
   bool _isLoading = true;
 
-  bool get _isOnQuizletSet =>
-      _isQuizletHost(_currentUrl) &&
-      (Uri.tryParse(_currentUrl)?.pathSegments.isNotEmpty ?? false);
-
-  bool _isQuizletHost(String rawUrl) {
-    final uri = Uri.tryParse(rawUrl);
-    final host = uri?.host.toLowerCase() ?? '';
-    return host == 'quizlet.com' || host.endsWith('.quizlet.com');
-  }
+  bool get _isOnSupportedPage =>
+      Uri.tryParse(_currentUrl)?.pathSegments.isNotEmpty ?? false;
 
   @override
   void initState() {
     super.initState();
-    _urlController = TextEditingController(text: 'https://quizlet.com');
+    _urlController = TextEditingController(text: 'https://www.google.com');
     if (!kIsWeb) {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -58,7 +51,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
             },
           ),
         )
-        ..loadRequest(Uri.parse('https://quizlet.com'));
+        ..loadRequest(Uri.parse('https://www.google.com'));
     } else {
       _controller = null;
     }
@@ -78,13 +71,6 @@ class _WebImportScreenState extends State<WebImportScreen> {
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://$url';
       _urlController.text = url;
-    }
-
-    if (!_isQuizletHost(url)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).pleaseEnterQuizletUrl)),
-      );
-      return;
     }
 
     _controller.loadRequest(Uri.parse(url));
@@ -278,7 +264,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.importFromQuizlet),
+        title: Text(l10n.importFromRecall),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.go('/'),
@@ -294,7 +280,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
                   child: TextField(
                     controller: _urlController,
                     decoration: InputDecoration(
-                      hintText: l10n.enterQuizletUrl,
+                      hintText: l10n.enterRecallUrl,
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
@@ -339,7 +325,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
           ),
         ],
       ),
-      floatingActionButton: _isOnQuizletSet
+      floatingActionButton: _isOnSupportedPage
           ? GestureDetector(
               onLongPress: kDebugMode ? _debugScrape : null,
               child: FloatingActionButton.extended(
@@ -352,3 +338,4 @@ class _WebImportScreenState extends State<WebImportScreen> {
     );
   }
 }
+

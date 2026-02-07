@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -39,7 +39,7 @@ class AppLocalizations {
   String get descriptionOptional => '';
   String get create => '';
   String get createNewSet => '';
-  String get importFromQuizlet => '';
+  String get importFromRecall => '';
   String get profile => '';
   String get settings => '';
   String get theme => '';
@@ -133,7 +133,7 @@ class AppLocalizations {
   String reviewNUnknownCards(int count) => '';
   String get swipeToSort => '';
   String get importFromFile => '';
-  String get enterQuizletUrl => '';
+  String get enterRecallUrl => '';
   String get tapToFlip => '';
   String get definitionLabel => '';
   String get exportAsJson => '';
@@ -142,7 +142,7 @@ class AppLocalizations {
   String get autoFetchImage => '';
   String get allTerms => '';
   String get addCards => '';
-  String get pleaseEnterQuizletUrl => '';
+  String get pleaseEnterRecallUrl => '';
 
   // -- SRS --
   String get srsReview => '';
@@ -176,6 +176,31 @@ class AppLocalizations {
   String nMatchingCards(int count) => '';
   String get startReview => '';
   String get noResults => '';
+
+  // -- Photo to Flashcard (F6) --
+  String get photoToFlashcard => '';
+  String get vocabularyList => '';
+  String get vocabularyListDesc => '';
+  String get textbookPage => '';
+  String get textbookPageDesc => '';
+  String get takePhoto => '';
+  String get chooseFromGallery => '';
+  String get geminiApiKey => '';
+  String get geminiApiKeyHint => '';
+  String get geminiApiKeyNotSet => '';
+  String get geminiApiKeySaved => '';
+  String get analyzing => '';
+  String get noCardsExtracted => '';
+  String get photoScanFailed => '';
+  String get chooseMode => '';
+  String get chooseImageSource => '';
+  String get retryOrChooseAnother => '';
+
+  String get scanTimeout => '';
+  String get scanQuotaExceeded => '';
+  String get scanParseError => '';
+  String get scanNetworkError => '';
+  String get cancelAnalysis => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -213,7 +238,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get createNewSet => '\u5EFA\u7ACB\u65B0\u5B78\u7FD2\u96C6';
   @override
-  String get importFromQuizlet => '\u7DB2\u9801\u532F\u5165';
+  String get importFromRecall => '\u7DB2\u9801\u532F\u5165';
   @override
   String get profile => '\u500B\u4EBA\u6A94\u6848';
   @override
@@ -375,110 +400,158 @@ class AppLocalizationsZh extends AppLocalizations {
 
   // -- Study Set Card --
   @override
-  String cards(int count) => '$count 張卡片';
+  String cards(int count) => '$count \u5F35\u5361\u7247';
 
   // -- New keys (R7) --
   @override
-  String get editCards => '編輯卡片';
+  String get editCards => '\u7DE8\u8F2F\u5361\u7247';
   @override
-  String savedNCards(int count) => '已儲存 $count 張卡片';
+  String savedNCards(int count) => '\u5DF2\u5132\u5B58 $count \u5F35\u5361\u7247';
   @override
-  String get start => '開始';
+  String get start => '\u958B\u59CB';
   @override
-  String get know => '記得';
+  String get know => '\u77E5\u9053';
   @override
-  String get dontKnow => '不記得';
+  String get dontKnow => '\u4E0D\u77E5\u9053';
   @override
-  String get greatJob => '太棒了！';
+  String get greatJob => '\u505A\u5F97\u5F88\u597D\uFF01';
   @override
-  String get roundComplete => '本輪完成';
+  String get roundComplete => '\u56DE\u5408\u5B8C\u6210';
   @override
-  String reviewNUnknownCards(int count) => '複習 $count 張不記得的卡片';
+  String reviewNUnknownCards(int count) =>
+      '\u8907\u7FD2 $count \u5F35\u4E0D\u77E5\u9053\u7684\u5361\u7247';
   @override
-  String get swipeToSort => '滑動分類';
+  String get swipeToSort => '\u6ED1\u52D5\u5206\u985E';
   @override
-  String get importFromFile => '從檔案匯入（JSON/CSV）';
+  String get importFromFile => '\u5F9E\u6A94\u6848\u532F\u5165 (JSON/CSV)';
   @override
-  String get enterQuizletUrl => '\u8F38\u5165\u5B78\u7FD2\u96C6\u7DB2\u5740';
+  String get enterRecallUrl => '\u8F38\u5165\u5B78\u7FD2\u96C6\u7DB2\u5740';
   @override
-  String get tapToFlip => '點擊翻轉';
+  String get tapToFlip => '\u9EDE\u64CA\u7FFB\u9762';
   @override
-  String get definitionLabel => '定義';
+  String get definitionLabel => '\u5B9A\u7FA9';
   @override
-  String get exportAsJson => '匯出 JSON';
+  String get exportAsJson => '\u532F\u51FA JSON';
   @override
-  String get exportAsCsv => '匯出 CSV';
+  String get exportAsCsv => '\u532F\u51FA CSV';
   @override
-  String get howMany => '要幾題？';
+  String get howMany => '\u8981\u5E7E\u5F35\uFF1F';
   @override
-  String get autoFetchImage => '自動配圖';
+  String get autoFetchImage => '\u81EA\u52D5\u6293\u5716';
   @override
-  String get allTerms => '所有單字';
+  String get allTerms => '\u5168\u90E8\u8A5E\u689D';
   @override
-  String get addCards => '新增卡片';
+  String get addCards => '\u65B0\u589E\u5361\u7247';
   @override
-  String get pleaseEnterQuizletUrl =>
+  String get pleaseEnterRecallUrl =>
       '\u8ACB\u8F38\u5165\u6709\u6548\u7684\u7DB2\u5740';
 
   // -- SRS --
   @override
-  String get srsReview => 'SRS 複習';
+  String get srsReview => 'SRS \u8907\u7FD2';
   @override
-  String get srsReviewDesc => '間隔重複，高效記憶';
+  String get srsReviewDesc => '\u9593\u9694\u91CD\u8907\u5B78\u7FD2\uFF0C\u66F4\u9AD8\u6548';
   @override
-  String get quickBrowse => '快速瀏覽（滑動）';
+  String get quickBrowse => '\u5FEB\u901F\u700F\u89BD';
   @override
-  String get quickBrowseDesc => '左右滑動瀏覽所有卡片';
+  String get quickBrowseDesc => '\u6ED1\u52D5\u700F\u89BD\u6240\u6709\u5361\u7247';
   @override
-  String get noDueCards => '沒有待複習的卡片';
+  String get noDueCards => '\u4ECA\u5929\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247';
   @override
-  String get reviewComplete => '複習完成！';
+  String get reviewComplete => '\u8907\u7FD2\u5B8C\u6210\uFF01';
   @override
-  String reviewedNCards(int count) => '已複習 $count 張卡片';
+  String reviewedNCards(int count) => '\u5DF2\u8907\u7FD2 $count \u5F35\u5361\u7247';
   @override
-  String nDueCards(int count) => '$count 張待複習';
+  String nDueCards(int count) => '$count \u5F35\u5F85\u8907\u7FD2';
   @override
-  String get todayReview => '今日複習';
+  String get todayReview => '\u4ECA\u65E5\u8907\u7FD2';
   @override
-  String get newCards => '新卡';
+  String get newCards => '\u65B0\u5361';
   @override
-  String get learningCards => '學習中';
+  String get learningCards => '\u5B78\u7FD2\u4E2D';
   @override
-  String get reviewCards => '待複習';
+  String get reviewCards => '\u8907\u7FD2';
 
   // -- Stats --
   @override
-  String get statistics => '學習統計';
+  String get statistics => '\u7D71\u8A08';
   @override
-  String get todayReviews => '今日複習數';
+  String get todayReviews => '\u4ECA\u5929';
   @override
-  String get streak => '連續天數';
+  String get streak => '\u9023\u7E8C\u5929\u6578';
   @override
-  String get totalReviews => '總複習次數';
+  String get totalReviews => '\u7E3D\u8907\u7FD2\u6578';
   @override
-  String get last30Days => '近 30 天';
+  String get last30Days => '\u6700\u8FD1 30 \u5929';
   @override
-  String get ratingBreakdown => '評分比例';
+  String get ratingBreakdown => '\u96E3\u5EA6\u5206\u5E03';
   @override
-  String nDays(int count) => '$count 天';
+  String nDays(int count) => '$count \u5929';
 
   // -- Tags / Search --
   @override
-  String get tags => '標籤';
+  String get tags => '\u6A19\u7C64';
   @override
-  String get addTag => '新增標籤';
+  String get addTag => '\u65B0\u589E\u6A19\u7C64';
   @override
-  String get search => '搜尋';
+  String get search => '\u641C\u5C0B';
   @override
-  String get customStudy => '自訂學習';
+  String get customStudy => '\u81EA\u8A02\u5B78\u7FD2';
   @override
-  String get selectTags => '選擇標籤';
+  String get selectTags => '\u9078\u64C7\u6A19\u7C64';
   @override
-  String nMatchingCards(int count) => '$count 張符合的卡片';
+  String nMatchingCards(int count) => '$count \u5F35\u7B26\u5408\u689D\u4EF6\u7684\u5361\u7247';
   @override
-  String get startReview => '開始複習';
+  String get startReview => '\u958B\u59CB\u8907\u7FD2';
   @override
-  String get noResults => '沒有結果';
+  String get noResults => '\u627E\u4E0D\u5230\u7D50\u679C';
+
+  // -- Photo to Flashcard (F6) --
+  @override
+  String get photoToFlashcard => '\u62CD\u7167\u5EFA\u5361';
+  @override
+  String get vocabularyList => '\u55AE\u5B57\u8868';
+  @override
+  String get vocabularyListDesc => '\u8FA8\u8B58\u5716\u7247\u4E2D\u7684\u55AE\u5B57\u8207\u91CB\u7FA9';
+  @override
+  String get textbookPage => '\u8AB2\u672C\u9801\u9762';
+  @override
+  String get textbookPageDesc => '\u64F7\u53D6\u8AB2\u672C\u5167\u5BB9\u7684\u91CD\u9EDE\u6982\u5FF5';
+  @override
+  String get takePhoto => '\u62CD\u7167';
+  @override
+  String get chooseFromGallery => '\u5F9E\u76F8\u7C3F\u9078\u64C7';
+  @override
+  String get geminiApiKey => 'Gemini API Key';
+  @override
+  String get geminiApiKeyHint => '\u8F38\u5165\u4F60\u7684 Gemini API Key';
+  @override
+  String get geminiApiKeyNotSet => '\u8ACB\u5148\u5728\u8A2D\u5B9A\u9801\u8F38\u5165 Gemini API Key';
+  @override
+  String get geminiApiKeySaved => 'API Key \u5DF2\u5132\u5B58';
+  @override
+  String get analyzing => 'AI \u5206\u6790\u4E2D\u2026';
+  @override
+  String get noCardsExtracted => '\u7121\u6CD5\u64F7\u53D6\u5361\u7247\uFF0C\u8ACB\u63DB\u4E00\u5F35\u5716\u7247\u8A66\u8A66';
+  @override
+  String get photoScanFailed => '\u5206\u6790\u5931\u6557\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21';
+  @override
+  String get chooseMode => '\u9078\u64C7\u8FA8\u8B58\u6A21\u5F0F';
+  @override
+  String get chooseImageSource => '\u9078\u64C7\u5716\u7247\u4F86\u6E90';
+  @override
+  String get retryOrChooseAnother => '\u91CD\u8A66\u6216\u9078\u64C7\u5176\u4ED6\u5716\u7247';
+
+  @override
+  String get scanTimeout => '\u8ACB\u6C42\u903E\u6642\uFF0C\u8ACB\u6AA2\u67E5\u7DB2\u8DEF\u5F8C\u91CD\u8A66';
+  @override
+  String get scanQuotaExceeded => 'API \u984D\u5EA6\u5DF2\u7528\u5B8C\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66';
+  @override
+  String get scanParseError => 'AI \u56DE\u61C9\u683C\u5F0F\u7570\u5E38\uFF0C\u8ACB\u91CD\u8A66';
+  @override
+  String get scanNetworkError => '\u7DB2\u8DEF\u932F\u8AA4\uFF0C\u8ACB\u6AA2\u67E5\u9023\u7DDA';
+  @override
+  String get cancelAnalysis => '\u53D6\u6D88';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -515,7 +588,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get createNewSet => 'Create New Set';
   @override
-  String get importFromQuizlet => 'Web Import';
+  String get importFromRecall => 'Web Import';
   @override
   String get profile => 'Profile';
   @override
@@ -690,7 +763,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get importFromFile => 'Import from File (JSON/CSV)';
   @override
-  String get enterQuizletUrl => 'Enter Web URL';
+  String get enterRecallUrl => 'Enter Web URL';
   @override
   String get tapToFlip => 'TAP TO FLIP';
   @override
@@ -708,7 +781,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get addCards => 'Add Cards';
   @override
-  String get pleaseEnterQuizletUrl => 'Please enter a valid URL';
+  String get pleaseEnterRecallUrl => 'Please enter a valid URL';
 
   // -- SRS --
   @override
@@ -769,6 +842,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startReview => 'Start Review';
   @override
   String get noResults => 'No results';
+
+  // -- Photo to Flashcard (F6) --
+  @override
+  String get photoToFlashcard => 'Photo to Flashcard';
+  @override
+  String get vocabularyList => 'Vocabulary List';
+  @override
+  String get vocabularyListDesc => 'Extract words and definitions from the image';
+  @override
+  String get textbookPage => 'Textbook Page';
+  @override
+  String get textbookPageDesc => 'Extract key concepts from textbook content';
+  @override
+  String get takePhoto => 'Take Photo';
+  @override
+  String get chooseFromGallery => 'Choose from Gallery';
+  @override
+  String get geminiApiKey => 'Gemini API Key';
+  @override
+  String get geminiApiKeyHint => 'Enter your Gemini API Key';
+  @override
+  String get geminiApiKeyNotSet => 'Please set Gemini API Key in Settings first';
+  @override
+  String get geminiApiKeySaved => 'API Key saved';
+  @override
+  String get analyzing => 'AI analyzing...';
+  @override
+  String get noCardsExtracted => 'No cards extracted. Try a different image.';
+  @override
+  String get photoScanFailed => 'Analysis failed. Please try again.';
+  @override
+  String get chooseMode => 'Choose scan mode';
+  @override
+  String get chooseImageSource => 'Choose image source';
+  @override
+  String get retryOrChooseAnother => 'Retry or choose another image';
+
+  @override
+  String get scanTimeout => 'Request timed out. Check your connection and retry.';
+  @override
+  String get scanQuotaExceeded => 'API quota exceeded. Please try again later.';
+  @override
+  String get scanParseError => 'AI response was unexpected. Please retry.';
+  @override
+  String get scanNetworkError => 'Network error. Check your connection.';
+  @override
+  String get cancelAnalysis => 'Cancel';
 }
 
 class _AppLocalizationsDelegate
@@ -786,3 +906,4 @@ class _AppLocalizationsDelegate
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
+

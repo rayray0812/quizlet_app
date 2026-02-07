@@ -1,5 +1,5 @@
-import 'package:hive/hive.dart';
-import 'package:quizlet_app/models/card_progress.dart';
+﻿import 'package:hive/hive.dart';
+import 'package:recall_app/models/card_progress.dart';
 
 class CardProgressAdapter extends TypeAdapter<CardProgress> {
   @override
@@ -44,3 +44,4 @@ class CardProgressAdapter extends TypeAdapter<CardProgress> {
     });
   }
 }
+

@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quizlet_app/features/auth/widgets/auth_form.dart';
-import 'package:quizlet_app/providers/auth_provider.dart';
-import 'package:quizlet_app/core/constants/app_constants.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/features/auth/widgets/auth_form.dart';
+import 'package:recall_app/providers/auth_provider.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class SignupScreen extends ConsumerWidget {
   const SignupScreen({super.key});
@@ -89,3 +89,4 @@ class SignupScreen extends ConsumerWidget {
     );
   }
 }
+

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 /// Four rating buttons: Again / Hard / Good / Easy with predicted intervals.
 class RatingButtons extends StatelessWidget {
@@ -116,3 +116,4 @@ class _RatingButtonState extends State<_RatingButton> {
     );
   }
 }
+

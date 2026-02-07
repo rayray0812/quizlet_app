@@ -1,5 +1,5 @@
-class JsScraper {
-  /// JavaScript to inject into Quizlet pages to extract flashcard data.
+﻿class JsScraper {
+  /// JavaScript injected into study-set pages to extract flashcard data.
   /// Returns encodeURIComponent'd JSON to avoid WebView escaping issues.
   static const String scrapeScript = '''
     (function() {
@@ -26,7 +26,7 @@ class JsScraper {
         }
       } catch(e) {}
 
-      // Strategy 2: DOM — pair TermText within each SetPageTerm container
+      // Strategy 2: DOM ??pair TermText within each SetPageTerm container
       if (cards.length === 0) {
         var containers = document.querySelectorAll('[class*="SetPageTerm"]');
         containers.forEach(function(container) {
@@ -78,7 +78,7 @@ class JsScraper {
         if (titleEl) {
           title = titleEl.innerText.trim();
         } else {
-          title = document.title.replace(' | Quizlet', '').replace(' Flashcards', '').trim();
+          title = document.title.replace(' Flashcards', '').trim();
         }
       }
 
@@ -87,3 +87,5 @@ class JsScraper {
     })();
   ''';
 }
+
+

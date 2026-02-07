@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:quizlet_app/models/flashcard.dart';
+import 'package:recall_app/models/flashcard.dart';
 
 class ImportPreviewCard extends StatelessWidget {
   final Flashcard flashcard;
@@ -83,3 +83,4 @@ class ImportPreviewCard extends StatelessWidget {
     );
   }
 }
+

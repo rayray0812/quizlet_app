@@ -1,21 +1,22 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/providers/auth_provider.dart';
-import 'package:quizlet_app/providers/sync_provider.dart';
-import 'package:quizlet_app/providers/locale_provider.dart';
-import 'package:quizlet_app/providers/theme_provider.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/constants/app_constants.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
-import 'package:quizlet_app/features/home/screens/search_screen.dart';
-import 'package:quizlet_app/features/stats/screens/stats_screen.dart';
-import 'package:quizlet_app/features/home/widgets/study_set_card.dart';
-import 'package:quizlet_app/features/home/widgets/today_review_card.dart';
-import 'package:quizlet_app/services/import_export_service.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/providers/auth_provider.dart';
+import 'package:recall_app/providers/sync_provider.dart';
+import 'package:recall_app/providers/locale_provider.dart';
+import 'package:recall_app/providers/theme_provider.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/features/home/screens/search_screen.dart';
+import 'package:recall_app/features/stats/screens/stats_screen.dart';
+import 'package:recall_app/features/home/widgets/study_set_card.dart';
+import 'package:recall_app/features/home/widgets/today_review_card.dart';
+import 'package:recall_app/services/import_export_service.dart';
+import 'package:recall_app/providers/gemini_key_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -298,6 +299,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
         const SizedBox(height: 14),
+        _GeminiApiKeyCard(ref: ref),
+        const SizedBox(height: 14),
         Container(
           decoration: AppTheme.softCardDecoration(
             fillColor: Theme.of(context).cardColor,
@@ -497,7 +500,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               _SheetItem(
                 icon: Icons.language_rounded,
                 iconColor: AppTheme.purple,
-                title: l10n.importFromQuizlet,
+                title: l10n.importFromRecall,
                 onTap: () {
                   Navigator.pop(sheetContext);
                   screenContext.push('/import');
@@ -510,6 +513,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _importFromFile(screenContext, ref);
+                },
+              ),
+              _SheetItem(
+                icon: Icons.camera_alt_rounded,
+                iconColor: AppTheme.orange,
+                title: l10n.photoToFlashcard,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final apiKey = ref.read(geminiKeyProvider);
+                  if (apiKey.isEmpty) {
+                    ScaffoldMessenger.of(screenContext).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.geminiApiKeyNotSet),
+                      ),
+                    );
+                    return;
+                  }
+                  screenContext.push('/import/photo');
                 },
               ),
               const SizedBox(height: 8),
@@ -649,6 +670,85 @@ class _SheetItem extends StatelessWidget {
   }
 }
 
+class _GeminiApiKeyCard extends StatefulWidget {
+  final WidgetRef ref;
+
+  const _GeminiApiKeyCard({required this.ref});
+
+  @override
+  State<_GeminiApiKeyCard> createState() => _GeminiApiKeyCardState();
+}
+
+class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentKey = widget.ref.read(geminiKeyProvider);
+    _controller = TextEditingController(text: currentKey);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      decoration: AppTheme.softCardDecoration(
+        fillColor: Theme.of(context).cardColor,
+        borderRadius: 20,
+        elevation: 1.2,
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.auto_awesome),
+            title: Text(l10n.geminiApiKey),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: l10n.geminiApiKeyHint,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    final key = _controller.text.trim();
+                    widget.ref
+                        .read(geminiKeyProvider.notifier)
+                        .setApiKey(key);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.geminiApiKeySaved)),
+                    );
+                  },
+                  icon: const Icon(Icons.save_rounded),
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppTheme.indigo,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Staggered fade-in animation for list items.
 class _StaggeredFadeItem extends StatefulWidget {
   final int index;
@@ -699,3 +799,4 @@ class _StaggeredFadeItemState extends State<_StaggeredFadeItem>
     );
   }
 }
+

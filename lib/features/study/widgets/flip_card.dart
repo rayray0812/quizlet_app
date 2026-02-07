@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'dart:math';
 
 class FlipCardWidget extends StatefulWidget {
@@ -191,3 +191,4 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     );
   }
 }
+

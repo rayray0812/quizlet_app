@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quizlet_app/providers/fsrs_provider.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 /// Banner shown at top of home screen showing total due cards + breakdown.
 class TodayReviewCard extends ConsumerStatefulWidget {
@@ -204,3 +204,4 @@ class _BreakdownRow extends StatelessWidget {
     );
   }
 }
+

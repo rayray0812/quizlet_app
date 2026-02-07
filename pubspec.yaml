@@ -1,5 +1,5 @@
-name: quizlet_app
-description: "Open Source Quizlet Alternative for High School Students"
+﻿name: recall_app
+description: "Open Source Recall for High School Students"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -45,6 +45,10 @@ dependencies:
 
   # Image
   cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+
+  # AI
+  google_generative_ai: ^0.4.6
 
   # Import/Export
   file_picker: ^8.1.6
@@ -67,3 +71,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+

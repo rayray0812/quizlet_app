@@ -1,7 +1,7 @@
-import 'package:fsrs/fsrs.dart' as fsrs;
+﻿import 'package:fsrs/fsrs.dart' as fsrs;
 import 'package:uuid/uuid.dart';
-import 'package:quizlet_app/models/card_progress.dart';
-import 'package:quizlet_app/models/review_log.dart' as app;
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/review_log.dart' as app;
 
 /// Wraps the fsrs package, converting between app models and fsrs models.
 class FsrsService {
@@ -72,7 +72,7 @@ class FsrsService {
   }
 
   /// Get the predicted next interval for each of the four ratings.
-  /// Returns a map of rating (1-4) → human-readable interval string.
+  /// Returns a map of rating (1-4) ??human-readable interval string.
   Map<int, String> getSchedulingPreview(CardProgress progress) {
     final now = DateTime.now().toUtc();
     final previews = <int, String>{};
@@ -100,7 +100,7 @@ class FsrsService {
 
   /// Convert our CardProgress to an fsrs Card.
   fsrs.Card _toFsrsCard(CardProgress progress, DateTime now) {
-    // State 0 = New → treat as learning with step 0
+    // State 0 = New ??treat as learning with step 0
     if (progress.state == 0 || progress.lastReview == null) {
       return fsrs.Card(
         cardId: progress.cardId.hashCode,
@@ -136,3 +136,4 @@ class FsrsService {
     }
   }
 }
+

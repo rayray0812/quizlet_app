@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Quizlet-inspired palette
+  // Recall-inspired palette
   static const indigo = Color(0xFF5466C9);
   static const cyan = Color(0xFF4FB8B8);
   static const orange = Color(0xFFFF6B35);
@@ -305,3 +305,4 @@ class AppTheme {
     );
   }
 }
+

@@ -1,5 +1,5 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:quizlet_app/models/flashcard.dart';
+﻿import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:recall_app/models/flashcard.dart';
 
 part 'study_set.freezed.dart';
 part 'study_set.g.dart';
@@ -19,3 +19,4 @@ class StudySet with _$StudySet {
   factory StudySet.fromJson(Map<String, dynamic> json) =>
       _$StudySetFromJson(json);
 }
+

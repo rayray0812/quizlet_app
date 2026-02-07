@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/providers/stats_provider.dart';
+import 'package:recall_app/providers/stats_provider.dart';
 
-/// GitHub-style 7×52 heatmap for the last 365 days.
+/// GitHub-style 7?52 heatmap for the last 365 days.
 class ReviewHeatmap extends ConsumerWidget {
   const ReviewHeatmap({super.key});
 
@@ -25,7 +25,7 @@ class ReviewHeatmap extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 7 * 14.0, // 7 rows × (10 box + 4 gap)
+          height: 7 * 14.0, // 7 rows ? (10 box + 4 gap)
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -71,3 +71,4 @@ class ReviewHeatmap extends ConsumerWidget {
     return primary;
   }
 }
+

@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
-import 'package:quizlet_app/services/local_storage_service.dart';
-import 'package:quizlet_app/services/supabase_service.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:recall_app/services/local_storage_service.dart';
+import 'package:recall_app/services/supabase_service.dart';
 
 class SyncService {
   final LocalStorageService _localStorage;
@@ -52,7 +52,7 @@ class SyncService {
       final localSet = _localStorage.getStudySet(entry.id);
 
       if (localSet == null) {
-        // New set from another device — need full download
+        // New set from another device ??need full download
         idsToDownload.add(entry.id);
       } else {
         // Compare timestamps: download if remote is newer
@@ -72,3 +72,4 @@ class SyncService {
     }
   }
 }
+

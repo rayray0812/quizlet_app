@@ -1,5 +1,6 @@
-package com.studyapp.quizlet_app
+﻿package com.studyapp.recall_app
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+

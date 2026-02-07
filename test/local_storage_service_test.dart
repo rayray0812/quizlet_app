@@ -1,18 +1,18 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:quizlet_app/core/constants/app_constants.dart';
-import 'package:quizlet_app/models/adapters/review_log_adapter.dart';
-import 'package:quizlet_app/models/review_log.dart';
-import 'package:quizlet_app/services/local_storage_service.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/models/adapters/review_log_adapter.dart';
+import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/services/local_storage_service.dart';
 
 void main() {
   late Directory tempDir;
   late LocalStorageService service;
 
   setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('quizlet-hive-test-');
+    tempDir = await Directory.systemTemp.createTemp('Recall-hive-test-');
     Hive.init(tempDir.path);
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(ReviewLogAdapter());
@@ -111,3 +111,4 @@ void main() {
     expect(ids, isNot(contains('to')));
   });
 }
+

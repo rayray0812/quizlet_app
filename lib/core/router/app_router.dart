@@ -1,20 +1,21 @@
-import 'package:go_router/go_router.dart';
-import 'package:quizlet_app/features/auth/screens/login_screen.dart';
-import 'package:quizlet_app/features/auth/screens/signup_screen.dart';
-import 'package:quizlet_app/features/home/screens/home_screen.dart';
-import 'package:quizlet_app/features/home/screens/card_editor_screen.dart';
-import 'package:quizlet_app/features/import/screens/web_import_screen.dart';
-import 'package:quizlet_app/features/import/screens/review_import_screen.dart';
-import 'package:quizlet_app/features/study/screens/study_mode_picker_screen.dart';
-import 'package:quizlet_app/features/study/screens/flashcard_screen.dart';
-import 'package:quizlet_app/features/study/screens/quiz_screen.dart';
-import 'package:quizlet_app/features/study/screens/matching_game_screen.dart';
-import 'package:quizlet_app/features/study/screens/srs_review_screen.dart';
-import 'package:quizlet_app/features/study/screens/review_summary_screen.dart';
-import 'package:quizlet_app/features/stats/screens/stats_screen.dart';
-import 'package:quizlet_app/features/home/screens/search_screen.dart';
-import 'package:quizlet_app/features/study/screens/custom_study_screen.dart';
-import 'package:quizlet_app/models/study_set.dart';
+﻿import 'package:go_router/go_router.dart';
+import 'package:recall_app/features/auth/screens/login_screen.dart';
+import 'package:recall_app/features/auth/screens/signup_screen.dart';
+import 'package:recall_app/features/home/screens/home_screen.dart';
+import 'package:recall_app/features/home/screens/card_editor_screen.dart';
+import 'package:recall_app/features/import/screens/web_import_screen.dart';
+import 'package:recall_app/features/import/screens/review_import_screen.dart';
+import 'package:recall_app/features/import/screens/photo_import_screen.dart';
+import 'package:recall_app/features/study/screens/study_mode_picker_screen.dart';
+import 'package:recall_app/features/study/screens/flashcard_screen.dart';
+import 'package:recall_app/features/study/screens/quiz_screen.dart';
+import 'package:recall_app/features/study/screens/matching_game_screen.dart';
+import 'package:recall_app/features/study/screens/srs_review_screen.dart';
+import 'package:recall_app/features/study/screens/review_summary_screen.dart';
+import 'package:recall_app/features/stats/screens/stats_screen.dart';
+import 'package:recall_app/features/home/screens/search_screen.dart';
+import 'package:recall_app/features/study/screens/custom_study_screen.dart';
+import 'package:recall_app/models/study_set.dart';
 
 StudySet? extractStudySetExtra(Object? extra) {
   return extra is StudySet ? extra : null;
@@ -58,6 +59,10 @@ final appRouter = GoRouter(
         }
         return ReviewImportScreen(studySet: studySet);
       },
+    ),
+    GoRoute(
+      path: '/import/photo',
+      builder: (context, state) => const PhotoImportScreen(),
     ),
     // Cross-set SRS review (from today's review banner or custom study)
     GoRoute(
@@ -144,3 +149,4 @@ final appRouter = GoRouter(
     ),
   ],
 );
+

@@ -1,4 +1,4 @@
-class AppConstants {
+﻿class AppConstants {
   static const String appName = '拾憶';
   static const String hiveStudySetsBox = 'study_sets';
   static const String hiveCardProgressBox = 'card_progress';

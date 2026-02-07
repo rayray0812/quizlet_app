@@ -1,6 +1,6 @@
-import 'package:hive/hive.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/models/study_set.dart';
+﻿import 'package:hive/hive.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
 
 class StudySetAdapter extends TypeAdapter<StudySet> {
   @override
@@ -56,3 +56,4 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
     });
   }
 }
+

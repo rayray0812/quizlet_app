@@ -1,14 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:quizlet_app/app.dart';
-import 'package:quizlet_app/core/constants/app_constants.dart';
-import 'package:quizlet_app/core/constants/supabase_constants.dart';
-import 'package:quizlet_app/models/adapters/study_set_adapter.dart';
-import 'package:quizlet_app/models/adapters/flashcard_adapter.dart';
-import 'package:quizlet_app/models/adapters/card_progress_adapter.dart';
-import 'package:quizlet_app/models/adapters/review_log_adapter.dart';
+import 'package:recall_app/app.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/core/constants/supabase_constants.dart';
+import 'package:recall_app/models/adapters/study_set_adapter.dart';
+import 'package:recall_app/models/adapters/flashcard_adapter.dart';
+import 'package:recall_app/models/adapters/card_progress_adapter.dart';
+import 'package:recall_app/models/adapters/review_log_adapter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ void main() async {
     debugPrint('Hive openBox failed: $e');
   }
 
-  // Initialize Supabase (may fail with placeholder credentials — app still works offline)
+  // Initialize Supabase (may fail with placeholder credentials ??app still works offline)
   try {
     await Supabase.initialize(
       url: SupabaseConstants.supabaseUrl,
@@ -38,5 +38,6 @@ void main() async {
     debugPrint('Supabase init failed (offline mode): $e');
   }
 
-  runApp(const ProviderScope(child: QuizletApp()));
+  runApp(const ProviderScope(child: RecallApp()));
 }
+

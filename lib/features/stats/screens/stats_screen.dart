@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
-import 'package:quizlet_app/providers/stats_provider.dart';
-import 'package:quizlet_app/features/stats/widgets/daily_chart.dart';
-import 'package:quizlet_app/features/stats/widgets/review_heatmap.dart';
-import 'package:quizlet_app/features/stats/widgets/accuracy_donut.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/providers/stats_provider.dart';
+import 'package:recall_app/features/stats/widgets/daily_chart.dart';
+import 'package:recall_app/features/stats/widgets/review_heatmap.dart';
+import 'package:recall_app/features/stats/widgets/accuracy_donut.dart';
 
 class StatsScreen extends ConsumerWidget {
   final bool embedded;
@@ -154,3 +154,4 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 }
+

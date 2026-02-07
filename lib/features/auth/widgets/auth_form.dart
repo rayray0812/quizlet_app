@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class AuthForm extends StatefulWidget {
   final String buttonText;
@@ -150,3 +150,4 @@ class _AuthFormState extends State<AuthForm> {
     );
   }
 }
+

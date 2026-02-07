@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/providers/tag_provider.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/providers/tag_provider.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class CustomStudyScreen extends ConsumerStatefulWidget {
   const CustomStudyScreen({super.key});
@@ -122,3 +122,4 @@ class _CustomStudyScreenState extends ConsumerState<CustomStudyScreen> {
     );
   }
 }
+

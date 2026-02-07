@@ -1,5 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
 /// All unique tags across all study sets, sorted alphabetically.
 final allTagsProvider = Provider<List<String>>((ref) {
@@ -13,3 +13,4 @@ final allTagsProvider = Provider<List<String>>((ref) {
   final sorted = tags.toList()..sort();
   return sorted;
 });
+

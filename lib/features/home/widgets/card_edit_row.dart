@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:quizlet_app/features/home/widgets/tag_chips.dart';
+import 'package:recall_app/features/home/widgets/tag_chips.dart';
 
 class CardEditRow extends StatelessWidget {
   final int index;
@@ -132,3 +132,4 @@ class CardEditRow extends StatelessWidget {
     );
   }
 }
+

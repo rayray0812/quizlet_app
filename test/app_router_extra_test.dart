@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:quizlet_app/core/router/app_router.dart';
-import 'package:quizlet_app/models/study_set.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:recall_app/core/router/app_router.dart';
+import 'package:recall_app/models/study_set.dart';
 
 void main() {
   test('extractStudySetExtra returns null for invalid type', () {
@@ -31,3 +31,4 @@ void main() {
     expect(extractOptionalIntExtra('bad', 'questionCount'), isNull);
   });
 }
+

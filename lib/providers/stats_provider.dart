@@ -1,8 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/models/review_log.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
-/// Single source of truth for all review logs — avoids repeated Hive scans.
+/// Single source of truth for all review logs ??avoids repeated Hive scans.
 final allReviewLogsProvider = Provider<List<ReviewLog>>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
   return localStorage.getAllReviewLogs();
@@ -66,7 +66,7 @@ final dailyCountsProvider = Provider<List<({DateTime date, int count})>>((ref) {
   final now = DateTime.now().toUtc();
   final todayDate = DateTime.utc(now.year, now.month, now.day);
 
-  // Build a date→count map from all logs
+  // Build a date?ount map from all logs
   final dateCountMap = <DateTime, int>{};
   for (final log in allLogs) {
     final d = log.reviewedAt.toUtc();
@@ -109,7 +109,7 @@ final ratingCountsProvider =
   return (again: again, hard: hard, good: good, easy: easy);
 });
 
-/// Heatmap data: date → count for the last 365 days.
+/// Heatmap data: date ??count for the last 365 days.
 final heatmapDataProvider = Provider<Map<DateTime, int>>((ref) {
   final allLogs = ref.watch(allReviewLogsProvider);
   final now = DateTime.now().toUtc();
@@ -128,3 +128,4 @@ final heatmapDataProvider = Provider<Map<DateTime, int>>((ref) {
 
   return map;
 });
+

@@ -1,182 +1,188 @@
-# 專案：開源 Quizlet 替代方案（高中生適用）
-# 技術棧：Flutter (Mobile + Web), Supabase (後端/驗證 + 雲端同步), Hive (本地離線儲存)
-# 狀態管理：Riverpod | 資料模型：freezed | 路由：GoRouter
+﻿# 撠?嚗?皞?Recall ?蹂誨?寞?嚗?銝剔??拍嚗?
+# ?銵ㄖ嚗lutter (Mobile + Web), Supabase (敺垢/撽? + ?脩垢?郊), Hive (?砍?Ｙ??脣?)
+# ??恣??Riverpod | 鞈?璅∪?嚗reezed | 頝舐嚗oRouter
 
-## 使用者決策（已確認）
-- 獨立 app（不整合進 study_app）
-- 從一開始就使用 Supabase + Hive
-- 三種學習模式：翻卡片、測驗、配對遊戲
-- 驗證為選用（支援訪客模式，離線優先）
-
----
-
-## 目前進度
-
-所有 10 個基礎步驟 + 5 個功能擴充已完成，程式碼已通過 `flutter analyze`（零新問題）和 `flutter test`（全部通過）。
-
-### 基礎建設（Step 1–10）
-- [x] Step 1：專案骨架 + 核心設定
-- [x] Step 2：資料模型（freezed）+ Hive 轉接器
-- [x] Step 3：本地儲存服務（Hive CRUD）
-- [x] Step 4：Supabase 服務（驗證 + 同步）
-- [x] Step 5：Riverpod 狀態管理
-- [x] Step 6：驗證畫面（登入/註冊/訪客）
-- [x] Step 7：首頁 + 學習集列表
-- [x] Step 8：WebView 匯入器（JS 注入抓取 Quizlet）
-- [x] Step 9：三種學習模式（翻卡片/測驗/配對）
-- [x] Step 10：GoRouter 路由設定
-
-### 功能擴充（Feature 1–5）
-- [x] F1：Import 頁面 URL 輸入欄（TextField + 前往按鈕，自動補 https://，驗證 quizlet.com）
-- [x] F2：手動新增/編輯單字卡（CardEditorScreen + CardEditRow，建立學習集後直接進入編輯）
-- [x] F3：匯入與匯出 JSON/CSV（ImportExportService + file_picker + share_plus）
-- [x] F4：測驗與配對可選題目數量（CountPickerDialog，Slider + 快捷按鈕 5/10/20/全部）
-- [x] F5：Tinder 風格滑動翻卡片（SwipeCardStack，右滑=記得/左滑=不記得，輪結束統計 + 複習）
-
-### FSRS 整合（Phase 1–6）
-- [x] P1：資料層基礎（CardProgress + ReviewLog 模型 / Hive 轉接器 / tags 欄位）
-- [x] P2：FSRS 引擎服務（fsrs 套件封裝 / FsrsService / Riverpod providers）
-- [x] P3：SRS 複習畫面（翻卡 → 評分 Again/Hard/Good/Easy / 複習摘要）
-- [x] P4：今日複習 + 首頁整合（TodayReviewCard banner / 到期數徽章 / 自動建立 CardProgress）
-- [x] P5：統計儀表板（fl_chart 長條圖 / 熱力圖 / 圓餅圖 / 連續天數 streak）
-- [x] P6：標籤與篩選（卡片標籤編輯 / 跨學習集搜尋 / 自訂學習範圍）
-
-### 待辦 / 下一步
-- [ ] 在 `supabase_constants.dart` 填入真實的 Supabase URL 和 anon key
-- [ ] 在 Supabase 建立 `study_sets` + `card_progress` + `review_logs` 資料表 + RLS 政策
-- [ ] 實機測試驗證（Android/iOS/Web）
-- [ ] WebView 匯入功能實測（Quizlet DOM 可能變動，需調整 JS 選擇器）
-- [ ] SRS 複習流程實測（新卡 → 複習 → 統計顯示正確）
+## 雿輻?捱蝑?撌脩Ⅱ隤?
+- ?函? app嚗??游???study_app嚗?
+- 敺???撠曹蝙??Supabase + Hive
+- 銝車摮貊?璅∪?嚗蕃?∠??葫撽?撠???
+- 撽??粹?剁??舀閮芸恥璅∪?嚗蝺??
 
 ---
 
-## 專案結構
+## ?桀??脣漲
+
+???10 ?蝷郊撽?+ 5 ???賣?歇摰?嚗?撘Ⅳ撌脤? `flutter analyze`嚗?啣?憿???`flutter test`嚗?券?嚗?
+
+### ?箇?撱箄身嚗tep 1??0嚗?
+- [x] Step 1嚗?獢爸??+ ?詨?閮剖?
+- [x] Step 2嚗??芋??freezed嚗? Hive 頧??
+- [x] Step 3嚗?啣摮???Hive CRUD嚗?
+- [x] Step 4嚗upabase ??嚗?霅?+ ?郊嚗?
+- [x] Step 5嚗iverpod ??恣??
+- [x] Step 6嚗?霅?ｇ??餃/閮餃?/閮芸恥嚗?
+- [x] Step 7嚗???+ 摮貊???銵?
+- [x] Step 8嚗ebView ?臬?剁?JS 瘜典?? Recall嚗?
+- [x] Step 9嚗?蝔桀飛蝧芋撘?蝧餃??皜祇?/??嚗?
+- [x] Step 10嚗oRouter 頝舐閮剖?
+
+### ??游?嚗eature 1??嚗?
+- [x] F1嚗mport ? URL 頛詨甈?TextField + ????嚗?? https://嚗?霅?Recall.com嚗?
+- [x] F2嚗??憓?蝺刻摩?桀??∴?CardEditorScreen + CardEditRow嚗遣蝡飛蝧?敺?仿脣蝺刻摩嚗?
+- [x] F3嚗?亥??臬 JSON/CSV嚗mportExportService + file_picker + share_plus嚗?
+- [x] F4嚗葫撽????舫憿?賊?嚗ountPickerDialog嚗lider + 敹急?? 5/10/20/?券嚗?
+- [x] F5嚗inder 憸冽皛?蝧餃??SwipeCardStack嚗皛?閮?/撌行?=銝?敺?頛芰??絞閮?+ 銴?嚗?
+- [x] F6：拍照建卡（image_picker + Gemini Flash API，單字表/課本頁面兩種模式，設定頁輸入 API Key）
+
+### FSRS ?游?嚗hase 1??嚗?
+- [x] P1嚗??惜?箇?嚗ardProgress + ReviewLog 璅∪? / Hive 頧??/ tags 甈?嚗?
+- [x] P2嚗SRS 撘???嚗srs 憟辣撠? / FsrsService / Riverpod providers嚗?
+- [x] P3嚗RS 銴??恍嚗蕃????閰? Again/Hard/Good/Easy / 銴???嚗?
+- [x] P4嚗??亥?蝧?+ 擐??游?嚗odayReviewCard banner / ?唳??詨噬蝡?/ ?芸?撱箇? CardProgress嚗?
+- [x] P5嚗絞閮?銵冽嚗l_chart ?瑟???/ ?勗???/ ????/ ???憭拇 streak嚗?
+- [x] P6嚗?蝐方?蝭拚嚗??蝐斤楊頛?/ 頝典飛蝧??? / ?芾?摮貊?蝭?嚗?
+
+### 敺齒 / 銝?甇?
+- [ ] ??`supabase_constants.dart` 憛怠?祕??Supabase URL ??anon key
+- [ ] ??Supabase 撱箇? `study_sets` + `card_progress` + `review_logs` 鞈?銵?+ RLS ?輻?
+- [ ] 撖行?皜祈岫撽?嚗ndroid/iOS/Web嚗?
+- [ ] WebView ?臬?撖行葫嚗uizlet DOM ?航霈?嚗?隤踵 JS ?豢??剁?
+- [ ] SRS 銴?瘚?撖行葫嚗????銴? ??蝯梯?憿舐內甇?Ⅱ嚗?
+
+---
+
+## 撠?蝯?
 
 ```
-quizlet_app/lib/
-├── main.dart                         # 初始化 Hive（4 boxes）, Supabase, ProviderScope
-├── app.dart                          # MaterialApp.router + GoRouter + 主題
-├── core/
-│   ├── constants/
-│   │   ├── app_constants.dart        # 應用常數（含 SRS box 名稱）
-│   │   └── supabase_constants.dart   # Supabase URL + anon key（需替換）
-│   ├── theme/
-│   │   └── app_theme.dart            # Material 3 亮/暗主題
-│   ├── router/
-│   │   └── app_router.dart           # GoRouter 路由定義（含 SRS/統計/搜尋路由）
-│   └── l10n/
-│       └── app_localizations.dart    # 多語系（中文/英文，含 SRS/統計/標籤字串）
-├── models/
-│   ├── study_set.dart                # freezed 模型
-│   ├── flashcard.dart                # freezed 模型（含 tags 欄位）
-│   ├── card_progress.dart            # freezed 模型（SRS 進度：stability/difficulty/due...）
-│   ├── review_log.dart               # freezed 模型（複習紀錄：rating/state/reviewedAt...）
-│   └── adapters/
-│       ├── study_set_adapter.dart    # 手動 Hive 轉接器（typeId: 0）
-│       ├── flashcard_adapter.dart    # 手動 Hive 轉接器（typeId: 1，含 tags）
-│       ├── card_progress_adapter.dart # 手動 Hive 轉接器（typeId: 2）
-│       └── review_log_adapter.dart   # 手動 Hive 轉接器（typeId: 3）
-├── services/
-│   ├── local_storage_service.dart    # Hive CRUD（StudySet + CardProgress + ReviewLog）
-│   ├── fsrs_service.dart             # FSRS 引擎封裝（reviewCard / getSchedulingPreview / getRetrievability）
-│   ├── supabase_service.dart         # 驗證 + 資料同步
-│   ├── sync_service.dart             # 離線優先同步邏輯
-│   └── import_export_service.dart    # JSON/CSV 匯出入（F3）
-├── providers/
-│   ├── study_set_provider.dart       # StudySetsNotifier（含自動建立 CardProgress）
-│   ├── fsrs_provider.dart            # dueCards / dueCount / dueBreakdown providers
-│   ├── stats_provider.dart           # 統計聚合（todayCount / streak / dailyCounts / ratingCounts / heatmap）
-│   ├── tag_provider.dart             # 標籤聚合（allTags）
-│   ├── auth_provider.dart            # 驗證狀態串流
-│   ├── sync_provider.dart            # 登入後觸發同步
-│   └── locale_provider.dart          # 語言切換
-└── features/
-    ├── auth/
-    │   ├── screens/
-    │   │   ├── login_screen.dart      # 登入畫面
-    │   │   └── signup_screen.dart     # 註冊畫面
-    │   └── widgets/
-    │       └── auth_form.dart         # 共用表單元件
-    ├── home/
-    │   ├── screens/
-    │   │   ├── home_screen.dart       # 學習集列表 + 今日複習 Banner + 搜尋/統計按鈕
-    │   │   ├── card_editor_screen.dart # 卡片編輯頁（含標籤編輯）
-    │   │   └── search_screen.dart     # 跨學習集搜尋（term/definition/tags）
-    │   └── widgets/
-    │       ├── study_set_card.dart    # 學習集卡片元件（含到期數徽章）
-    │       ├── card_edit_row.dart     # 單張卡片輸入列（含標籤）
-    │       ├── today_review_card.dart # 今日複習 Banner（到期數 + 新卡/學習中/複習分類）
-    │       └── tag_chips.dart         # 標籤顯示/編輯元件
-    ├── import/
-    │   ├── screens/
-    │   │   ├── web_import_screen.dart      # WebView + URL 輸入欄 + FAB 匯入（F1）
-    │   │   └── review_import_screen.dart   # 預覽 & 編輯後儲存
-    │   ├── widgets/
-    │   │   └── import_preview_card.dart    # 匯入預覽卡片
-    │   └── utils/
-    │       └── js_scraper.dart             # JS 注入腳本（4 種備援選擇器）
-    ├── study/
-    │   ├── screens/
-    │   │   ├── study_mode_picker_screen.dart  # 選擇學習模式（SRS 複習 + 快速瀏覽 + 測驗 + 配對）
-    │   │   ├── srs_review_screen.dart         # SRS 複習畫面（翻卡 → 評分 4 級）
-    │   │   ├── review_summary_screen.dart     # 複習結束摘要
-    │   │   ├── custom_study_screen.dart       # 標籤篩選複習
-    │   │   ├── flashcard_screen.dart          # Tinder 風格滑動翻卡（快速瀏覽）
-    │   │   ├── quiz_screen.dart               # 測驗（可選題數）
-    │   │   └── matching_game_screen.dart      # 配對遊戲（可選組數）
-    │   └── widgets/
-    │       ├── flip_card.dart                 # 自製翻轉卡片動畫
-    │       ├── swipe_card_stack.dart          # 滑動卡片堆疊元件
-    │       ├── rating_buttons.dart            # Again/Hard/Good/Easy 四按鈕（含預計間隔）
-    │       ├── count_picker_dialog.dart       # 題數選擇 Dialog
-    │       ├── quiz_option_tile.dart          # 測驗選項元件
-    │       └── matching_tile.dart             # 配對方塊元件
-    └── stats/
-        ├── screens/
-        │   └── stats_screen.dart              # 統計主畫面（摘要卡片 + 圖表）
-        └── widgets/
-            ├── daily_chart.dart               # fl_chart 長條圖（近 30 天）
-            ├── review_heatmap.dart            # GitHub 風格 7×52 熱力圖
-            └── accuracy_donut.dart            # 評分比例圓餅圖
+recall_app/lib/
+??? main.dart                         # ????Hive嚗? boxes嚗? Supabase, ProviderScope
+??? app.dart                          # MaterialApp.router + GoRouter + 銝駁?
+??? core/
+??  ??? constants/
+??  ??  ??? app_constants.dart        # ?撣豢嚗 SRS box ?迂嚗?
+??  ??  ??? supabase_constants.dart   # Supabase URL + anon key嚗??踵?嚗?
+??  ??? theme/
+??  ??  ??? app_theme.dart            # Material 3 鈭??蜓憿?
+??  ??? router/
+??  ??  ??? app_router.dart           # GoRouter 頝舐摰儔嚗 SRS/蝯梯?/??頝舐嚗?
+??  ??? l10n/
+??      ??? app_localizations.dart    # 憭?蝟鳴?銝剜?/?望?嚗 SRS/蝯梯?/璅惜摮葡嚗?
+??? models/
+??  ??? study_set.dart                # freezed 璅∪?
+??  ??? flashcard.dart                # freezed 璅∪?嚗 tags 甈?嚗?
+??  ??? card_progress.dart            # freezed 璅∪?嚗RS ?脣漲嚗tability/difficulty/due...嚗?
+??  ??? review_log.dart               # freezed 璅∪?嚗?蝧???rating/state/reviewedAt...嚗?
+??  ??? adapters/
+??      ??? study_set_adapter.dart    # ?? Hive 頧?剁?typeId: 0嚗?
+??      ??? flashcard_adapter.dart    # ?? Hive 頧?剁?typeId: 1嚗 tags嚗?
+??      ??? card_progress_adapter.dart # ?? Hive 頧?剁?typeId: 2嚗?
+??      ??? review_log_adapter.dart   # ?? Hive 頧?剁?typeId: 3嚗?
+??? services/
+??  ??? local_storage_service.dart    # Hive CRUD嚗tudySet + CardProgress + ReviewLog嚗?
+??  ??? fsrs_service.dart             # FSRS 撘?撠?嚗eviewCard / getSchedulingPreview / getRetrievability嚗?
+??  ??? supabase_service.dart         # 撽? + 鞈??郊
+??  ??? sync_service.dart             # ?Ｙ??芸??郊?摩
+??  ??? import_export_service.dart    # JSON/CSV ?臬?伐?F3嚗?
+│   └── gemini_service.dart           # Gemini Flash API 多模態（F6）
+??? providers/
+??  ??? study_set_provider.dart       # StudySetsNotifier嚗?芸?撱箇? CardProgress嚗?
+??  ??? fsrs_provider.dart            # dueCards / dueCount / dueBreakdown providers
+??  ??? stats_provider.dart           # 蝯梯???嚗odayCount / streak / dailyCounts / ratingCounts / heatmap嚗?
+??  ??? tag_provider.dart             # 璅惜??嚗llTags嚗?
+??  ??? auth_provider.dart            # 撽???葡瘚?
+??  ??? sync_provider.dart            # ?餃敺孛?澆?甇?
+??  ??? locale_provider.dart          # 隤???
+│   └── gemini_key_provider.dart      # Gemini API Key（Hive-backed）（F6）
+??? features/
+    ??? auth/
+    ??  ??? screens/
+    ??  ??  ??? login_screen.dart      # ?餃?恍
+    ??  ??  ??? signup_screen.dart     # 閮餃??恍
+    ??  ??? widgets/
+    ??      ??? auth_form.dart         # ?梁銵典?辣
+    ??? home/
+    ??  ??? screens/
+    ??  ??  ??? home_screen.dart       # 摮貊???銵?+ 隞銴? Banner + ??/蝯梯???
+    ??  ??  ??? card_editor_screen.dart # ?∠?蝺刻摩???急?蝐斤楊頛荔?
+    ??  ??  ??? search_screen.dart     # 頝典飛蝧???嚗erm/definition/tags嚗?
+    ??  ??? widgets/
+    ??      ??? study_set_card.dart    # 摮貊????隞塚??怠?敺賜?嚗?
+    ??      ??? card_edit_row.dart     # ?桀撐?∠?頛詨???急?蝐歹?
+    ??      ??? today_review_card.dart # 隞銴? Banner嚗? + ?啣/摮貊?銝?銴???嚗?
+    ??      ??? tag_chips.dart         # 璅惜憿舐內/蝺刻摩?辣
+    ??? import/
+    ??  ??? screens/
+    ??  ??  ??? web_import_screen.dart      # WebView + URL 頛詨甈?+ FAB ?臬嚗1嚗?
+    ??  ??  ??? review_import_screen.dart   # ?汗 & 蝺刻摩敺摮?
+│   │   └── photo_import_screen.dart    # 拍照建卡主畫面（F6）
+    ??  ??? widgets/
+    ??  ??  ??? import_preview_card.dart    # ?臬?汗?∠?
+    ??  ??? utils/
+    ??      ??? js_scraper.dart             # JS 瘜典?單嚗? 蝔桀??湧?嚗?
+    ??? study/
+    ??  ??? screens/
+    ??  ??  ??? study_mode_picker_screen.dart  # ?豢?摮貊?璅∪?嚗RS 銴? + 敹恍汗 + 皜祇? + ??嚗?
+    ??  ??  ??? srs_review_screen.dart         # SRS 銴??恍嚗蕃????閰? 4 蝝?
+    ??  ??  ??? review_summary_screen.dart     # 銴?蝯???
+    ??  ??  ??? custom_study_screen.dart       # 璅惜蝭拚銴?
+    ??  ??  ??? flashcard_screen.dart          # Tinder 憸冽皛?蝧餃嚗翰?汗嚗?
+    ??  ??  ??? quiz_screen.dart               # 皜祇?嚗?賊??賂?
+    ??  ??  ??? matching_game_screen.dart      # ???嚗?貊??賂?
+    ??  ??? widgets/
+    ??      ??? flip_card.dart                 # ?芾ˊ蝧餉??∠??
+    ??      ??? swipe_card_stack.dart          # 皛??∠????辣
+    ??      ??? rating_buttons.dart            # Again/Hard/Good/Easy ?????恍?閮???
+    ??      ??? count_picker_dialog.dart       # 憿?豢? Dialog
+    ??      ??? quiz_option_tile.dart          # 皜祇??賊??辣
+    ??      ??? matching_tile.dart             # ???孵??辣
+    ??? stats/
+        ??? screens/
+        ??  ??? stats_screen.dart              # 蝯梯?銝餌?ｇ????∠? + ?”嚗?
+        ??? widgets/
+            ??? daily_chart.dart               # fl_chart ?瑟???餈?30 憭抬?
+            ??? review_heatmap.dart            # GitHub 憸冽 7?52 ?勗???
+            ??? accuracy_donut.dart            # 閰?瘥?????
 ```
 
 ---
 
-## 關鍵架構決策
-- **驗證為選用**：訪客模式完全離線可用，登入後啟用雲端同步
-- **離線優先**：Hive 為主要儲存，Supabase 透過 `isSynced` 旗標同步
-- **手動 Hive 轉接器**：因為 freezed 和 hive_generator 有衝突
-- **Cards 存為 JSONB**：Supabase 單一欄位，500 張卡以內不需 join
-- **WebView 僅限手機**：Flutter web 不支援 WebView，用 `kIsWeb` 擋掉
-- **多重 JS 選擇器**：Quizlet 經常改 DOM，4 種備援策略提高穩定性
-- **Tinder 風格翻卡**：保留作為「快速瀏覽」選項，SRS 複習是獨立模式
-- **題數自選**：測驗和配對模式透過 `state.extra` 傳遞數量參數
-- **CardProgress 獨立儲存**：SRS 參數不嵌入 Flashcard，獨立 Hive box 避免每次複習重寫整個 StudySet
-- **FSRS-5 演算法**：使用官方 `fsrs` Dart 套件（v2.0.1），不自己實作數學公式
-- **ReviewLog 獨立 box**：append-only 紀錄，用日期索引支援統計查詢
-- **所有 SRS DateTime 使用 UTC**：避免時區問題
+## ??嗆?瘙箇?
+- **撽??粹??*嚗赤摰Ｘ芋撘??券蝺?剁??餃敺??券蝡臬?甇?
+- **?Ｙ??芸?**嚗ive ?箔蜓閬摮?Supabase ?? `isSynced` ???郊
+- **?? Hive 頧??*嚗???freezed ??hive_generator ??蝒?
+- **Cards 摮 JSONB**嚗upabase ?桐?甈?嚗?00 撘萄隞亙銝? join
+- **WebView ????**嚗lutter web 銝??WebView嚗 `kIsWeb` ??
+- **憭? JS ?豢???*嚗uizlet 蝬虜??DOM嚗? 蝔桀??渡??交?擃帘摰?
+- **Tinder 憸冽蝧餃**嚗????箝翰?汗???SRS 銴??舐蝡芋撘?
+- **憿?芷**嚗葫撽???璅∪??? `state.extra` ?喲??賊??
+- **Gemini API Key 本地存**：使用者自行在設定頁輸入，存於 Hive settings box，不上傳雲端
+- **CardProgress ?函??脣?**嚗RS ?銝???Flashcard嚗蝡?Hive box ?踹?瘥活銴??神?游?StudySet
+- **FSRS-5 瞍?瘜?*嚗蝙?典???`fsrs` Dart 憟辣嚗2.0.1嚗?銝撌勗祕雿摮詨撘?
+- **ReviewLog ?函? box**嚗ppend-only 蝝???冽?揣撘?渡絞閮閰?
+- **???SRS DateTime 雿輻 UTC**嚗?????
 
-## 路由表
-| 路徑 | 畫面 |
+## 頝舐銵?
+| 頝臬? | ?恍 |
 |------|------|
-| `/` | 首頁（學習集列表 + 今日複習 Banner） |
-| `/login` | 登入 |
-| `/signup` | 註冊 |
-| `/import` | WebView 匯入（含 URL 輸入欄） |
-| `/import/review` | 匯入預覽編輯 |
-| `/review` | 跨學習集 SRS 複習 |
-| `/review/summary` | 複習結束摘要 |
-| `/stats` | 統計儀表板 |
-| `/search` | 跨學習集搜尋 |
-| `/study/custom` | 標籤篩選複習 |
-| `/edit/:setId` | 卡片編輯頁（含標籤） |
-| `/study/:setId` | 學習模式選擇（含匯出選單） |
-| `/study/:setId/srs` | 單一學習集 SRS 複習 |
-| `/study/:setId/flashcards` | 快速瀏覽（滑動翻卡） |
-| `/study/:setId/quiz` | 測驗模式（extra: questionCount） |
-| `/study/:setId/match` | 配對遊戲（extra: pairCount） |
+| `/` | 擐?嚗飛蝧??” + 隞銴? Banner嚗?|
+| `/login` | ?餃 |
+| `/signup` | 閮餃? |
+| `/import` | WebView ?臬嚗 URL 頛詨甈? |
+| `/import/review` | ?臬?汗蝺刻摩 |
+| `/import/photo` | 拍照建卡（F6） |
+| `/review` | 頝典飛蝧? SRS 銴? |
+| `/review/summary` | 銴?蝯??? |
+| `/stats` | 蝯梯??銵冽 |
+| `/search` | 頝典飛蝧??? |
+| `/study/custom` | 璅惜蝭拚銴? |
+| `/edit/:setId` | ?∠?蝺刻摩???急?蝐歹? |
+| `/study/:setId` | 摮貊?璅∪??豢?嚗?臬?詨嚗?|
+| `/study/:setId/srs` | ?桐?摮貊???SRS 銴? |
+| `/study/:setId/flashcards` | 敹恍汗嚗??蕃?∴? |
+| `/study/:setId/quiz` | 皜祇?璅∪?嚗xtra: questionCount嚗?|
+| `/study/:setId/match` | ???嚗xtra: pairCount嚗?|
 
-## Supabase 資料表結構（待建立）
+## Supabase 鞈?銵函?瑽?敺遣蝡?
 ```sql
 create table study_sets (
   id uuid primary key,
@@ -188,44 +194,49 @@ create table study_sets (
   updated_at timestamptz default now()
 );
 
--- RLS 政策：使用者只能存取自己的資料
+-- RLS ?輻?嚗蝙?刻?賢??撌梁?鞈?
 alter table study_sets enable row level security;
 create policy "Users can CRUD own sets"
   on study_sets for all
   using (auth.uid() = user_id);
 ```
 
-## 新增套件
-- `file_picker` — 選擇 JSON/CSV 檔案匯入
-- `share_plus` — 分享匯出的檔案
-- `path_provider` — 暫存匯出檔案路徑
-- `fsrs` — FSRS-5 間隔重複演算法
-- `fl_chart` — 統計圖表（長條圖/圓餅圖）
+## ?啣?憟辣
+- `file_picker` ???豢? JSON/CSV 瑼??臬
+- `share_plus` ???澈?臬??獢?
+- `path_provider` ???怠??臬瑼?頝臬?
+- `image_picker` — 相機/相簿選圖（F6）
+- `google_generative_ai` — Gemini Flash API（F6）
+- `fsrs` ??FSRS-5 ????瞍?瘜?
+- `fl_chart` ??蝯梯??”嚗璇?/????
 
-## 開發日誌（學習歷程）
-- 位置：`D:\work\quizlet\portfolio\journal\YYYY-MM-DD.md`（不進 git）
-- 每次開發結束時，幫我產生當天的日誌，聚焦在：
-  1. **我做出的關鍵決策** — 為什麼選擇 A 而不是 B，背後的思考
-  2. **決策造成的影響** — 對架構、UX、維護性的實際影響
-  3. **人機協作觀察** — AI 做得好/不好的地方，我介入修正了什麼
-  4. **遇到的問題與解法** — Bug、環境問題等
-  5. **今天學到的事** — 技術層面的收穫
-- 用途：高中學習歷程檔案，不是技術文件
+## ??亥?嚗飛蝧風蝔?
+- 雿蔭嚗D:\work\Recall\portfolio\journal\YYYY-MM-DD.md`嚗???git嚗?
+- 瘥活?蝯???撟急??Ｙ??嗅予?隤???剁?
+  1. **???箇??瘙箇?** ???箔?暻潮??A ????B嚗?敺???
+  2. **瘙箇????蔣??* ??撠瑽X?雁霅瑟抒?撖阡?敶梢
+  3. **鈭箸???閫撖?* ??AI ??憟?銝末??對????乩耨甇??隞暻?
+  4. **???憿?閫??** ??Bug?憓?憿?
+  5. **隞予摮詨??** ???銵惜?Ｙ??嗥帖
+- ?券?擃葉摮貊?甇瑞?瑼?嚗??舀?銵?隞?
 
-## 驗證清單
-- [ ] `flutter run` 在 Android/iOS 模擬器上正常執行
-- [ ] WebView 載入 Quizlet，URL 輸入欄可導航，FAB 在題組頁面出現
-- [ ] 匯入流程：抓取 -> 預覽 -> 儲存 -> 出現在首頁
-- [ ] 檔案匯入：選 JSON/CSV -> 預覽 -> 儲存
-- [ ] 匯出：JSON/CSV 透過分享功能匯出
-- [ ] 卡片編輯：建立學習集 -> 進入編輯頁 -> 新增/刪除卡片 -> 加標籤 -> 儲存
-- [ ] 三種學習模式皆可正常運作
-- [ ] 測驗選題數 -> 只出指定數量；配對選組數 -> 只出指定數量
-- [ ] 快速瀏覽：滑動分類 -> 結束統計 -> 複習不記得的
-- [ ] SRS 複習：翻卡 -> 評分 -> 進度儲存 -> 結束摘要
-- [ ] 今日複習 Banner：顯示到期數 -> 點擊進入跨學習集 SRS 複習
-- [ ] 統計畫面：長條圖/熱力圖/圓餅圖 正常渲染
-- [ ] 搜尋：跨學習集搜尋 term/definition/tags
-- [ ] 驗證流程：註冊 -> 登入 -> 同步 -> 登出 -> 本地資料保留
-- [ ] 離線測試：飛航模式下 app 正常使用 Hive 資料
-- [ ] `flutter run -d chrome` 網頁版（匯入隱藏，其餘正常）
+## 撽?皜
+- [ ] `flutter run` ??Android/iOS 璅⊥?其?甇?虜?瑁?
+- [ ] WebView 頛 Recall嚗RL 頛詨甈撠嚗AB ?券?蝯??Ｗ??
+- [ ] ?臬瘚?嚗???-> ?汗 -> ?脣? -> ?箇?券???
+- [ ] 瑼??臬嚗 JSON/CSV -> ?汗 -> ?脣?
+- [ ] ?臬嚗SON/CSV ???澈??臬
+- [ ] ?∠?蝺刻摩嚗遣蝡飛蝧? -> ?脣蝺刻摩??-> ?啣?/?芷?∠? -> ??蝐?-> ?脣?
+- [ ] 銝車摮貊?璅∪??甇?虜??
+- [ ] 皜祇??賊???-> ?芸???賊?嚗?撠蝯 -> ?芸???賊?
+- [ ] 敹恍汗嚗???憿?-> 蝯?蝯梯? -> 銴?銝?敺?
+- [ ] SRS 銴?嚗蕃??-> 閰? -> ?脣漲?脣? -> 蝯???
+- [ ] 隞銴? Banner嚗＊蝷箏? -> 暺??脣頝典飛蝧? SRS 銴?
+- [ ] 蝯梯??恍嚗璇?/?勗???????甇?虜皜脫?
+- [ ] ??嚗楊摮貊???撠?term/definition/tags
+- [ ] 撽?瘚?嚗酉??-> ?餃 -> ?郊 -> ?餃 -> ?砍鞈?靽?
+- [ ] ?Ｙ?皜祈岫嚗??芣芋撘? app 甇?虜雿輻 Hive 鞈?
+- [ ] 拍照建卡：設定 API Key -> FAB 選拍照建卡 -> 拍照/選圖 -> 選模式 -> AI 分析 -> 預覽 -> 儲存
+- [ ] 未設定 API Key 時點「拍照建卡」-> 顯示提示訊息
+- [ ] `flutter run -d chrome` 蝬脤????臬?梯?嚗擗迤撣賂?
+

@@ -1,9 +1,9 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/models/card_progress.dart';
-import 'package:quizlet_app/models/review_log.dart';
-import 'package:quizlet_app/services/fsrs_service.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/services/fsrs_service.dart';
 
 void main() {
   test('StudySet can be created with cards', () {
@@ -182,3 +182,4 @@ void main() {
     });
   });
 }
+

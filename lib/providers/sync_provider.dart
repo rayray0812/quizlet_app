@@ -1,7 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/providers/auth_provider.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/services/sync_service.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/providers/auth_provider.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/services/sync_service.dart';
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final localStorage = ref.watch(localStorageServiceProvider);
@@ -20,3 +20,4 @@ final syncProvider = FutureProvider<void>((ref) async {
     ref.read(studySetsProvider.notifier).refresh();
   }
 });
+

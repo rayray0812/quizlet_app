@@ -1,7 +1,7 @@
-import 'dart:math';
+﻿import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/features/study/widgets/flip_card.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/features/study/widgets/flip_card.dart';
 
 /// A single card in the swipe stack, with term/definition and swipe gesture.
 class SwipeCardStack extends StatefulWidget {
@@ -328,3 +328,4 @@ class SwipeCardData {
     this.imageUrl = '',
   });
 }
+

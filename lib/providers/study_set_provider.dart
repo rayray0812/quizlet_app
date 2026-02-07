@@ -1,7 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/models/card_progress.dart';
-import 'package:quizlet_app/services/local_storage_service.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/services/local_storage_service.dart';
 
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
   return LocalStorageService();
@@ -88,3 +88,4 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     return _localStorage.getStudySet(id);
   }
 }
+

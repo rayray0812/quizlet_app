@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' if (dart.library.html) 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -6,8 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/models/flashcard.dart';
 
 class ImportExportService {
   /// Export a study set as JSON and share via system share sheet.
@@ -58,7 +58,7 @@ class ImportExportService {
     final String content;
     final String? ext = platformFile.extension?.toLowerCase();
 
-    // On web, path is null — use bytes instead
+    // On web, path is null ??use bytes instead
     if (kIsWeb || platformFile.path == null) {
       final bytes = platformFile.bytes;
       if (bytes == null) return null;
@@ -223,3 +223,4 @@ class ImportExportService {
     return sanitized.isEmpty ? 'export' : sanitized;
   }
 }
+

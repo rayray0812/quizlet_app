@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/features/home/widgets/card_edit_row.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/services/unsplash_service.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/features/home/widgets/card_edit_row.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/services/unsplash_service.dart';
 
 class CardEditorScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -169,3 +169,4 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     );
   }
 }
+

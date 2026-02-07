@@ -1,7 +1,7 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:quizlet_app/core/constants/supabase_constants.dart';
-import 'package:quizlet_app/models/study_set.dart';
-import 'package:quizlet_app/models/flashcard.dart';
+﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:recall_app/core/constants/supabase_constants.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/models/flashcard.dart';
 
 class SupabaseService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -114,3 +114,4 @@ class SupabaseService {
     );
   }
 }
+

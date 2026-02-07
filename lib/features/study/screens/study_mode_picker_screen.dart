@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/providers/fsrs_provider.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/services/import_export_service.dart';
-import 'package:quizlet_app/services/unsplash_service.dart';
-import 'package:quizlet_app/features/study/widgets/count_picker_dialog.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
-import 'package:quizlet_app/core/theme/app_theme.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/services/import_export_service.dart';
+import 'package:recall_app/services/unsplash_service.dart';
+import 'package:recall_app/features/study/widgets/count_picker_dialog.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class StudyModePickerScreen extends ConsumerWidget {
   final String setId;
@@ -433,3 +433,4 @@ class _StudyModeCardState extends State<_StudyModeCard> {
     );
   }
 }
+

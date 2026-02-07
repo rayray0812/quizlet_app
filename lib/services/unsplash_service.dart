@@ -1,6 +1,6 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:quizlet_app/core/constants/api_constants.dart';
+import 'package:recall_app/core/constants/api_constants.dart';
 
 class UnsplashService {
   /// Searches Unsplash for a photo matching [query] and returns the small image URL.
@@ -27,8 +27,9 @@ class UnsplashService {
         }
       }
     } catch (_) {
-      // Silently fail — auto-image is best-effort
+      // Silently fail ??auto-image is best-effort
     }
     return '';
   }
 }
+

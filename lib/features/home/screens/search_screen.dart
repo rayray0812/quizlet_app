@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quizlet_app/models/flashcard.dart';
-import 'package:quizlet_app/providers/study_set_provider.dart';
-import 'package:quizlet_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -136,3 +136,4 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 }
+

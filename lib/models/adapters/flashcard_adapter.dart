@@ -1,5 +1,5 @@
-import 'package:hive/hive.dart';
-import 'package:quizlet_app/models/flashcard.dart';
+﻿import 'package:hive/hive.dart';
+import 'package:recall_app/models/flashcard.dart';
 
 class FlashcardAdapter extends TypeAdapter<Flashcard> {
   @override
@@ -30,3 +30,4 @@ class FlashcardAdapter extends TypeAdapter<Flashcard> {
     });
   }
 }
+
