@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:recall_app/app.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/constants/supabase_constants.dart';
+import 'package:recall_app/core/router/app_router.dart';
 import 'package:recall_app/models/adapters/study_set_adapter.dart';
 import 'package:recall_app/models/adapters/flashcard_adapter.dart';
 import 'package:recall_app/models/adapters/card_progress_adapter.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
 import 'package:recall_app/services/notification_service.dart';
+import 'package:recall_app/services/widget_snapshot_service.dart';
+
+void _handleWidgetUri(Uri? uri) {
+  if (uri == null) return;
+  // recall://review → /review
+  if (uri.host == 'review' || uri.path == '/review' || uri.path == 'review') {
+    appRouter.go('/review');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +42,14 @@ void main() async {
 
   // Initialize Notifications
   await NotificationService.init();
+
+  // Initialize Home Screen Widgets
+  await WidgetSnapshotService.init();
+
+  // Handle widget deep links
+  HomeWidget.widgetClicked.listen(_handleWidgetUri);
+  final initialUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+  _handleWidgetUri(initialUri);
 
   // Re-schedule daily reminder if enabled (survives reboots)
   final settingsBox = Hive.box(AppConstants.hiveSettingsBox);

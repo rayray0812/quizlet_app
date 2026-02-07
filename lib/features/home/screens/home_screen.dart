@@ -18,6 +18,7 @@ import 'package:recall_app/features/home/widgets/today_review_card.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/notification_provider.dart';
+import 'package:recall_app/providers/widget_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -44,6 +45,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       curve: Curves.easeOut,
     );
     _animController.forward();
+
+    // Sync widget data when app opens
+    Future.microtask(() {
+      if (mounted) ref.read(widgetRefreshProvider)();
+    });
   }
 
   @override

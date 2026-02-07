@@ -1,11 +1,10 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/features/study/services/speaking_auto_score_service.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
 import 'package:recall_app/providers/stats_provider.dart';
@@ -24,12 +23,14 @@ class SpeakingPracticeScreen extends ConsumerStatefulWidget {
 
 class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen> {
   late final FlutterTts _tts;
+  bool _ttsInitialized = false;
   late final SpeechToText _speech;
   bool _isTtsReady = false;
   bool _speechReady = false;
   bool _isListening = false;
   bool _isScoring = false;
   String _recognizedText = '';
+  double? _recognizedConfidence;
   int? _lastAutoScore;
   Set<String>? _supportedLanguages;
   List<Map<String, String>>? _availableVoices;
@@ -63,7 +64,10 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
   }
 
   Future<void> _initTts() async {
-    _tts = FlutterTts();
+    if (!_ttsInitialized) {
+      _tts = FlutterTts();
+      _ttsInitialized = true;
+    }
     try {
       await _tts.awaitSpeakCompletion(true);
       await _tts.setSpeechRate(0.48);
@@ -100,7 +104,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
 
   String _pickSpeechLanguage(Flashcard card) {
     final term = card.term.trim();
-    final sentence = _buildSentence(card);
+    final sentence = _buildSafeSentence(card);
     final target = sentence.isNotEmpty ? sentence : term;
     final hasLatin = RegExp(r'[A-Za-z]').hasMatch(target);
     if (hasLatin) {
@@ -287,6 +291,29 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     return 'I use $term every day.';
   }
 
+  bool _looksCorruptedSentence(String sentence) {
+    if (sentence.isEmpty) return false;
+    return RegExp(r'[\uE000-\uF8FF]').hasMatch(sentence);
+  }
+
+  String _fallbackSentence(Flashcard card) {
+    final term = card.term.trim();
+    if (term.isEmpty) return '';
+    final language = _pickLanguage(term);
+    if (language.startsWith('ja')) return '$term を毎日使います。';
+    if (language.startsWith('zh')) return '我每天都會使用$term。';
+    return 'I use $term every day.';
+  }
+
+  String _buildSafeSentence(Flashcard card) {
+    final sentence = _buildSentence(card).trim();
+    if (sentence.isEmpty) return '';
+    if (_looksCorruptedSentence(sentence)) {
+      return _fallbackSentence(card);
+    }
+    return sentence;
+  }
+
   bool _hasCustomExample(Flashcard card) {
     return card.exampleSentence.trim().isNotEmpty;
   }
@@ -296,68 +323,11 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
   }
 
   String _buildAutoScoreTarget(Flashcard card) {
-    final sentence = _buildSentence(card).trim();
+    final sentence = _buildSafeSentence(card).trim();
     if (sentence.isEmpty) {
       return card.term.trim();
     }
     return '${card.term.trim()} $sentence';
-  }
-
-  String _normalizeForCompare(String input) {
-    final lower = input.toLowerCase();
-    final cleaned = lower.replaceAll(
-      RegExp(r'[^a-z0-9\u3040-\u30FF\u3400-\u9FFF\s]'),
-      ' ',
-    );
-    return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
-  int _levenshtein(String a, String b) {
-    if (a.isEmpty) return b.length;
-    if (b.isEmpty) return a.length;
-    final rows = a.length + 1;
-    final cols = b.length + 1;
-    final dp = List.generate(rows, (_) => List<int>.filled(cols, 0));
-    for (var i = 0; i < rows; i++) {
-      dp[i][0] = i;
-    }
-    for (var j = 0; j < cols; j++) {
-      dp[0][j] = j;
-    }
-    for (var i = 1; i < rows; i++) {
-      for (var j = 1; j < cols; j++) {
-        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
-        dp[i][j] = min(
-          min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
-          dp[i - 1][j - 1] + cost,
-        );
-      }
-    }
-    return dp[a.length][b.length];
-  }
-
-  double _similarity(String target, String spoken) {
-    final t = _normalizeForCompare(target);
-    final s = _normalizeForCompare(spoken);
-    if (t.isEmpty || s.isEmpty) return 0;
-    final dist = _levenshtein(t, s);
-    final charSim = 1 - (dist / max(t.length, s.length));
-    final targetWords = t.split(' ').where((e) => e.isNotEmpty).toSet();
-    final spokenWords = s.split(' ').where((e) => e.isNotEmpty).toSet();
-    final hasWordLevel = targetWords.length > 1 || spokenWords.length > 1;
-    if (!hasWordLevel) return charSim.clamp(0.0, 1.0);
-    final overlap = targetWords.intersection(spokenWords).length;
-    final wordSim = targetWords.isEmpty ? 0.0 : overlap / targetWords.length;
-    return ((charSim * 0.55) + (wordSim * 0.45)).clamp(0.0, 1.0);
-  }
-
-  int _scoreFromSimilarity(double sim) {
-    if (sim >= 0.92) return 5;
-    if (sim >= 0.78) return 4;
-    if (sim >= 0.62) return 3;
-    if (sim >= 0.45) return 2;
-    if (sim > 0) return 1;
-    return 0;
   }
 
   Future<String?> _resolveSpeechLocale(String preferred) async {
@@ -419,6 +389,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     final localeId = await _resolveSpeechLocale(_pickSpeechLanguage(card));
     setState(() {
       _recognizedText = '';
+      _recognizedConfidence = null;
       _lastAutoScore = null;
       _isListening = true;
     });
@@ -433,7 +404,12 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
       listenFor: const Duration(seconds: 10),
       onResult: (result) async {
         if (!mounted) return;
-        setState(() => _recognizedText = result.recognizedWords);
+        setState(() {
+          _recognizedText = result.recognizedWords;
+          _recognizedConfidence = result.hasConfidenceRating
+              ? result.confidence
+              : null;
+        });
         if (result.finalResult) {
           await _finishAutoScore(card, cards);
         }
@@ -448,19 +424,16 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
       await _speech.stop();
     }
     final spoken = _recognizedText.trim();
-    final sentence = _buildSentence(card);
     var score = 0;
     if (spoken.isNotEmpty) {
-      final simTerm = _similarity(card.term, spoken);
-      final simSentence = sentence.isEmpty ? 0.0 : _similarity(sentence, spoken);
-      final simCombined = _similarity(_buildAutoScoreTarget(card), spoken);
-      final targetSim = sentence.isEmpty
-          ? max(simTerm, simCombined)
-          : max(simSentence, simCombined);
-      score = _scoreFromSimilarity(targetSim);
-      if (score == 0) {
-        score = 1;
-      }
+      score = SpeakingAutoScoreService.computeScore(
+        term: card.term,
+        sentence: _buildSafeSentence(card),
+        combinedTarget: _buildAutoScoreTarget(card),
+        spoken: spoken,
+        languageCode: _pickSpeechLanguage(card),
+        confidence: _recognizedConfidence,
+      );
     }
     if (!mounted) return;
     setState(() {
@@ -477,7 +450,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     if (_isPlaying) return;
     setState(() => _isPlaying = true);
     await _speak(card.term);
-    final sentence = _buildSentence(card);
+    final sentence = _buildSafeSentence(card);
     if (sentence.isNotEmpty) {
       await _speak(sentence);
     }
@@ -505,6 +478,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
       _scoresByCardId[card.id] = score;
       _lastAutoScore = score;
       _recognizedText = '';
+      _recognizedConfidence = null;
     });
     if (_index >= cards.length - 1) return;
     setState(() => _index++);
@@ -575,7 +549,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
 
     final current = cards[_index.clamp(0, cards.length - 1)];
     final hasExample = _hasCustomExample(current);
-    final sentence = _buildSentence(current);
+    final sentence = _buildSafeSentence(current);
     final hasSentence = sentence.isNotEmpty;
     final isAutoGenerated = _isAutoGeneratedExample(current);
     if (_lastAutoPlayedCardId != current.id) {

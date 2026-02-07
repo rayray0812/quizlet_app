@@ -45,6 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.studyapp.recall_app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>recall</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>拾憶需要使用相機來拍照建立單字卡</string>
 	<key>NSPhotoLibraryUsageDescription</key>

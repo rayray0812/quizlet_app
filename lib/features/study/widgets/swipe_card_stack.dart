@@ -136,7 +136,6 @@ class SwipeCardStackState extends State<SwipeCardStack>
         child: IgnorePointer(
           child: _CardPreview(
             term: data.term,
-            indexLabel: '${_topIndex + offset + 1}',
           ),
         ),
       ),
@@ -177,7 +176,6 @@ class SwipeCardStackState extends State<SwipeCardStack>
                     useLiteCard
                         ? _CardPreview(
                             term: data.term,
-                            indexLabel: '${_topIndex + 1}',
                             emphasize: true,
                           )
                         : _cardContent(_topIndex),
@@ -252,12 +250,10 @@ class SwipeCardStackState extends State<SwipeCardStack>
 
 class _CardPreview extends StatelessWidget {
   final String term;
-  final String indexLabel;
   final bool emphasize;
 
   const _CardPreview({
     required this.term,
-    required this.indexLabel,
     this.emphasize = false,
   });
 
@@ -290,13 +286,6 @@ class _CardPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            indexLabel,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.55),
-            ),
-          ),
-          const SizedBox(height: 8),
           Expanded(
             child: Center(
               child: Text(

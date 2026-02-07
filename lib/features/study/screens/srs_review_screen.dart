@@ -14,6 +14,7 @@ import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/providers/widget_provider.dart';
 
 /// SRS review screen: show card front -> tap to flip -> rate Again/Hard/Good/Easy.
 class SrsReviewScreen extends ConsumerStatefulWidget {
@@ -339,6 +340,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     await localStorage.saveCardProgress(result.progress);
     await localStorage.saveReviewLog(result.log);
     ref.invalidate(allCardProgressProvider);
+    ref.read(widgetRefreshProvider)();
     if (!mounted) return;
 
     switch (rating) {

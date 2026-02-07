@@ -9,4 +9,13 @@
   static const String notificationChannelId = 'recall_daily_review';
   static const int defaultNotificationHour = 20;
   static const int defaultNotificationMinute = 0;
+
+  // Home Screen Widgets
+  static const String widgetAppGroupId = 'group.com.studyapp.recallapp';
+  static const String widgetAndroidDailyMission = 'DailyMissionWidgetProvider';
+  static const String widgetAndroidPressureBar = 'PressureBarWidgetProvider';
+  static const String widgetIosDailyMission = 'DailyMissionWidget';
+  static const String widgetIosPressureBar = 'PressureBarWidget';
+  static const String deepLinkScheme = 'recall';
+  static const int defaultDailyTarget = 20;
 }

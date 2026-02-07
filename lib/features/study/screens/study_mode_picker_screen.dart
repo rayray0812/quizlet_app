@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,7 @@ class StudyModePickerScreen extends ConsumerStatefulWidget {
 
 class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   bool _isAutoFetching = false;
+  final Random _random = Random();
   late final FlutterTts _tts;
   bool _isTtsReady = false;
   Set<String>? _supportedLanguages;
@@ -33,6 +36,8 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   String? _activeVoiceKey;
   bool _isSpeaking = false;
   DateTime? _lastSpeakRequestedAt;
+  List<Flashcard> _previewCards = <Flashcard>[];
+  final Map<String, bool> _previewFlipped = <String, bool>{};
 
   @override
   void initState() {
@@ -271,6 +276,24 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     }
   }
 
+  void _syncPreviewCards(List<Flashcard> cards) {
+    final oldIds = _previewCards.map((e) => e.id).toSet();
+    final newIds = cards.map((e) => e.id).toSet();
+    if (oldIds.length == newIds.length && oldIds.containsAll(newIds)) {
+      if (_previewCards.length == cards.length) return;
+    }
+    _previewCards = List<Flashcard>.of(cards)..shuffle(_random);
+    _previewFlipped
+      ..clear()
+      ..addEntries(_previewCards.map((c) => MapEntry(c.id, false)));
+  }
+
+  void _togglePreviewCard(String cardId) {
+    setState(() {
+      _previewFlipped[cardId] = !(_previewFlipped[cardId] ?? false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final studySet = ref
@@ -287,6 +310,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     }
 
     final hasEnoughCards = studySet.cards.length >= 4;
+    _syncPreviewCards(studySet.cards);
 
     return Scaffold(
       appBar: AppBar(
@@ -370,51 +394,26 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
           // Horizontal card preview
           if (studySet.cards.isNotEmpty)
             SizedBox(
-              height: 120,
+              height: 144,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: studySet.cards.length,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                itemCount: _previewCards.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
-                  final card = studySet.cards[i];
+                  final card = _previewCards[i];
+                  final flipped = _previewFlipped[card.id] ?? false;
                   return SizedBox(
                     width: 150,
-                    child: Container(
-                      decoration: AppTheme.softCardDecoration(
-                        fillColor: Theme.of(context).cardColor,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (card.imageUrl.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CachedNetworkImage(
-                                    imageUrl: card.imageUrl,
-                                    width: double.infinity,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                            Expanded(
-                              child: Text(
-                                card.term,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: card.imageUrl.isNotEmpty ? 2 : 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
+                    child: _PreviewFlipCard(
+                      term: card.term,
+                      definition: card.definition,
+                      imageUrl: card.imageUrl,
+                      flipped: flipped,
+                      onTap: () => _togglePreviewCard(card.id),
+                      onLongPress: () => _speakText(
+                        flipped ? card.definition : card.term,
+                        userInitiated: true,
                       ),
                     ),
                   );
@@ -606,6 +605,96 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
             }),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _PreviewFlipCard extends StatelessWidget {
+  const _PreviewFlipCard({
+    required this.term,
+    required this.definition,
+    required this.imageUrl,
+    required this.flipped,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final String term;
+  final String definition;
+  final String imageUrl;
+  final bool flipped;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: flipped ? 1 : 0),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeInOutCubic,
+        builder: (context, value, _) {
+          final angle = value * pi;
+          final isBack = value >= 0.5;
+          final text = isBack ? definition : term;
+          final showImage = imageUrl.isNotEmpty && !isBack;
+          final surface = Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.0012)
+              ..rotateY(isBack ? pi : 0),
+            child: Container(
+              decoration: AppTheme.softCardDecoration(
+                fillColor: Theme.of(context).cardColor,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (showImage)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            width: double.infinity,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: showImage ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.0012)
+              ..rotateY(angle),
+            child: surface,
+          );
+        },
       ),
     );
   }
