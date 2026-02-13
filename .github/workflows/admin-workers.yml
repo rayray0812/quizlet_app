@@ -1,0 +1,142 @@
+name: Admin Workers
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "0 * * * *"
+    - cron: "15 2 * * *"
+
+jobs:
+  bulk-worker:
+    name: Run Bulk Worker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    steps:
+      - name: Invoke admin-bulk-worker
+        id: bulk
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          ADMIN_WORKER_TOKEN: ${{ secrets.ADMIN_WORKER_TOKEN }}
+          MAX_JOBS: ${{ vars.ADMIN_BULK_MAX_JOBS }}
+          WORKER_ID: github-actions-bulk
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_PROJECT_URL:-}" || -z "${ADMIN_WORKER_TOKEN:-}" ]]; then
+            echo "Missing required secrets for bulk worker"
+            exit 1
+          fi
+          response=$(curl -sS -X POST \
+            "${SUPABASE_PROJECT_URL}/functions/v1/admin-bulk-worker" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${ADMIN_WORKER_TOKEN}" \
+            -d "{\"maxJobs\": ${MAX_JOBS:-20}, \"workerId\": \"${WORKER_ID}\"}")
+          echo "response=${response}" >> "$GITHUB_OUTPUT"
+          echo "$response"
+          ok=$(echo "$response" | jq -r '.ok // false')
+          failed_count=$(echo "$response" | jq -r '.failedCount // 0')
+          if [[ "$ok" != "true" || "$failed_count" != "0" ]]; then
+            echo "Bulk worker reported failures"
+            exit 1
+          fi
+
+      - name: Notify webhook on failure
+        if: failure() && secrets.ADMIN_WORKER_ALERT_WEBHOOK != ''
+        env:
+          ADMIN_WORKER_ALERT_WEBHOOK: ${{ secrets.ADMIN_WORKER_ALERT_WEBHOOK }}
+        run: |
+          payload=$(jq -n \
+            --arg text "[admin-bulk-worker] failed on ${GITHUB_REPOSITORY}@${GITHUB_REF_NAME}" \
+            '{text:$text}')
+          curl -sS -X POST "$ADMIN_WORKER_ALERT_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "$payload"
+
+  governance-worker:
+    name: Run Governance Worker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 * * * *'
+    steps:
+      - name: Invoke admin-governance-worker
+        id: governance
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          ADMIN_GOVERNANCE_WORKER_TOKEN: ${{ secrets.ADMIN_GOVERNANCE_WORKER_TOKEN }}
+          STALE_APPROVAL_HOURS: ${{ vars.ADMIN_STALE_APPROVAL_HOURS }}
+          OVERDUE_APPROVAL_HOURS: ${{ vars.ADMIN_OVERDUE_APPROVAL_HOURS }}
+          SLA_HOURS: ${{ vars.ADMIN_SLA_HOURS }}
+          DISPATCH_LIMIT: ${{ vars.ADMIN_GOVERNANCE_DISPATCH_LIMIT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_PROJECT_URL:-}" || -z "${ADMIN_GOVERNANCE_WORKER_TOKEN:-}" ]]; then
+            echo "Missing required secrets for governance worker"
+            exit 1
+          fi
+          response=$(curl -sS -X POST \
+            "${SUPABASE_PROJECT_URL}/functions/v1/admin-governance-worker" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${ADMIN_GOVERNANCE_WORKER_TOKEN}" \
+            -d "{\"staleApprovalHours\": ${STALE_APPROVAL_HOURS:-72}, \"overdueApprovalHours\": ${OVERDUE_APPROVAL_HOURS:-24}, \"slaHours\": ${SLA_HOURS:-24}, \"dispatchLimit\": ${DISPATCH_LIMIT:-50}, \"escalationChannel\": \"webhook\"}")
+          echo "response=${response}" >> "$GITHUB_OUTPUT"
+          echo "$response"
+          ok=$(echo "$response" | jq -r '.ok // false')
+          if [[ "$ok" != "true" ]]; then
+            echo "Governance worker failed"
+            exit 1
+          fi
+
+      - name: Notify webhook on failure
+        if: failure() && secrets.ADMIN_WORKER_ALERT_WEBHOOK != ''
+        env:
+          ADMIN_WORKER_ALERT_WEBHOOK: ${{ secrets.ADMIN_WORKER_ALERT_WEBHOOK }}
+        run: |
+          payload=$(jq -n \
+            --arg text "[admin-governance-worker] failed on ${GITHUB_REPOSITORY}@${GITHUB_REF_NAME}" \
+            '{text:$text}')
+          curl -sS -X POST "$ADMIN_WORKER_ALERT_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "$payload"
+
+  compliance-export:
+    name: Run Compliance Export
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '15 2 * * *'
+    steps:
+      - name: Invoke admin-compliance-export
+        id: compliance
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          ADMIN_COMPLIANCE_EXPORT_TOKEN: ${{ secrets.ADMIN_COMPLIANCE_EXPORT_TOKEN }}
+          ADMIN_COMPLIANCE_ACTOR_USER_ID: ${{ secrets.ADMIN_COMPLIANCE_ACTOR_USER_ID }}
+          EXPORT_DAYS: ${{ vars.ADMIN_EXPORT_DAYS }}
+          EXPORT_FORMAT: ${{ vars.ADMIN_EXPORT_FORMAT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_PROJECT_URL:-}" || -z "${ADMIN_COMPLIANCE_EXPORT_TOKEN:-}" || -z "${ADMIN_COMPLIANCE_ACTOR_USER_ID:-}" ]]; then
+            echo "Missing required secrets for compliance export"
+            exit 1
+          fi
+          response=$(curl -sS -X POST \
+            "${SUPABASE_PROJECT_URL}/functions/v1/admin-compliance-export" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${ADMIN_COMPLIANCE_EXPORT_TOKEN}" \
+            -d "{\"format\": \"${EXPORT_FORMAT:-json}\", \"days\": ${EXPORT_DAYS:-30}, \"actorUserId\": \"${ADMIN_COMPLIANCE_ACTOR_USER_ID}\"}")
+          echo "response=${response}" >> "$GITHUB_OUTPUT"
+          echo "$response"
+          ok=$(echo "$response" | jq -r '.ok // false')
+          if [[ "$ok" != "true" ]]; then
+            echo "Compliance export failed"
+            exit 1
+          fi
+
+      - name: Notify webhook on failure
+        if: failure() && secrets.ADMIN_WORKER_ALERT_WEBHOOK != ''
+        env:
+          ADMIN_WORKER_ALERT_WEBHOOK: ${{ secrets.ADMIN_WORKER_ALERT_WEBHOOK }}
+        run: |
+          payload=$(jq -n \
+            --arg text "[admin-compliance-export] failed on ${GITHUB_REPOSITORY}@${GITHUB_REF_NAME}" \
+            '{text:$text}')
+          curl -sS -X POST "$ADMIN_WORKER_ALERT_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "$payload"

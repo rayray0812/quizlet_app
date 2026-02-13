@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -11,14 +11,22 @@ import 'package:recall_app/providers/theme_provider.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:recall_app/core/widgets/glass_press_effect.dart';
+import 'package:recall_app/core/widgets/liquid_glass.dart';
 import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/widgets/study_set_card.dart';
 import 'package:recall_app/features/home/widgets/today_review_card.dart';
 import 'package:recall_app/services/import_export_service.dart';
+import 'package:recall_app/services/local_storage_service.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/notification_provider.dart';
 import 'package:recall_app/providers/widget_provider.dart';
+import 'package:recall_app/providers/biometric_provider.dart';
+import 'package:recall_app/providers/auth_analytics_provider.dart';
+import 'package:recall_app/providers/admin_provider.dart';
+import 'package:recall_app/models/sync_conflict.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -73,6 +81,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        flexibleSpace: isLiquidGlassSupported
+            ? LiquidGlass(
+                borderRadius: 0,
+                blurSigma: 20,
+                tintColor: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.22),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 0.8,
+                  ),
+                ),
+                shadows: const [],
+                child: const SizedBox.expand(),
+              )
+            : null,
         title: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           switchInCurve: Curves.easeOutCubic,
@@ -145,22 +173,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               )
             : const SizedBox.shrink(key: ValueKey('empty-fab')),
       ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: LiquidGlass(
+          borderRadius: 22,
+          tintColor: Theme.of(context).colorScheme.surface.withValues(
+            alpha: isLiquidGlassSupported ? 0.18 : 0.96,
+          ),
           child: NavigationBar(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.16),
             height: 72,
             selectedIndex: _currentTab,
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -244,16 +270,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final locale = ref.watch(localeProvider);
     final themeMode = ref.watch(themeModeProvider);
     final themeNotifier = ref.read(themeModeProvider.notifier);
+    final biometricQuickUnlockEnabled = ref.watch(biometricQuickUnlockProvider);
+    final isAdmin = ref
+        .watch(adminAccessProvider)
+        .maybeWhen(data: (value) => value, orElse: () => false);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        Container(
-          decoration: AppTheme.softCardDecoration(
-            fillColor: Theme.of(context).cardColor,
-            borderRadius: 20,
-            elevation: 1.2,
-          ),
+        _AdaptiveSettingsCard(
           child: Column(
             children: [
               ListTile(
@@ -306,16 +331,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
         const SizedBox(height: 14),
-        _GeminiApiKeyCard(ref: ref),
+        const _GeminiApiKeyCard(),
         const SizedBox(height: 14),
-        _NotificationCard(ref: ref),
+        const _NotificationCard(),
         const SizedBox(height: 14),
-        Container(
-          decoration: AppTheme.softCardDecoration(
-            fillColor: Theme.of(context).cardColor,
-            borderRadius: 20,
-            elevation: 1.2,
+        _AdaptiveSettingsCard(
+          child: SwitchListTile(
+            secondary: const Icon(Icons.fingerprint_rounded),
+            title: const Text('Biometric Quick Unlock'),
+            subtitle: Text(
+              user == null
+                  ? 'Sign in first to enable biometric unlock.'
+                  : 'Require biometric unlock when returning to app.',
+            ),
+            value: biometricQuickUnlockEnabled,
+            onChanged: user == null
+                ? null
+                : (enabled) => _toggleBiometricQuickUnlock(
+                    context: context,
+                    ref: ref,
+                    enabled: enabled,
+                  ),
           ),
+        ),
+        const SizedBox(height: 14),
+        _AdaptiveSettingsCard(
           child: user == null
               ? ListTile(
                   leading: const Icon(Icons.login_rounded),
@@ -330,12 +370,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       title: Text(l10n.profile),
                       subtitle: Text(user.email ?? 'Unknown'),
                     ),
+                    if (isAdmin)
+                      ListTile(
+                        leading: const Icon(Icons.admin_panel_settings_rounded),
+                        title: const Text('Admin Console'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push('/admin'),
+                      ),
+                    ListTile(
+                      leading: const Icon(Icons.security_rounded),
+                      title: const Text('Security Center'),
+                      subtitle: const Text(
+                        'Manage sessions and account security actions.',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _showSecurityCenterDialog(
+                        context: context,
+                        ref: ref,
+                        email: user.email ?? 'Unknown',
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () async {
+                            await ref
+                                .read(authAnalyticsServiceProvider)
+                                .logAuthEvent(
+                                  action: 'sign_out',
+                                  provider: 'session',
+                                  result: 'local',
+                                );
                             await supabase.signOut();
                             if (mounted) {
                               setState(() => _currentTab = 0);
@@ -351,6 +418,345 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ],
     );
+  }
+
+  Future<void> _toggleBiometricQuickUnlock({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool enabled,
+  }) async {
+    final notifier = ref.read(biometricQuickUnlockProvider.notifier);
+    if (!enabled) {
+      await notifier.setEnabled(false);
+      return;
+    }
+
+    final biometricService = ref.read(biometricServiceProvider);
+    final available = await biometricService.isBiometricAvailable();
+    if (!available) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biometric authentication is not available.'),
+        ),
+      );
+      return;
+    }
+
+    final verified = await biometricService.authenticateForUnlock();
+    if (!context.mounted) return;
+    if (!verified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biometric verification failed. Try again.'),
+        ),
+      );
+      return;
+    }
+
+    await notifier.setEnabled(true);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Biometric quick unlock enabled.')),
+    );
+  }
+
+  Future<void> _showSecurityCenterDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String email,
+  }) async {
+    final supabase = ref.read(supabaseServiceProvider);
+    final analytics = ref.read(authAnalyticsServiceProvider);
+    final localStorage = ref.read(localStorageServiceProvider);
+    final importExportService = ImportExportService();
+    final conflicts = ref.read(syncConflictsProvider);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Security Center'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Current account: $email'),
+            const SizedBox(height: 8),
+            Text('Sync conflicts: ${conflicts.length}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Use these actions when you suspect account access on another device.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showSyncConflictDialog(context: context, ref: ref);
+            },
+            child: const Text('Resolve Conflicts'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _showEncryptedBackupDialog(
+                context: context,
+                localStorage: localStorage,
+                importExportService: importExportService,
+              );
+            },
+            child: const Text('Encrypted Backup'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _showDeleteAccountDialog(context: context, ref: ref);
+            },
+            child: const Text('Delete Account'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await analytics.logAuthEvent(
+                action: 'sign_out',
+                provider: 'session',
+                result: 'local',
+              );
+              await supabase.signOut();
+              if (!dialogContext.mounted) return;
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Sign Out This Device'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await analytics.logAuthEvent(
+                action: 'sign_out',
+                provider: 'session',
+                result: 'global',
+              );
+              await supabase.signOutAllSessions();
+              if (!dialogContext.mounted) return;
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Sign Out All Devices'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSyncConflictDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final syncService = ref.read(syncServiceProvider);
+    final conflicts = ref.read(syncConflictsProvider);
+    if (conflicts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No sync conflicts detected.')),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sync Conflicts'),
+        content: SizedBox(
+          width: 500,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: conflicts.length,
+            separatorBuilder: (_, __) => const Divider(),
+            itemBuilder: (_, index) {
+              final conflict = conflicts[index];
+              return _ConflictRow(
+                conflict: conflict,
+                onKeepLocal: () async {
+                  await syncService.resolveConflictKeepLocal(conflict.setId);
+                  ref.invalidate(syncConflictsProvider);
+                },
+                onKeepRemote: () async {
+                  await syncService.resolveConflictKeepRemote(conflict.setId);
+                  ref.invalidate(syncConflictsProvider);
+                  ref.read(studySetsProvider.notifier).refresh();
+                },
+                onMerge: () async {
+                  await syncService.resolveConflictMerge(conflict.setId);
+                  ref.invalidate(syncConflictsProvider);
+                  ref.read(studySetsProvider.notifier).refresh();
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEncryptedBackupDialog({
+    required BuildContext context,
+    required LocalStorageService localStorage,
+    required ImportExportService importExportService,
+  }) async {
+    final passphraseController = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Encrypted Backup'),
+        content: TextField(
+          controller: passphraseController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Passphrase',
+            hintText: 'At least 8 characters',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final passphrase = passphraseController.text;
+              try {
+                await importExportService.exportEncryptedBackup(
+                  localStorage: localStorage,
+                  passphrase: passphrase,
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Encrypted backup exported.')),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+              } finally {
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Export'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final passphrase = passphraseController.text;
+              try {
+                final result = await importExportService.importEncryptedBackup(
+                  localStorage: localStorage,
+                  passphrase: passphrase,
+                );
+                if (!context.mounted) return;
+                ref.read(studySetsProvider.notifier).refresh();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Imported ${result.setCount} sets, ${result.progressCount} progress, ${result.reviewLogCount} logs.',
+                    ),
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+              } finally {
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    passphraseController.dispose();
+  }
+
+  Future<void> _showDeleteAccountDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final passwordController = TextEditingController();
+    final supabase = ref.read(supabaseServiceProvider);
+    final analytics = ref.read(authAnalyticsServiceProvider);
+    final localStorage = ref.read(localStorageServiceProvider);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This action is irreversible. Enter password to re-authenticate if needed.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password (optional for OAuth users)',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final fullDeleted = await supabase.deleteCurrentAccount(
+                  passwordForReauth: passwordController.text,
+                );
+                await localStorage.clearAllStudyData();
+                await analytics.logAuthEvent(
+                  action: 'delete_account',
+                  provider: 'session',
+                  result: fullDeleted ? 'full_deleted' : 'data_deleted',
+                );
+                if (!context.mounted) return;
+                ref.read(studySetsProvider.notifier).refresh();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      fullDeleted
+                          ? 'Account deleted successfully.'
+                          : 'Account data deleted. Ask admin to enable full auth-user deletion RPC.',
+                    ),
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Delete account failed: $e')),
+                );
+              } finally {
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    passwordController.dispose();
   }
 
   Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
@@ -479,74 +885,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final l10n = AppLocalizations.of(screenContext);
     showModalBottomSheet(
       context: screenContext,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(
+        alpha: isLiquidGlassSupported ? 0.16 : 0.26,
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      builder: (sheetContext) {
+        final sheetContent = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  sheetContext,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: 20),
-              _SheetItem(
-                icon: Icons.add_rounded,
-                iconColor: AppTheme.indigo,
-                title: l10n.createNewSet,
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showCreateDialog(screenContext, ref);
-                },
-              ),
-              _SheetItem(
-                icon: Icons.language_rounded,
-                iconColor: AppTheme.purple,
-                title: l10n.importFromRecall,
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  screenContext.push('/import');
-                },
-              ),
-              _SheetItem(
-                icon: Icons.file_open_rounded,
-                iconColor: AppTheme.green,
-                title: l10n.importFromFile,
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _importFromFile(screenContext, ref);
-                },
-              ),
-              _SheetItem(
-                icon: Icons.camera_alt_rounded,
-                iconColor: AppTheme.orange,
-                title: l10n.photoToFlashcard,
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  final apiKey = ref.read(geminiKeyProvider);
-                  if (apiKey.isEmpty) {
-                    ScaffoldMessenger.of(screenContext).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.geminiApiKeyNotSet),
-                      ),
-                    );
-                    return;
-                  }
-                  screenContext.push('/import/photo');
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+            ),
+            const SizedBox(height: 12),
+            _SheetItem(
+              icon: Icons.add_rounded,
+              iconColor: AppTheme.indigo,
+              title: l10n.createNewSet,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showCreateDialog(screenContext, ref);
+              },
+            ),
+            _SheetItem(
+              icon: Icons.language_rounded,
+              iconColor: AppTheme.purple,
+              title: l10n.importFromRecall,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                screenContext.push('/import');
+              },
+            ),
+            _SheetItem(
+              icon: Icons.file_open_rounded,
+              iconColor: AppTheme.green,
+              title: l10n.importFromFile,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _importFromFile(screenContext, ref);
+              },
+            ),
+            _SheetItem(
+              icon: Icons.camera_alt_rounded,
+              iconColor: AppTheme.orange,
+              title: l10n.photoToFlashcard,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                final apiKey = ref.read(geminiKeyProvider);
+                if (apiKey.isEmpty) {
+                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                    SnackBar(content: Text(l10n.geminiApiKeyNotSet)),
+                  );
+                  return;
+                }
+                screenContext.push('/import/photo');
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        );
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+            child: isLiquidGlassSupported
+                ? LiquidGlass(
+                    borderRadius: 24,
+                    blurSigma: 22,
+                    tintColor: Theme.of(
+                      sheetContext,
+                    ).colorScheme.surface.withValues(alpha: 0.24),
+                    child: sheetContent,
+                  )
+                : Container(
+                    decoration: AppTheme.softCardDecoration(
+                      fillColor: Theme.of(sheetContext).colorScheme.surface,
+                      borderRadius: 24,
+                      elevation: 1.4,
+                    ),
+                    child: sheetContent,
+                  ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -558,13 +989,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  void _showCreateDialog(BuildContext screenContext, WidgetRef ref) {
+  Future<void> _showCreateDialog(
+    BuildContext screenContext,
+    WidgetRef ref,
+  ) async {
     final l10n = AppLocalizations.of(screenContext);
-    final titleController = TextEditingController();
-    final descController = TextEditingController();
-    var disposed = false;
+    String title = '';
+    String description = '';
 
-    showDialog(
+    final result = await showDialog<Map<String, String>>(
       context: screenContext,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.newStudySet),
@@ -573,16 +1006,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: titleController,
                 decoration: InputDecoration(labelText: l10n.title),
                 autofocus: true,
+                onChanged: (value) => title = value,
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: descController,
                 decoration: InputDecoration(
                   labelText: l10n.descriptionOptional,
                 ),
+                onChanged: (value) => description = value,
               ),
             ],
           ),
@@ -594,30 +1027,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              final title = titleController.text.trim();
-              if (title.isEmpty) return;
-              final newSet = StudySet(
-                id: const Uuid().v4(),
-                title: title,
-                description: descController.text.trim(),
-                createdAt: DateTime.now().toUtc(),
-                cards: [],
-              );
-              ref.read(studySetsProvider.notifier).add(newSet);
-              Navigator.pop(dialogContext);
-              screenContext.push('/edit/${newSet.id}');
+              final trimmedTitle = title.trim();
+              if (trimmedTitle.isEmpty) return;
+              Navigator.pop(dialogContext, <String, String>{
+                'title': trimmedTitle,
+                'description': description.trim(),
+              });
             },
             child: Text(l10n.create),
           ),
         ],
       ),
-    ).then((_) {
-      if (!disposed) {
-        titleController.dispose();
-        descController.dispose();
-        disposed = true;
-      }
-    });
+    );
+
+    if (result == null || !mounted) return;
+    final newSet = StudySet(
+      id: const Uuid().v4(),
+      title: result['title'] ?? '',
+      description: result['description'] ?? '',
+      createdAt: DateTime.now().toUtc(),
+      cards: [],
+    );
+    ref.read(studySetsProvider.notifier).add(newSet);
+    if (screenContext.mounted) {
+      screenContext.push('/edit/${newSet.id}');
+    }
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, StudySet set) {
@@ -661,40 +1095,100 @@ class _SheetItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+    return GlassPressEffect(
+      borderRadius: 12,
+      pressedOpacity: 0.13,
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: iconColor, size: 22),
         ),
-        child: Icon(icon, color: iconColor, size: 22),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: Colors.grey.shade400,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: onTap,
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onTap: onTap,
     );
   }
 }
 
-class _GeminiApiKeyCard extends StatefulWidget {
-  final WidgetRef ref;
+class _ConflictRow extends StatelessWidget {
+  final SyncConflict conflict;
+  final Future<void> Function() onKeepLocal;
+  final Future<void> Function() onKeepRemote;
+  final Future<void> Function() onMerge;
 
-  const _GeminiApiKeyCard({required this.ref});
+  const _ConflictRow({
+    required this.conflict,
+    required this.onKeepLocal,
+    required this.onKeepRemote,
+    required this.onMerge,
+  });
 
   @override
-  State<_GeminiApiKeyCard> createState() => _GeminiApiKeyCardState();
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          conflict.title,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Local: ${conflict.localUpdatedAt.toLocal()}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        Text(
+          'Remote: ${conflict.remoteUpdatedAt.toLocal()}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton(
+              onPressed: () => onKeepLocal(),
+              child: const Text('Keep Local'),
+            ),
+            OutlinedButton(
+              onPressed: () => onKeepRemote(),
+              child: const Text('Keep Remote'),
+            ),
+            ElevatedButton(
+              onPressed: () => onMerge(),
+              child: const Text('Merge'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
+class _GeminiApiKeyCard extends ConsumerStatefulWidget {
+  const _GeminiApiKeyCard();
+
+  @override
+  ConsumerState<_GeminiApiKeyCard> createState() => _GeminiApiKeyCardState();
+}
+
+class _GeminiApiKeyCardState extends ConsumerState<_GeminiApiKeyCard> {
   late TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    final currentKey = widget.ref.read(geminiKeyProvider);
+    final currentKey = ref.read(geminiKeyProvider);
     _controller = TextEditingController(text: currentKey);
   }
 
@@ -707,12 +1201,7 @@ class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Container(
-      decoration: AppTheme.softCardDecoration(
-        fillColor: Theme.of(context).cardColor,
-        borderRadius: 20,
-        elevation: 1.2,
-      ),
+    return _AdaptiveSettingsCard(
       child: Column(
         children: [
           ListTile(
@@ -737,17 +1226,13 @@ class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
                 IconButton(
                   onPressed: () {
                     final key = _controller.text.trim();
-                    widget.ref
-                        .read(geminiKeyProvider.notifier)
-                        .setApiKey(key);
+                    ref.read(geminiKeyProvider.notifier).setApiKey(key);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(l10n.geminiApiKeySaved)),
                     );
                   },
                   icon: const Icon(Icons.save_rounded),
-                  style: IconButton.styleFrom(
-                    foregroundColor: AppTheme.indigo,
-                  ),
+                  style: IconButton.styleFrom(foregroundColor: AppTheme.indigo),
                 ),
               ],
             ),
@@ -759,34 +1244,45 @@ class _GeminiApiKeyCardState extends State<_GeminiApiKeyCard> {
 }
 
 class _NotificationCard extends ConsumerWidget {
-  final WidgetRef ref;
-
-  const _NotificationCard({required this.ref});
+  const _NotificationCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final enabled = ref.watch(notificationProvider);
 
-    return Container(
-      decoration: AppTheme.softCardDecoration(
-        fillColor: Theme.of(context).cardColor,
-        borderRadius: 20,
-        elevation: 1.2,
-      ),
+    return _AdaptiveSettingsCard(
       child: SwitchListTile(
         secondary: const Icon(Icons.notifications_rounded),
         title: Text(l10n.dailyReminder),
         subtitle: Text(l10n.dailyReminderDesc),
         value: enabled,
         onChanged: (value) {
-          ref.read(notificationProvider.notifier).toggle(
-            value,
-            title: l10n.reminderTitle,
-            body: l10n.reminderBody,
-          );
+          ref
+              .read(notificationProvider.notifier)
+              .toggle(
+                value,
+                title: l10n.reminderTitle,
+                body: l10n.reminderBody,
+              );
         },
       ),
+    );
+  }
+}
+
+class _AdaptiveSettingsCard extends StatelessWidget {
+  final Widget child;
+
+  const _AdaptiveSettingsCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveGlassCard(
+      borderRadius: 20,
+      fillColor: Theme.of(context).cardColor,
+      elevation: 1.2,
+      child: child,
     );
   }
 }
@@ -841,4 +1337,3 @@ class _StaggeredFadeItemState extends State<_StaggeredFadeItem>
     );
   }
 }
-

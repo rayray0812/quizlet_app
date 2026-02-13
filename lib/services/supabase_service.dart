@@ -15,6 +15,8 @@ class SupabaseService {
     }
   }
 
+  SupabaseClient? get clientOrNull => _clientOrNull;
+
   bool get isAvailable => _clientOrNull != null;
 
   // Auth
@@ -46,6 +48,116 @@ class SupabaseService {
     final client = _clientOrNull;
     if (client == null) return;
     await client.auth.signOut();
+  }
+
+  Future<void> signOutAllSessions() async {
+    final client = _clientOrNull;
+    if (client == null) return;
+    await client.auth.signOut(scope: SignOutScope.global);
+  }
+
+  Future<bool> isCurrentUserAdmin() async {
+    final client = _clientOrNull;
+    final user = currentUser;
+    if (client == null || user == null) return false;
+    try {
+      final rows = await client
+          .from(SupabaseConstants.adminRoleBindingsTable)
+          .select('id')
+          .eq('admin_user_id', user.id)
+          .limit(1);
+      return (rows as List).isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    final client = _requireClient();
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: SupabaseConstants.authRedirectUrl,
+    );
+  }
+
+  Future<bool> signInWithApple() async {
+    final client = _requireClient();
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: SupabaseConstants.authRedirectUrl,
+    );
+  }
+
+  Future<void> signInWithMagicLink(String email) async {
+    final client = _requireClient();
+    await client.auth.signInWithOtp(
+      email: email,
+      emailRedirectTo: SupabaseConstants.authRedirectUrl,
+    );
+  }
+
+  Future<void> resetPasswordForEmail(String email) async {
+    final client = _requireClient();
+    await client.auth.resetPasswordForEmail(email);
+  }
+
+  /// Try to fully delete current user account via RPC `delete_my_account`.
+  /// If RPC is unavailable, it falls back to deleting user-owned app data.
+  /// Returns true when auth identity is fully deleted, false when only data is deleted.
+  Future<bool> deleteCurrentAccount({String? passwordForReauth}) async {
+    final client = _requireClient();
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('No signed-in user.');
+    }
+
+    final password = passwordForReauth?.trim() ?? '';
+    if (password.isNotEmpty && (user.email ?? '').isNotEmpty) {
+      await client.auth.signInWithPassword(
+        email: user.email!,
+        password: password,
+      );
+    }
+
+    try {
+      await client.rpc('delete_my_account');
+      return true;
+    } catch (_) {
+      final userId = user.id;
+      await client
+          .from(SupabaseConstants.reviewLogsTable)
+          .delete()
+          .eq('user_id', userId);
+      await client
+          .from(SupabaseConstants.cardProgressTable)
+          .delete()
+          .eq('user_id', userId);
+      await client
+          .from(SupabaseConstants.studySetsTable)
+          .delete()
+          .eq('user_id', userId);
+      return false;
+    } finally {
+      await client.auth.signOut(scope: SignOutScope.global);
+    }
+  }
+
+  /// Validate the restored session against Supabase.
+  /// Returns true if current session is still valid.
+  Future<bool> validateAndRestoreSession() async {
+    final client = _clientOrNull;
+    if (client == null) return false;
+
+    final session = client.auth.currentSession;
+    if (session == null) return false;
+
+    try {
+      await client.auth.getUser();
+      return client.auth.currentUser != null;
+    } catch (_) {
+      await client.auth.signOut();
+      return false;
+    }
   }
 
   // Data

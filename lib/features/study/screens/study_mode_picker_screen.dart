@@ -14,6 +14,7 @@ import 'package:recall_app/services/unsplash_service.dart';
 import 'package:recall_app/features/study/widgets/count_picker_dialog.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 
 class StudyModePickerScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -541,17 +542,15 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
             const SizedBox(height: 12),
             ...studySet.cards.asMap().entries.map((entry) {
               final card = entry.value;
-              return Container(
+              return AdaptiveGlassCard(
                 margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 16,
                 ),
-                decoration: AppTheme.softCardDecoration(
-                  fillColor: Theme.of(context).cardColor,
-                  borderRadius: 12,
-                  elevation: 0.5,
-                ),
+                fillColor: Theme.of(context).cardColor,
+                borderRadius: 12,
+                elevation: 0.5,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -745,13 +744,11 @@ class _StudyModeCardState extends State<_StudyModeCard> {
         curve: Curves.easeOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          decoration: AppTheme.softCardDecoration(
-            fillColor: Theme.of(context).cardColor,
-            borderRadius: 16,
-          ),
           child: Opacity(
             opacity: isDisabled ? 0.5 : 1.0,
-            child: Padding(
+            child: AdaptiveGlassCard(
+              fillColor: Theme.of(context).cardColor,
+              borderRadius: 16,
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [

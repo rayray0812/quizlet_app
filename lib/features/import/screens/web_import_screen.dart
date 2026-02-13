@@ -234,10 +234,21 @@ class _WebImportScreenState extends State<WebImportScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.phone_android,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.outline,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.phone_iphone,
+                      size: 56,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.phone_android,
+                      size: 56,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -338,4 +349,3 @@ class _WebImportScreenState extends State<WebImportScreen> {
     );
   }
 }
-

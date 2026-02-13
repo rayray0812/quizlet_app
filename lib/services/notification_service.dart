@@ -68,7 +68,15 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.defaultPriority,
     );
-    const details = NotificationDetails(android: androidDetails);
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _plugin.zonedSchedule(
       0,

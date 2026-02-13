@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/models/flashcard.dart';
 
 class ImportPreviewCard extends StatelessWidget {
@@ -18,11 +19,11 @@ class ImportPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AdaptiveGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
+      fillColor: Theme.of(context).cardColor,
+      padding: const EdgeInsets.all(14),
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
@@ -78,9 +79,7 @@ class ImportPreviewCard extends StatelessWidget {
                 ),
               ),
           ],
-        ),
       ),
     );
   }
 }
-

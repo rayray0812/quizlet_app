@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -185,7 +187,13 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           final name = voice['name']?.toString().trim() ?? '';
           final locale = voice['locale']?.toString().trim() ?? '';
           if (name.isNotEmpty && locale.isNotEmpty) {
-            normalized.add({'name': name, 'locale': locale});
+            normalized.add({
+              'name': name,
+              'locale': locale,
+              'quality': voice['quality']?.toString().trim().toLowerCase() ?? '',
+              'identifier':
+                  voice['identifier']?.toString().trim().toLowerCase() ?? '',
+            });
           }
         }
       }
@@ -195,6 +203,52 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       _availableVoices = const <Map<String, String>>[];
       return _availableVoices!;
     }
+  }
+
+  int _voiceNaturalnessScore(Map<String, String> voice, String preferred) {
+    final name = (voice['name'] ?? '').toLowerCase();
+    final quality = (voice['quality'] ?? '').toLowerCase();
+    final identifier = (voice['identifier'] ?? '').toLowerCase();
+    var score = 0;
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      if (quality.contains('premium') || quality.contains('enhanced')) score += 40;
+      if (quality == '2' || quality == '300') score += 24;
+      if (name.contains('compact') || identifier.contains('compact')) score -= 24;
+    }
+
+    if (name.contains('novelty') ||
+        name.contains('zarvox') ||
+        name.contains('boing') ||
+        name.contains('bubbles') ||
+        name.contains('bad news')) {
+      score -= 20;
+    }
+
+    if (preferred.startsWith('en')) {
+      if (name.contains('samantha') || name.contains('alex')) score += 8;
+    }
+
+    return score;
+  }
+
+  Map<String, String>? _pickBestVoiceForLocale(
+    List<Map<String, String>> voices,
+    String preferred,
+    String localePrefix,
+  ) {
+    final matches = voices.where((voice) {
+      final locale = _normalizeLocaleCode(voice['locale'] ?? '');
+      return locale == localePrefix || locale.startsWith('$localePrefix-');
+    }).toList();
+    if (matches.isEmpty) return null;
+    matches.sort(
+      (a, b) => _voiceNaturalnessScore(
+        b,
+        preferred,
+      ).compareTo(_voiceNaturalnessScore(a, preferred)),
+    );
+    return matches.first;
   }
 
   Future<String?> _resolveLanguage(String preferred) async {
@@ -242,24 +296,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         ? <String>['ja-jp', 'ja']
         : <String>['en-us', 'en-gb', 'en-au', 'en'];
     for (final candidate in localeCandidates) {
-      for (final voice in voices) {
-        final locale = _normalizeLocaleCode(voice['locale']!);
-        if (locale == candidate || locale.startsWith('$candidate-')) {
-          return voice;
-        }
-      }
-    }
-    if (preferred.startsWith('en')) {
-      for (final voice in voices) {
-        final locale = _normalizeLocaleCode(voice['locale']!);
-        if (locale.startsWith('en')) return voice;
-      }
-    }
-    if (preferred.startsWith('ja')) {
-      for (final voice in voices) {
-        final locale = _normalizeLocaleCode(voice['locale']!);
-        if (locale.startsWith('ja')) return voice;
-      }
+      final best = _pickBestVoiceForLocale(voices, preferred, candidate);
+      if (best != null) return best;
     }
     return null;
   }
@@ -291,14 +329,19 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           _activeLanguage = resolved;
         } catch (_) {}
       }
-      final voice = await _resolveVoice(_pickLanguage(value));
-      if (voice != null) {
-        final voiceKey = '${voice['name']}|${voice['locale']}';
-        if (voiceKey != _activeVoiceKey) {
-          try {
-            await _tts.setVoice(voice);
-            _activeVoiceKey = voiceKey;
-          } catch (_) {}
+      if (defaultTargetPlatform != TargetPlatform.iOS) {
+        final voice = await _resolveVoice(_pickLanguage(value));
+        if (voice != null) {
+          final voiceKey = '${voice['name']}|${voice['locale']}';
+          if (voiceKey != _activeVoiceKey) {
+            try {
+              await _tts.setVoice({
+                'name': voice['name'] ?? '',
+                'locale': voice['locale'] ?? '',
+              });
+              _activeVoiceKey = voiceKey;
+            } catch (_) {}
+          }
         }
       }
       _isSpeaking = true;

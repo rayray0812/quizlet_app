@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/features/home/widgets/tag_chips.dart';
 
 class CardEditRow extends StatelessWidget {
@@ -30,11 +31,11 @@ class CardEditRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AdaptiveGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
-        child: Column(
+      fillColor: Theme.of(context).cardColor,
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header row: number + actions
@@ -144,9 +145,7 @@ class CardEditRow extends StatelessWidget {
               ),
             ],
           ],
-        ),
       ),
     );
   }
 }
-

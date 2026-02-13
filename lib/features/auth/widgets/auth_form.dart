@@ -1,16 +1,21 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
 
 class AuthForm extends StatefulWidget {
   final String buttonText;
   final Color buttonColor;
   final Future<void> Function(String email, String password) onSubmit;
+  final String? secondaryActionText;
+  final Future<void> Function(String email)? onSecondaryAction;
 
   const AuthForm({
     super.key,
     required this.buttonText,
     required this.onSubmit,
     this.buttonColor = AppTheme.indigo,
+    this.secondaryActionText,
+    this.onSecondaryAction,
   });
 
   @override
@@ -45,34 +50,34 @@ class _AuthFormState extends State<AuthForm> {
         _passwordController.text,
       );
     } catch (e) {
-      setState(() => _error = _friendlyError(e.toString()));
+      setState(() => _error = mapAuthErrorMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _friendlyError(String raw) {
-    final lower = raw.toLowerCase();
-    if (lower.contains('invalid login') || lower.contains('invalid email or password')) {
-      return 'Invalid email or password.';
+  Future<void> _runSecondaryAction() async {
+    final secondaryAction = widget.onSecondaryAction;
+    if (secondaryAction == null) return;
+
+    final email = _emailController.text.trim();
+    if (!email.contains('@')) {
+      setState(() => _error = 'Enter a valid email first.');
+      return;
     }
-    if (lower.contains('email not confirmed')) {
-      return 'Please verify your email before logging in.';
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      await secondaryAction(email);
+    } catch (e) {
+      setState(() => _error = mapAuthErrorMessage(e.toString()));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-    if (lower.contains('user already registered')) {
-      return 'This email is already registered.';
-    }
-    if (lower.contains('network') || lower.contains('socketexception')) {
-      return 'Network error. Please check your connection.';
-    }
-    if (lower.contains('weak password')) {
-      return 'Password is too weak. Use at least 6 characters.';
-    }
-    // Strip "Exception: " prefix if present
-    if (raw.startsWith('Exception: ')) {
-      return raw.substring('Exception: '.length);
-    }
-    return raw;
   }
 
   @override
@@ -145,9 +150,16 @@ class _AuthFormState extends State<AuthForm> {
                   )
                 : Text(widget.buttonText),
           ),
+          if (widget.secondaryActionText != null &&
+              widget.onSecondaryAction != null) ...[
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _isLoading ? null : _runSecondaryAction,
+              child: Text(widget.secondaryActionText!),
+            ),
+          ],
         ],
       ),
     );
   }
 }
-

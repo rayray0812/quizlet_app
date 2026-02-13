@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/providers/stats_provider.dart';
 import 'package:recall_app/features/stats/widgets/daily_chart.dart';
 import 'package:recall_app/features/stats/widgets/review_heatmap.dart';
@@ -150,15 +151,12 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        decoration: AppTheme.softCardDecoration(
-          fillColor: Theme.of(context).cardColor,
-          borderRadius: 16,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          child: Column(
-            children: [
+      child: AdaptiveGlassCard(
+        borderRadius: 16,
+        fillColor: Theme.of(context).cardColor,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        child: Column(
+          children: [
               Container(
                 width: 44,
                 height: 44,
@@ -187,10 +185,8 @@ class _SummaryCard extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ],
-          ),
         ),
       ),
     );
   }
 }
-

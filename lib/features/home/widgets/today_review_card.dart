@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/liquid_glass.dart';
 
 /// Banner shown at top of home screen showing total due cards + breakdown.
 class TodayReviewCard extends ConsumerStatefulWidget {
@@ -67,27 +68,9 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
               scale: _pressed ? 0.97 : 1.0,
               duration: const Duration(milliseconds: 120),
               curve: Curves.easeOut,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.indigo.withValues(alpha: 0.84),
-                      AppTheme.purple.withValues(alpha: 0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.indigo.withValues(
-                        alpha: 0.14 + (_glow.value * 0.1),
-                      ),
-                      blurRadius: 10 + (_glow.value * 7),
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
+              child: _buildCardShell(
+                context,
+                glowValue: _glow.value,
                 child: Padding(
                   padding: const EdgeInsets.all(22),
                   child: Row(
@@ -169,6 +152,66 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
       },
     );
   }
+
+  Widget _buildCardShell(
+    BuildContext context, {
+    required double glowValue,
+    required Widget child,
+  }) {
+    if (isLiquidGlassSupported) {
+      return LiquidGlass(
+        borderRadius: 20,
+        blurSigma: 24,
+        tintColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.5),
+          width: 1,
+        ),
+        shadows: [
+          BoxShadow(
+            color: AppTheme.indigo.withValues(alpha: 0.12 + (glowValue * 0.08)),
+            blurRadius: 14 + (glowValue * 7),
+            offset: const Offset(0, 8),
+          ),
+        ],
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.indigo.withValues(alpha: 0.2),
+                AppTheme.purple.withValues(alpha: 0.16),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: child,
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.indigo.withValues(alpha: 0.84),
+            AppTheme.purple.withValues(alpha: 0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.indigo.withValues(alpha: 0.14 + (glowValue * 0.1)),
+            blurRadius: 10 + (glowValue * 7),
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
 }
 
 class _BreakdownRow extends StatelessWidget {
@@ -204,4 +247,3 @@ class _BreakdownRow extends StatelessWidget {
     );
   }
 }
-

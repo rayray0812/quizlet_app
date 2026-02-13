@@ -1,17 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/sync_conflict.dart';
 import 'package:recall_app/services/local_storage_service.dart';
 import 'package:recall_app/services/supabase_service.dart';
+import 'package:recall_app/services/sync_conflict_service.dart';
 
 class SyncService {
   final LocalStorageService _localStorage;
   final SupabaseService _supabaseService;
+  final SyncConflictService _conflictService;
 
   SyncService({
     required LocalStorageService localStorage,
     required SupabaseService supabaseService,
+    required SyncConflictService conflictService,
   }) : _localStorage = localStorage,
-       _supabaseService = supabaseService;
+       _supabaseService = supabaseService,
+       _conflictService = conflictService;
 
   Future<void> syncAll() async {
     if (_supabaseService.currentUser == null) return;
@@ -96,6 +102,16 @@ class SyncService {
         final localUpdated = localSet.updatedAt ?? localSet.createdAt;
         if (localSet.isSynced && entry.updatedAt.isAfter(localUpdated)) {
           idsToDownload.add(entry.id);
+        } else if (!localSet.isSynced &&
+            entry.updatedAt.isAfter(localUpdated)) {
+          await _conflictService.upsertConflict(
+            SyncConflict(
+              setId: entry.id,
+              title: localSet.title,
+              localUpdatedAt: localUpdated,
+              remoteUpdatedAt: entry.updatedAt,
+            ),
+          );
         }
       }
     }
@@ -107,7 +123,62 @@ class SyncService {
     );
     for (final remoteSet in remoteSets) {
       await _localStorage.saveStudySet(remoteSet.copyWith(isSynced: true));
+      await _conflictService.removeConflict(remoteSet.id);
     }
+  }
+
+  List<SyncConflict> getConflicts() => _conflictService.getConflicts();
+
+  Future<void> resolveConflictKeepLocal(String setId) async {
+    final local = _localStorage.getStudySet(setId);
+    if (local == null) {
+      await _conflictService.removeConflict(setId);
+      return;
+    }
+
+    await _localStorage.saveStudySet(
+      local.copyWith(updatedAt: DateTime.now().toUtc(), isSynced: false),
+    );
+    await _conflictService.removeConflict(setId);
+  }
+
+  Future<void> resolveConflictKeepRemote(String setId) async {
+    final remote = await _supabaseService.fetchStudySetsByIds([setId]);
+    if (remote.isNotEmpty) {
+      await _localStorage.saveStudySet(remote.first.copyWith(isSynced: true));
+    }
+    await _conflictService.removeConflict(setId);
+  }
+
+  Future<void> resolveConflictMerge(String setId) async {
+    final local = _localStorage.getStudySet(setId);
+    final remote = await _supabaseService.fetchStudySetsByIds([setId]);
+    if (local == null || remote.isEmpty) {
+      await _conflictService.removeConflict(setId);
+      return;
+    }
+
+    final mergedCards = _mergeCards(local.cards, remote.first.cards);
+    final mergedSet = local.copyWith(
+      title: local.title.isNotEmpty ? local.title : remote.first.title,
+      description: local.description.isNotEmpty
+          ? local.description
+          : remote.first.description,
+      cards: mergedCards,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+
+    await _localStorage.saveStudySet(mergedSet);
+    await _conflictService.removeConflict(setId);
+  }
+
+  List<Flashcard> _mergeCards(List<Flashcard> local, List<Flashcard> remote) {
+    final byId = <String, Flashcard>{for (final card in remote) card.id: card};
+    for (final card in local) {
+      byId[card.id] = card;
+    }
+    return byId.values.toList();
   }
 
   /// Pull card progress + review logs for all local sets.

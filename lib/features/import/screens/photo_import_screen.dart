@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
@@ -410,14 +411,11 @@ class _ModeCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
+      child: AdaptiveGlassCard(
+        borderRadius: 16,
+        fillColor: Theme.of(context).cardColor,
+        elevation: 1.2,
         padding: const EdgeInsets.all(20),
-        decoration: AppTheme.softCardDecoration(
-          fillColor: Theme.of(context).cardColor,
-          borderRadius: 16,
-          elevation: 1.2,
-        ),
         child: Row(
           children: [
             Container(

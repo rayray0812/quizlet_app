@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 
 class ReviewSummaryScreen extends StatefulWidget {
   final int totalReviewed;
@@ -104,19 +105,18 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                 opacity: _fadeAnimation,
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Container(
+                  child: SizedBox(
                     width: double.infinity,
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    decoration: AppTheme.softCardDecoration(
-                      fillColor: Theme.of(context).cardColor,
-                      borderRadius: 24,
-                      elevation: 1.6,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: AdaptiveGlassCard(
+                        borderRadius: 24,
+                        fillColor: Theme.of(context).cardColor,
+                        elevation: 1.6,
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                           ScaleTransition(
                             scale: _scaleAnimation,
                             child: _AccuracyRing(
@@ -212,6 +212,7 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ),
                   ),
@@ -328,4 +329,3 @@ class _AccuracyRing extends StatelessWidget {
     );
   }
 }
-

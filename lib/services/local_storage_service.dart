@@ -133,4 +133,27 @@ class LocalStorageService {
       await saveReviewLog(log.copyWith(isSynced: true));
     }
   }
+
+  Future<void> clearAllStudyData() async {
+    await _reviewLogBox.clear();
+    await _progressBox.clear();
+    await _box.clear();
+  }
+
+  Future<void> restoreAllStudyData({
+    required List<StudySet> sets,
+    required List<CardProgress> progresses,
+    required List<ReviewLog> logs,
+  }) async {
+    await clearAllStudyData();
+    for (final set in sets) {
+      await saveStudySet(set);
+    }
+    for (final progress in progresses) {
+      await saveCardProgress(progress);
+    }
+    for (final log in logs) {
+      await saveReviewLog(log);
+    }
+  }
 }

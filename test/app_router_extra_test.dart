@@ -30,5 +30,41 @@ void main() {
         isNull);
     expect(extractOptionalIntExtra('bad', 'questionCount'), isNull);
   });
-}
 
+  test('isProtectedRoutePath marks auth and home as public', () {
+    expect(isProtectedRoutePath('/'), isFalse);
+    expect(isProtectedRoutePath('/login'), isFalse);
+    expect(isProtectedRoutePath('/signup'), isFalse);
+    expect(isProtectedRoutePath('/forgot-password'), isFalse);
+    expect(isProtectedRoutePath('/stats'), isTrue);
+  });
+
+  test('normalizePostAuthRedirect sanitizes from target', () {
+    expect(normalizePostAuthRedirect('/review'), '/review');
+    expect(normalizePostAuthRedirect('/study/s1/quiz?count=10'),
+        '/study/s1/quiz?count=10');
+    expect(normalizePostAuthRedirect('/login?from=%2Freview'), '/');
+    expect(normalizePostAuthRedirect('https://evil.example/review'), isNull);
+    expect(normalizePostAuthRedirect('review'), isNull);
+  });
+
+  test('resolveAppRedirect sends unauthenticated users to login with from', () {
+    final redirect = resolveAppRedirect(
+      isAuthenticated: false,
+      matchedLocation: '/stats',
+      currentUri: Uri.parse('/stats?tab=weekly'),
+    );
+
+    expect(redirect, '/login?from=%2Fstats%3Ftab%3Dweekly');
+  });
+
+  test('resolveAppRedirect sends authenticated users away from auth pages', () {
+    final redirect = resolveAppRedirect(
+      isAuthenticated: true,
+      matchedLocation: '/login',
+      currentUri: Uri.parse('/login?from=%2Freview'),
+    );
+
+    expect(redirect, '/review');
+  });
+}

@@ -1,15 +1,29 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io' if (dart.library.html) 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math';
+
+import 'package:cryptography/cryptography.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
+import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/services/local_storage_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
-import 'package:recall_app/models/study_set.dart';
-import 'package:recall_app/models/flashcard.dart';
+
+typedef BackupImportResult = ({
+  int setCount,
+  int progressCount,
+  int reviewLogCount,
+});
 
 class ImportExportService {
+  static const _backupVersion = 1;
+
   /// Export a study set as JSON and share via system share sheet.
   Future<void> exportAsJson(StudySet studySet) async {
     if (kIsWeb) return; // File export not supported on web
@@ -28,11 +42,11 @@ class ImportExportService {
     };
     final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
     final dir = await getTemporaryDirectory();
-    final file = File(
-        '${dir.path}/${_sanitizeFilename(studySet.title)}.json');
+    final file = File('${dir.path}/${_sanitizeFilename(studySet.title)}.json');
     await file.writeAsString(jsonStr);
-    await Share.shareXFiles([XFile(file.path)],
-        text: '${studySet.title} (${studySet.cards.length} cards)');
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: '${studySet.title} (${studySet.cards.length} cards)');
   }
 
   /// Export a study set as CSV and share via system share sheet.
@@ -46,11 +60,11 @@ class ImportExportService {
       );
     }
     final dir = await getTemporaryDirectory();
-    final file =
-        File('${dir.path}/${_sanitizeFilename(studySet.title)}.csv');
+    final file = File('${dir.path}/${_sanitizeFilename(studySet.title)}.csv');
     await file.writeAsString(buffer.toString());
-    await Share.shareXFiles([XFile(file.path)],
-        text: '${studySet.title} (${studySet.cards.length} cards)');
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: '${studySet.title} (${studySet.cards.length} cards)');
   }
 
   /// Pick a JSON or CSV file and parse it into a StudySet for preview.
@@ -58,7 +72,7 @@ class ImportExportService {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json', 'csv'],
-      withData: true, // Ensures bytes are available on web
+      withData: true,
     );
     if (result == null || result.files.isEmpty) return null;
 
@@ -66,7 +80,6 @@ class ImportExportService {
     final String content;
     final String? ext = platformFile.extension?.toLowerCase();
 
-    // On web, path is null ??use bytes instead
     if (kIsWeb || platformFile.path == null) {
       final bytes = platformFile.bytes;
       if (bytes == null) return null;
@@ -81,6 +94,101 @@ class ImportExportService {
       return _parseCsv(content);
     }
     return null;
+  }
+
+  Future<void> exportEncryptedBackup({
+    required LocalStorageService localStorage,
+    required String passphrase,
+  }) async {
+    if (kIsWeb) return;
+    final normalized = passphrase.trim();
+    if (normalized.length < 8) {
+      throw Exception('Passphrase must be at least 8 characters.');
+    }
+
+    final payload = json.encode({
+      'version': _backupVersion,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'studySets': localStorage
+          .getAllStudySets()
+          .map((e) => e.toJson())
+          .toList(),
+      'cardProgress': localStorage
+          .getAllCardProgress()
+          .map((e) => e.toJson())
+          .toList(),
+      'reviewLogs': localStorage
+          .getAllReviewLogs()
+          .map((e) => e.toJson())
+          .toList(),
+    });
+
+    final encrypted = await _encryptPayload(utf8.encode(payload), normalized);
+    final dir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().toUtc().toIso8601String().replaceAll(
+      ':',
+      '-',
+    );
+    final file = File('${dir.path}/recall_backup_$timestamp.recallbak');
+    await file.writeAsString(json.encode(encrypted));
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: 'Recall encrypted backup');
+  }
+
+  Future<BackupImportResult> importEncryptedBackup({
+    required LocalStorageService localStorage,
+    required String passphrase,
+  }) async {
+    final normalized = passphrase.trim();
+    if (normalized.length < 8) {
+      throw Exception('Passphrase must be at least 8 characters.');
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['recallbak', 'json'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      throw Exception('No backup file selected.');
+    }
+
+    final platformFile = result.files.single;
+    final String content;
+    if (kIsWeb || platformFile.path == null) {
+      final bytes = platformFile.bytes;
+      if (bytes == null) throw Exception('Unable to read backup file bytes.');
+      content = utf8.decode(bytes);
+    } else {
+      content = await File(platformFile.path!).readAsString();
+    }
+
+    final envelope = json.decode(content) as Map<String, dynamic>;
+    final decrypted = await _decryptPayload(envelope, normalized);
+    final data = json.decode(utf8.decode(decrypted)) as Map<String, dynamic>;
+
+    final studySets = ((data['studySets'] as List?) ?? const [])
+        .map((e) => StudySet.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final cardProgress = ((data['cardProgress'] as List?) ?? const [])
+        .map((e) => CardProgress.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final reviewLogs = ((data['reviewLogs'] as List?) ?? const [])
+        .map((e) => ReviewLog.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+
+    await localStorage.restoreAllStudyData(
+      sets: studySets,
+      progresses: cardProgress,
+      logs: reviewLogs,
+    );
+
+    return (
+      setCount: studySets.length,
+      progressCount: cardProgress.length,
+      reviewLogCount: reviewLogs.length,
+    );
   }
 
   StudySet? _parseJson(String content) {
@@ -121,7 +229,6 @@ class ImportExportService {
         final parts = rows[i];
         if (parts.isEmpty) continue;
 
-        // Skip header row
         if (i == 0 &&
             parts.first.trim().toLowerCase() == 'term' &&
             parts.length > 1 &&
@@ -130,12 +237,14 @@ class ImportExportService {
         }
 
         if (parts.length >= 2) {
-          cards.add(Flashcard(
-            id: const Uuid().v4(),
-            term: parts[0],
-            definition: parts[1],
-            exampleSentence: parts.length > 2 ? parts[2] : '',
-          ));
+          cards.add(
+            Flashcard(
+              id: const Uuid().v4(),
+              term: parts[0],
+              definition: parts[1],
+              exampleSentence: parts.length > 2 ? parts[2] : '',
+            ),
+          );
         }
       }
 
@@ -153,10 +262,8 @@ class ImportExportService {
     }
   }
 
-  /// Testing hook for CSV parser behavior.
   StudySet? parseCsvForTesting(String content) => _parseCsv(content);
 
-  /// Parse CSV content with support for quoted fields and embedded newlines.
   List<List<String>> _parseCsvContent(String content) {
     final rows = <List<String>>[];
     var row = <String>[];
@@ -229,8 +336,79 @@ class ImportExportService {
   }
 
   String _sanitizeFilename(String name) {
-    final sanitized = name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(' ', '_');
+    final sanitized = name
+        .replaceAll(RegExp(r'[^\w\s-]'), '')
+        .trim()
+        .replaceAll(' ', '_');
     return sanitized.isEmpty ? 'export' : sanitized;
   }
-}
 
+  Future<Map<String, dynamic>> _encryptPayload(
+    List<int> plainBytes,
+    String passphrase,
+  ) async {
+    final random = Random.secure();
+    final salt = List<int>.generate(16, (_) => random.nextInt(256));
+    final nonce = List<int>.generate(12, (_) => random.nextInt(256));
+    final key = await _deriveKey(passphrase, salt);
+    final algorithm = AesGcm.with256bits();
+    final secretBox = await algorithm.encrypt(
+      plainBytes,
+      secretKey: key,
+      nonce: nonce,
+    );
+
+    return {
+      'version': _backupVersion,
+      'kdf': {
+        'name': 'pbkdf2-sha256',
+        'iterations': 100000,
+        'salt': base64Encode(salt),
+      },
+      'cipher': {
+        'name': 'aes-gcm-256',
+        'nonce': base64Encode(secretBox.nonce),
+        'mac': base64Encode(secretBox.mac.bytes),
+      },
+      'payload': base64Encode(secretBox.cipherText),
+    };
+  }
+
+  Future<List<int>> _decryptPayload(
+    Map<String, dynamic> envelope,
+    String passphrase,
+  ) async {
+    final kdf = Map<String, dynamic>.from(envelope['kdf'] as Map? ?? const {});
+    final cipher = Map<String, dynamic>.from(
+      envelope['cipher'] as Map? ?? const {},
+    );
+    final payloadBase64 = envelope['payload'] as String? ?? '';
+    if (payloadBase64.isEmpty) {
+      throw Exception('Invalid backup payload.');
+    }
+
+    final iterations = (kdf['iterations'] as num?)?.toInt() ?? 100000;
+    final salt = base64Decode(kdf['salt'] as String? ?? '');
+    final nonce = base64Decode(cipher['nonce'] as String? ?? '');
+    final mac = base64Decode(cipher['mac'] as String? ?? '');
+    final cipherText = base64Decode(payloadBase64);
+
+    final key = await _deriveKey(passphrase, salt, iterations: iterations);
+    final algorithm = AesGcm.with256bits();
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
+    return algorithm.decrypt(secretBox, secretKey: key);
+  }
+
+  Future<SecretKey> _deriveKey(
+    String passphrase,
+    List<int> salt, {
+    int iterations = 100000,
+  }) async {
+    final pbkdf2 = Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: iterations,
+      bits: 256,
+    );
+    return pbkdf2.deriveKeyFromPassword(password: passphrase, nonce: salt);
+  }
+}
