@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 
 /// Displays tags as chips with optional add/remove capability.
 class TagChips extends StatelessWidget {
@@ -44,40 +45,41 @@ class TagChips extends StatelessWidget {
   }
 
   void _showAddTagDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Tag'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.addTag),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Tag name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: l10n.tagNameHint,
+            border: const OutlineInputBorder(),
           ),
           onSubmitted: (value) {
             final tag = value.trim();
             if (tag.isNotEmpty) {
               onAdd!(tag);
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             }
           },
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () {
               final tag = controller.text.trim();
               if (tag.isNotEmpty) {
                 onAdd!(tag);
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Add'),
+            child: Text(l10n.add),
           ),
         ],
       ),

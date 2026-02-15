@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:home_widget/home_widget.dart';
@@ -11,14 +12,30 @@ import 'package:recall_app/models/adapters/study_set_adapter.dart';
 import 'package:recall_app/models/adapters/flashcard_adapter.dart';
 import 'package:recall_app/models/adapters/card_progress_adapter.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
+import 'package:recall_app/models/adapters/folder_adapter.dart';
 import 'package:recall_app/services/notification_service.dart';
 import 'package:recall_app/services/widget_snapshot_service.dart';
+
+/// Pending deep link URI from widget tap before router is ready.
+Uri? _pendingWidgetUri;
 
 void _handleWidgetUri(Uri? uri) {
   if (uri == null) return;
   // recall://review → /review
   if (uri.host == 'review' || uri.path == '/review' || uri.path == 'review') {
-    appRouter.go('/review');
+    if (!navigateFromDeepLink('/review')) {
+      // Router not ready yet — store for later consumption.
+      _pendingWidgetUri = uri;
+    }
+  }
+}
+
+/// Called once after the router is initialized to flush any pending deep link.
+void consumePendingDeepLink() {
+  final uri = _pendingWidgetUri;
+  if (uri != null) {
+    _pendingWidgetUri = null;
+    _handleWidgetUri(uri);
   }
 }
 
@@ -31,10 +48,12 @@ void main() async {
   Hive.registerAdapter(FlashcardAdapter());
   Hive.registerAdapter(CardProgressAdapter());
   Hive.registerAdapter(ReviewLogAdapter());
+  Hive.registerAdapter(FolderAdapter());
   try {
     await Hive.openBox(AppConstants.hiveStudySetsBox);
     await Hive.openBox(AppConstants.hiveCardProgressBox);
     await Hive.openBox(AppConstants.hiveReviewLogsBox);
+    await Hive.openBox(AppConstants.hiveFoldersBox);
     await Hive.openBox(AppConstants.hiveSettingsBox);
   } catch (e) {
     debugPrint('Hive openBox failed: $e');
@@ -46,10 +65,13 @@ void main() async {
   // Initialize Home Screen Widgets
   await WidgetSnapshotService.init();
 
-  // Handle widget deep links
-  HomeWidget.widgetClicked.listen(_handleWidgetUri);
-  final initialUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
-  _handleWidgetUri(initialUri);
+  // Handle widget deep links (mobile/desktop only).
+  onRouterReady = consumePendingDeepLink;
+  if (!kIsWeb) {
+    HomeWidget.widgetClicked.listen(_handleWidgetUri);
+    final initialUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    _handleWidgetUri(initialUri);
+  }
 
   // Re-schedule daily reminder if enabled (survives reboots)
   final settingsBox = Hive.box(AppConstants.hiveSettingsBox);

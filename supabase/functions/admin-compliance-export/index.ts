@@ -1,10 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
+const corsHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+
 const jsonHeaders = {
+  ...corsHeaders,
   'content-type': 'application/json; charset=utf-8',
 };
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'method_not_allowed', message: 'Use POST.' }),
@@ -39,7 +50,7 @@ Deno.serve(async (req: Request) => {
   const body = await parseJson(req);
   const days = clampInt(body?.days, 1, 365, 30);
   const format = (asString(body?.format) ?? 'json').toLowerCase();
-  let actorUserId = asString(body?.actorUserId) ?? Deno.env.get('ADMIN_COMPLIANCE_ACTOR_USER_ID');
+  let actorUserId: string | null = null;
   if (format !== 'json' && format !== 'csv') {
     return new Response(
       JSON.stringify({ error: 'invalid_format', message: 'format must be json or csv.' }),
@@ -56,11 +67,12 @@ Deno.serve(async (req: Request) => {
 
   if (workerToken && bearer === workerToken) {
     // trusted machine-to-machine path
+    actorUserId = asString(Deno.env.get('ADMIN_COMPLIANCE_ACTOR_USER_ID'));
     if (!actorUserId) {
       return new Response(
         JSON.stringify({
           error: 'missing_actor',
-          message: 'Provide actorUserId in request or ADMIN_COMPLIANCE_ACTOR_USER_ID env.',
+          message: 'Set ADMIN_COMPLIANCE_ACTOR_USER_ID env for worker mode.',
         }),
         { status: 400, headers: jsonHeaders },
       );
@@ -157,6 +169,12 @@ Deno.serve(async (req: Request) => {
   const contentBytes = new TextEncoder().encode(content);
   const signature = await signHmacSha256(contentBytes, signingKey);
   const checksumSha256 = await sha256Hex(contentBytes);
+  if (!actorUserId) {
+    return new Response(
+      JSON.stringify({ error: 'missing_actor', message: 'Unable to resolve actor user id.' }),
+      { status: 500, headers: jsonHeaders },
+    );
+  }
 
   const insert = await admin.from('admin_compliance_exports').insert({
     generated_by: actorUserId,

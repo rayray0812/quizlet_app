@@ -21,6 +21,11 @@ _$StudySetImpl _$$StudySetImplFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const [],
       isSynced: json['isSynced'] as bool? ?? false,
+      folderId: json['folderId'] as String?,
+      isPinned: json['isPinned'] as bool? ?? false,
+      lastStudiedAt: json['lastStudiedAt'] == null
+          ? null
+          : DateTime.parse(json['lastStudiedAt'] as String),
     );
 
 Map<String, dynamic> _$$StudySetImplToJson(_$StudySetImpl instance) =>
@@ -32,4 +37,7 @@ Map<String, dynamic> _$$StudySetImplToJson(_$StudySetImpl instance) =>
       'updatedAt': instance.updatedAt?.toIso8601String(),
       'cards': instance.cards,
       'isSynced': instance.isSynced,
+      'folderId': instance.folderId,
+      'isPinned': instance.isPinned,
+      'lastStudiedAt': instance.lastStudiedAt?.toIso8601String(),
     };

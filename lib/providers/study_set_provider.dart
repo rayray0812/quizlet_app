@@ -66,7 +66,9 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
   }
 
   Future<void> remove(String id) async {
+    await _localStorage.markStudySetDeleted(id);
     await _localStorage.deleteCardProgressForSet(id);
+    await _localStorage.deleteReviewLogsForSet(id);
     await _localStorage.deleteStudySet(id);
     await _load();
   }
@@ -81,6 +83,29 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
   }
 
   void refresh() {
+    _load();
+  }
+
+  Future<void> togglePin(String id) async {
+    final set = _localStorage.getStudySet(id);
+    if (set == null) return;
+    await _localStorage.saveStudySet(set.copyWith(isPinned: !set.isPinned));
+    _load();
+  }
+
+  Future<void> updateLastStudied(String id) async {
+    final set = _localStorage.getStudySet(id);
+    if (set == null) return;
+    await _localStorage.saveStudySet(
+      set.copyWith(lastStudiedAt: DateTime.now().toUtc()),
+    );
+    _load();
+  }
+
+  Future<void> moveToFolder(String setId, String? folderId) async {
+    final set = _localStorage.getStudySet(setId);
+    if (set == null) return;
+    await _localStorage.saveStudySet(set.copyWith(folderId: folderId));
     _load();
   }
 

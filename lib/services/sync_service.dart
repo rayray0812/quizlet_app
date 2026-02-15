@@ -37,6 +37,17 @@ class SyncService {
 
   /// Push local changes that haven't been synced yet.
   Future<void> _pushUnsynced() async {
+    final deletedSetIds = _localStorage.getDeletedStudySetIds();
+    for (final setId in deletedSetIds) {
+      try {
+        await _supabaseService.deleteStudySetById(setId);
+        await _localStorage.clearDeletedStudySetId(setId);
+        await _conflictService.removeConflict(setId);
+      } catch (e) {
+        debugPrint('Failed to sync deleted set $setId: $e');
+      }
+    }
+
     final unsyncedSets = _localStorage.getUnsyncedSets();
     final pushedSetIds = <String>{};
 
@@ -87,7 +98,13 @@ class SyncService {
   /// only download sets that are new or updated remotely.
   Future<void> _pullDelta() async {
     final manifest = await _supabaseService.fetchStudySetManifest();
-    if (manifest.isEmpty) return;
+    if (manifest.isEmpty) {
+      await _applyRemoteDeletedSets(const <String>{});
+      return;
+    }
+
+    final remoteIds = manifest.map((item) => item.id).toSet();
+    await _applyRemoteDeletedSets(remoteIds);
 
     final idsToDownload = <String>[];
 
@@ -127,6 +144,20 @@ class SyncService {
     }
   }
 
+  Future<void> _applyRemoteDeletedSets(Set<String> remoteIds) async {
+    final localSets = _localStorage.getAllStudySets();
+    for (final localSet in localSets) {
+      if (!localSet.isSynced) continue;
+      if (!remoteIds.contains(localSet.id)) {
+        await _localStorage.deleteCardProgressForSet(localSet.id);
+        await _localStorage.deleteReviewLogsForSet(localSet.id);
+        await _localStorage.deleteStudySet(localSet.id);
+        await _localStorage.clearDeletedStudySetId(localSet.id);
+        await _conflictService.removeConflict(localSet.id);
+      }
+    }
+  }
+
   List<SyncConflict> getConflicts() => _conflictService.getConflicts();
 
   Future<void> resolveConflictKeepLocal(String setId) async {
@@ -158,12 +189,20 @@ class SyncService {
       return;
     }
 
-    final mergedCards = _mergeCards(local.cards, remote.first.cards);
+    final remoteSet = remote.first;
+    final localUpdatedAt = local.updatedAt ?? local.createdAt;
+    final remoteUpdatedAt = remoteSet.updatedAt ?? remoteSet.createdAt;
+    final localIsNewer = localUpdatedAt.isAfter(remoteUpdatedAt);
+    final mergedCards = _mergeCards(
+      local.cards,
+      remoteSet.cards,
+      preferLocal: localIsNewer,
+    );
     final mergedSet = local.copyWith(
-      title: local.title.isNotEmpty ? local.title : remote.first.title,
+      title: local.title.isNotEmpty ? local.title : remoteSet.title,
       description: local.description.isNotEmpty
           ? local.description
-          : remote.first.description,
+          : remoteSet.description,
       cards: mergedCards,
       updatedAt: DateTime.now().toUtc(),
       isSynced: false,
@@ -173,12 +212,32 @@ class SyncService {
     await _conflictService.removeConflict(setId);
   }
 
-  List<Flashcard> _mergeCards(List<Flashcard> local, List<Flashcard> remote) {
-    final byId = <String, Flashcard>{for (final card in remote) card.id: card};
-    for (final card in local) {
-      byId[card.id] = card;
+  /// Merge cards from local and remote. When both sides have the same card ID,
+  /// keep the version from whichever StudySet was updated more recently.
+  List<Flashcard> _mergeCards(
+    List<Flashcard> local,
+    List<Flashcard> remote, {
+    required bool preferLocal,
+  }) {
+    if (preferLocal) {
+      // Start with remote, then overwrite with local (local wins on conflict).
+      final byId = <String, Flashcard>{
+        for (final card in remote) card.id: card,
+      };
+      for (final card in local) {
+        byId[card.id] = card;
+      }
+      return byId.values.toList();
+    } else {
+      // Start with local, then overwrite with remote (remote wins on conflict).
+      final byId = <String, Flashcard>{
+        for (final card in local) card.id: card,
+      };
+      for (final card in remote) {
+        byId[card.id] = card;
+      }
+      return byId.values.toList();
     }
-    return byId.values.toList();
   }
 
   /// Pull card progress + review logs for all local sets.

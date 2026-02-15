@@ -65,6 +65,10 @@ dependencies:
   # Home Screen Widgets
   home_widget: ^0.7.0
 
+  # QR Code (F10)
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.2
+
   # Notifications
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.0

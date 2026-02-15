@@ -137,13 +137,13 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
               runSpacing: 8,
               children: [
                 StudyResultChip(
-                  label: 'Pairs',
+                  label: l10n.pairsLabel,
                   value: '${_gameCards.length}',
                   color: AppTheme.indigo,
                   icon: Icons.grid_view_rounded,
                 ),
                 StudyResultChip(
-                  label: 'Attempts',
+                  label: l10n.attemptsLabel,
                   value: '$_attempts',
                   color: AppTheme.orange,
                   icon: Icons.touch_app_rounded,

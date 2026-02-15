@@ -1,10 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
+const corsHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+
 const jsonHeaders = {
+  ...corsHeaders,
   'content-type': 'application/json; charset=utf-8',
 };
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'method_not_allowed', message: 'Use POST.' }),
@@ -23,15 +34,20 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  if (workerToken) {
-    const authHeader = req.headers.get('authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (token != workerToken) {
-      return new Response(
-        JSON.stringify({ error: 'unauthorized', message: 'Invalid worker token.' }),
-        { status: 401, headers: jsonHeaders },
-      );
-    }
+  if (!workerToken) {
+    return new Response(
+      JSON.stringify({ error: 'missing_env', message: 'ADMIN_GOVERNANCE_WORKER_TOKEN not configured.' }),
+      { status: 500, headers: jsonHeaders },
+    );
+  }
+
+  const authHeader = req.headers.get('authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  if (token !== workerToken) {
+    return new Response(
+      JSON.stringify({ error: 'unauthorized', message: 'Invalid worker token.' }),
+      { status: 401, headers: jsonHeaders },
+    );
   }
 
   const body = await parseJson(req);

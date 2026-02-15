@@ -228,11 +228,165 @@ class AppLocalizations {
   String get addMorePhotos => '';
   String photoAdded(int count) => '';
 
+  // -- Daily Challenge --
+  String get dailyChallenge => '';
+  String challengeStreak(int count) => '';
+  String challengeTodayComplete(int target) => '';
+  String challengeProgress(int reviewed, int target) => '';
+  String get challengeCompleteMsg => '';
+  String get challengeNoDueCards => '';
+  String challengeNextRun(int count) => '';
+  String get play => '';
+  String get challengeCompletedToast => '';
+
+  // -- Revenge Mode --
+  String get revengeMode => '';
+  String revengeCount(int count) => '';
+
   // -- Notifications --
   String get dailyReminder => '';
   String get dailyReminderDesc => '';
   String get reminderTitle => '';
+
+  // -- Folders (F7) --
+  String get folders => '';
+  String get noFoldersYet => '';
+  String get newFolder => '';
+  String get editFolder => '';
+  String get folderName => '';
+  String get deleteFolder => '';
+  String deleteFolderConfirm(String name) => '';
+  String get color => '';
+  String get icon => '';
+  String get moveToFolder => '';
+  String get noFolder => '';
+  String get pin => '';
+  String get unpin => '';
+
+  // -- Sorting (F8) --
+  String get sortNewest => '';
+  String get sortAlpha => '';
+  String get sortMostDue => '';
+  String get sortLastStudied => '';
+  String get undo => '';
+
+  // -- Onboarding (F9) --
+  String get onboardingWelcome => '';
+  String get onboardingWelcomeDesc => '';
+  String get onboardingFeatures => '';
+  String get onboardingFeaturesDesc => '';
+  String get onboardingStart => '';
+  String get onboardingStartDesc => '';
+  String get skip => '';
+  String get next => '';
+  String get getStarted => '';
+
+  // -- QR Share (F10) --
+  String get shareSet => '';
+  String get scanQr => '';
+  String get scanToImport => '';
+  String get linkCopied => '';
+  String get copyLink => '';
+  String get share => '';
+  String get pointCameraAtQr => '';
+  String get qrInvalidData => '';
+
+  // -- Achievements (F11) --
+  String get achievements => '';
+  String get badgesUnlocked => '';
+  String get badgeFirstReview => '';
+  String get badgeFirstReviewDesc => '';
+  String get badgeStreak7 => '';
+  String get badgeStreak7Desc => '';
+  String get badgeStreak30 => '';
+  String get badgeStreak30Desc => '';
+  String get badgeReviews100 => '';
+  String get badgeReviews100Desc => '';
+  String get badgeReviews1000 => '';
+  String get badgeReviews1000Desc => '';
+  String get badgeMastered50 => '';
+  String get badgeMastered50Desc => '';
+  String get badgeRevengeClear => '';
+  String get badgeRevengeClearDesc => '';
+  String get badgeSets10 => '';
+  String get badgeSets10Desc => '';
+  String get badgePerfectQuiz => '';
+  String get badgePerfectQuizDesc => '';
+  String get badgeChallenge30 => '';
+  String get badgeChallenge30Desc => '';
+  String get badgePhoto10 => '';
+  String get badgePhoto10Desc => '';
+  String get badgeSpeedrun => '';
+  String get badgeSpeedrunDesc => '';
+  String get badgeUnlocked => '';
+
+  // -- Pomodoro (F12) --
+  String get pomodoro => '';
+  String get pomodoroDesc => '';
+  String get pomodoroStudy => '';
+  String get pomodoroShortBreak => '';
+  String get pomodoroLongBreak => '';
+  String get pomodoroReset => '';
+  String get pomodoroStarted => '';
+  String pomodoroSessions(int count) => '';
+
   String get reminderBody => '';
+
+  // -- Rating labels (SRS) --
+  String get ratingAgain => '';
+  String get ratingHard => '';
+  String get ratingGood => '';
+  String get ratingEasy => '';
+
+  // -- Card Edit form --
+  String get termLabel => '';
+  String get definitionInput => '';
+  String get exampleSentenceLabel => '';
+  String get deleteCard => '';
+  String get add => '';
+  String get tagNameHint => '';
+
+  // -- Matching result --
+  String get pairsLabel => '';
+  String get attemptsLabel => '';
+
+  // -- Challenge detail (review summary) --
+  String challengeCompleteDetail(int target) => '';
+  String challengeProgressDetail(int reviewed, int target) => '';
+
+  // -- Auto-image --
+  String autoImageProgress(int done, int total) => '';
+  String autoImageDone(int count) => '';
+  String get autoImageCancelled => '';
+
+  // -- Quiz Enhancement (A3) --
+  String get typeYourAnswer => '';
+  String get submit => '';
+  String get trueLabel => '';
+  String get falseLabel => '';
+  String get isThisCorrect => '';
+  String get correctAnswer => '';
+  String get reinforcementRound => '';
+  String get reinforcementDesc => '';
+  String get almostCorrect => '';
+  String wrongCount(int n) => '';
+
+  // -- Editor Upgrade (B2) --
+  String get selectMode => '';
+  String get selectAll => '';
+  String get deselectAll => '';
+  String get deleteSelected => '';
+  String get addTagToSelected => '';
+  String get removeTagFromSelected => '';
+  String nSelected(int n) => '';
+  String get undoAction => '';
+  String get redoAction => '';
+  String get duplicateWarning => '';
+  String get blankWarning => '';
+  String get saveAnyway => '';
+  String get goBackToFix => '';
+  String cardNMissingField(int n, String field) => '';
+  String cardsAreDuplicates(int a, int b) => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -636,6 +790,32 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String photoAdded(int count) => '\u5DF2\u65B0\u589E $count \u5F35\u5361\u7247';
 
+  // -- Daily Challenge --
+  @override
+  String get dailyChallenge => '\u6BCF\u65E5\u6311\u6230';
+  @override
+  String challengeStreak(int count) => '\u9023\u7E8C $count \u5929';
+  @override
+  String challengeTodayComplete(int target) => '\u4ECA\u65E5\u5B8C\u6210\uFF1A$target/$target';
+  @override
+  String challengeProgress(int reviewed, int target) => '\u9032\u5EA6\uFF1A$reviewed/$target';
+  @override
+  String get challengeCompleteMsg => '\u505A\u5F97\u597D\uFF01\u660E\u5929\u518D\u4F86\u6311\u6230\u5427\u3002';
+  @override
+  String get challengeNoDueCards => '\u76EE\u524D\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247\uFF0C\u7A0D\u5F8C\u518D\u4F86\u3002';
+  @override
+  String challengeNextRun(int count) => '\u4E0B\u4E00\u8F2A\uFF1A$count \u5F35';
+  @override
+  String get play => '\u958B\u59CB';
+  @override
+  String get challengeCompletedToast => '\u592A\u68D2\u4E86\uFF01\u4ECA\u65E5\u6311\u6230\u5B8C\u6210 \uD83C\uDF89';
+
+  // -- Revenge Mode --
+  @override
+  String get revengeMode => '\u932F\u984C\u8907\u7FD2';
+  @override
+  String revengeCount(int count) => '$count \u5F35\u7B54\u932F\u7684\u5361\u7247\u7B49\u4F60\u6311\u6230';
+
   // -- Notifications --
   @override
   String get dailyReminder => '\u6BCF\u65E5\u8907\u7FD2\u63D0\u9192';
@@ -645,6 +825,256 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reminderTitle => '\u8A72\u4F86\u8907\u7FD2\u4E86\uFF01';
   @override
   String get reminderBody => '\u4F60\u6709\u5F85\u8907\u7FD2\u7684\u5361\u7247\uFF0C\u6253\u958B\u62FE\u61B6\u770B\u770B\u5427';
+
+  // -- Folders (F7) --
+  @override
+  String get folders => '\u8CC7\u6599\u593E';
+  @override
+  String get noFoldersYet => '\u9084\u6C92\u6709\u8CC7\u6599\u593E';
+  @override
+  String get newFolder => '\u65B0\u8CC7\u6599\u593E';
+  @override
+  String get editFolder => '\u7DE8\u8F2F\u8CC7\u6599\u593E';
+  @override
+  String get folderName => '\u8CC7\u6599\u593E\u540D\u7A31';
+  @override
+  String get deleteFolder => '\u522A\u9664\u8CC7\u6599\u593E\uFF1F';
+  @override
+  String deleteFolderConfirm(String name) => '\u78BA\u5B9A\u8981\u522A\u9664\u300C$name\u300D\u55CE\uFF1F';
+  @override
+  String get color => '\u984F\u8272';
+  @override
+  String get icon => '\u5716\u793A';
+  @override
+  String get moveToFolder => '\u79FB\u5230\u8CC7\u6599\u593E';
+  @override
+  String get noFolder => '\u7121\u8CC7\u6599\u593E';
+  @override
+  String get pin => '\u91D8\u9078';
+  @override
+  String get unpin => '\u53D6\u6D88\u91D8\u9078';
+
+  // -- Sorting (F8) --
+  @override
+  String get sortNewest => '\u6700\u65B0\u5EFA\u7ACB';
+  @override
+  String get sortAlpha => '\u5B57\u6BCD\u6392\u5E8F';
+  @override
+  String get sortMostDue => '\u6700\u591A\u5F85\u8907\u7FD2';
+  @override
+  String get sortLastStudied => '\u6700\u8FD1\u5B78\u7FD2';
+  @override
+  String get undo => '\u5FA9\u539F';
+
+  // -- Onboarding (F9) --
+  @override
+  String get onboardingWelcome => '\u6B61\u8FCE\u4F86\u5230\u62FE\u61B6';
+  @override
+  String get onboardingWelcomeDesc => '\u667A\u6167\u8907\u7FD2\uFF0C\u9AD8\u6548\u8A18\u61B6';
+  @override
+  String get onboardingFeatures => '\u5F37\u5927\u529F\u80FD';
+  @override
+  String get onboardingFeaturesDesc => '\u9593\u9694\u91CD\u8907\u3001\u6BCF\u65E5\u6311\u6230\u3001\u62CD\u7167\u5EFA\u5361\n\u8B93\u5B78\u7FD2\u66F4\u6709\u6548\u7387';
+  @override
+  String get onboardingStart => '\u958B\u59CB\u5427\uFF01';
+  @override
+  String get onboardingStartDesc => '\u767B\u5165\u5E33\u865F\u540C\u6B65\u8CC7\u6599\uFF0C\u6216\u4EE5\u8A2A\u5BA2\u8EAB\u5206\u958B\u59CB';
+  @override
+  String get skip => '\u7565\u904E';
+  @override
+  String get next => '\u4E0B\u4E00\u6B65';
+  @override
+  String get getStarted => '\u958B\u59CB\u4F7F\u7528';
+
+  // -- QR Share (F10) --
+  @override
+  String get shareSet => '\u5206\u4EAB\u5B78\u7FD2\u96C6';
+  @override
+  String get scanQr => '\u6383\u63CF QR Code';
+  @override
+  String get scanToImport => '\u8ACB\u5C0D\u65B9\u6383\u63CF\u6B64 QR Code \u5373\u53EF\u532F\u5165';
+  @override
+  String get linkCopied => '\u9023\u7D50\u5DF2\u8907\u88FD';
+  @override
+  String get copyLink => '\u8907\u88FD\u9023\u7D50';
+  @override
+  String get share => '\u5206\u4EAB';
+  @override
+  String get pointCameraAtQr => '\u5C07\u93E1\u982D\u5C0D\u6E96 QR Code';
+  @override
+  String get qrInvalidData => 'QR Code \u7121\u6CD5\u8FA8\u8B58';
+
+  // -- Achievements (F11) --
+  @override
+  String get achievements => '\u6210\u5C31\u5FBD\u7AE0';
+  @override
+  String get badgesUnlocked => '\u5DF2\u89E3\u9396';
+  @override
+  String get badgeFirstReview => '\u521D\u6B21\u8907\u7FD2';
+  @override
+  String get badgeFirstReviewDesc => '\u5B8C\u6210\u7B2C\u4E00\u6B21\u8907\u7FD2';
+  @override
+  String get badgeStreak7 => '\u9023\u7E8C 7 \u5929';
+  @override
+  String get badgeStreak7Desc => '\u9023\u7E8C 7 \u5929\u8907\u7FD2';
+  @override
+  String get badgeStreak30 => '\u9023\u7E8C 30 \u5929';
+  @override
+  String get badgeStreak30Desc => '\u9023\u7E8C 30 \u5929\u8907\u7FD2';
+  @override
+  String get badgeReviews100 => '\u767E\u6B21\u8907\u7FD2';
+  @override
+  String get badgeReviews100Desc => '\u7D2F\u8A08\u8907\u7FD2 100 \u6B21';
+  @override
+  String get badgeReviews1000 => '\u5343\u6B21\u8907\u7FD2';
+  @override
+  String get badgeReviews1000Desc => '\u7D2F\u8A08\u8907\u7FD2 1000 \u6B21';
+  @override
+  String get badgeMastered50 => '\u7CBE\u901A 50';
+  @override
+  String get badgeMastered50Desc => '50 \u5F35\u5361\u7247\u9054\u5230\u7CBE\u901A';
+  @override
+  String get badgeRevengeClear => '\u6383\u6E05\u932F\u984C';
+  @override
+  String get badgeRevengeClearDesc => '\u6E05\u7A7A\u4E00\u6B21\u932F\u984C\u6C60';
+  @override
+  String get badgeSets10 => '\u5275\u5EFA\u5927\u5E2B';
+  @override
+  String get badgeSets10Desc => '\u5EFA\u7ACB 10 \u500B\u5B78\u7FD2\u96C6';
+  @override
+  String get badgePerfectQuiz => '\u6E80\u5206\u6E2C\u9A57';
+  @override
+  String get badgePerfectQuizDesc => '\u6E2C\u9A57\u5168\u5C0D';
+  @override
+  String get badgeChallenge30 => '\u6311\u6230 30 \u5929';
+  @override
+  String get badgeChallenge30Desc => '\u5B8C\u6210 30 \u6B21\u6BCF\u65E5\u6311\u6230';
+  @override
+  String get badgePhoto10 => '\u62CD\u7167\u9054\u4EBA';
+  @override
+  String get badgePhoto10Desc => '\u7528\u62CD\u7167\u5EFA\u5361\u5EFA\u7ACB 10 \u6B21';
+  @override
+  String get badgeSpeedrun => '\u6975\u901F\u914D\u5C0D';
+  @override
+  String get badgeSpeedrunDesc => '\u914D\u5C0D\u904A\u6232 30 \u79D2\u5167\u5B8C\u6210';
+  @override
+  String get badgeUnlocked => '\u89E3\u9396\u65B0\u5FBD\u7AE0\uFF01';
+
+  // -- Pomodoro (F12) --
+  @override
+  String get pomodoro => '\u756A\u8304\u937E';
+  @override
+  String get pomodoroDesc => '\u5C08\u6CE8\u5B78\u7FD2\u8A08\u6642\u5668';
+  @override
+  String get pomodoroStudy => '\u5B78\u7FD2\u4E2D';
+  @override
+  String get pomodoroShortBreak => '\u77ED\u4F11\u606F';
+  @override
+  String get pomodoroLongBreak => '\u9577\u4F11\u606F';
+  @override
+  String get pomodoroReset => '\u91CD\u8A2D';
+  @override
+  String get pomodoroStarted => '\u756A\u8304\u937E\u5DF2\u555F\u52D5';
+  @override
+  String pomodoroSessions(int count) => '\u5DF2\u5B8C\u6210 $count \u500B\u756A\u8304';
+
+  // -- Rating labels (SRS) --
+  @override
+  String get ratingAgain => '\u91CD\u4F86';
+  @override
+  String get ratingHard => '\u56F0\u96E3';
+  @override
+  String get ratingGood => '\u826F\u597D';
+  @override
+  String get ratingEasy => '\u5BB9\u6613';
+
+  // -- Card Edit form --
+  @override
+  String get termLabel => '\u8853\u8A9E';
+  @override
+  String get definitionInput => '\u5B9A\u7FA9';
+  @override
+  String get exampleSentenceLabel => '\u4F8B\u53E5';
+  @override
+  String get deleteCard => '\u522A\u9664\u5361\u7247';
+  @override
+  String get add => '\u65B0\u589E';
+  @override
+  String get tagNameHint => '\u6A19\u7C64\u540D\u7A31';
+
+  // -- Matching result --
+  @override
+  String get pairsLabel => '\u914D\u5C0D\u6578';
+  @override
+  String get attemptsLabel => '\u5617\u8A66\u6B21\u6578';
+
+  // -- Challenge detail (review summary) --
+  @override
+  String challengeCompleteDetail(int target) => '\u6BCF\u65E5\u6311\u6230\u5B8C\u6210\uFF08$target \u5F35\u5361\u7247\uFF09';
+  @override
+  String challengeProgressDetail(int reviewed, int target) => '\u6BCF\u65E5\u6311\u6230\u9032\u5EA6\uFF1A$reviewed/$target';
+
+  // -- Auto-image --
+  @override
+  String autoImageProgress(int done, int total) => '\u6293\u5716\u4E2D\u2026 $done/$total';
+  @override
+  String autoImageDone(int count) => '\u5DF2\u66F4\u65B0 $count \u5F35\u5716\u7247';
+  @override
+  String get autoImageCancelled => '\u5DF2\u53D6\u6D88\u6293\u5716';
+
+  // -- Quiz Enhancement (A3) --
+  @override
+  String get typeYourAnswer => '\u8F38\u5165\u4F60\u7684\u7B54\u6848';
+  @override
+  String get submit => '\u63D0\u4EA4';
+  @override
+  String get trueLabel => '\u6B63\u78BA';
+  @override
+  String get falseLabel => '\u932F\u8AA4';
+  @override
+  String get isThisCorrect => '\u9019\u500B\u5B9A\u7FA9\u6B63\u78BA\u55CE\uFF1F';
+  @override
+  String get correctAnswer => '\u6B63\u78BA\u7B54\u6848';
+  @override
+  String get reinforcementRound => '\u932F\u984C\u8907\u7FD2';
+  @override
+  String get reinforcementDesc => '\u4F86\u8907\u7FD2\u7B54\u932F\u7684\u984C\u76EE\uFF01';
+  @override
+  String get almostCorrect => '\u5DEE\u4E00\u9EDE\uFF01\u6B63\u78BA\u7B54\u6848\u662F\uFF1A';
+  @override
+  String wrongCount(int n) => '$n \u984C\u7B54\u932F';
+
+  // -- Editor Upgrade (B2) --
+  @override
+  String get selectMode => '\u9078\u53D6';
+  @override
+  String get selectAll => '\u5168\u9078';
+  @override
+  String get deselectAll => '\u53D6\u6D88\u5168\u9078';
+  @override
+  String get deleteSelected => '\u522A\u9664\u5DF2\u9078';
+  @override
+  String get addTagToSelected => '\u65B0\u589E\u6A19\u7C64';
+  @override
+  String get removeTagFromSelected => '\u79FB\u9664\u6A19\u7C64';
+  @override
+  String nSelected(int n) => '\u5DF2\u9078 $n \u5F35';
+  @override
+  String get undoAction => '\u5FA9\u539F';
+  @override
+  String get redoAction => '\u91CD\u505A';
+  @override
+  String get duplicateWarning => '\u767C\u73FE\u91CD\u8907\u5361\u7247';
+  @override
+  String get blankWarning => '\u767C\u73FE\u4E0D\u5B8C\u6574\u5361\u7247';
+  @override
+  String get saveAnyway => '\u4ECD\u7136\u5132\u5B58';
+  @override
+  String get goBackToFix => '\u8FD4\u56DE\u4FEE\u6539';
+  @override
+  String cardNMissingField(int n, String field) => '\u5361\u7247 #$n\uFF1A\u7F3A\u5C11$field';
+  @override
+  String cardsAreDuplicates(int a, int b) => '\u5361\u7247 #$a \u548C #$b \u91CD\u8907';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -1034,6 +1464,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String photoAdded(int count) => 'Added $count cards';
 
+  // -- Daily Challenge --
+  @override
+  String get dailyChallenge => 'Daily Challenge';
+  @override
+  String challengeStreak(int count) => '$count day streak';
+  @override
+  String challengeTodayComplete(int target) => 'Today complete: $target/$target';
+  @override
+  String challengeProgress(int reviewed, int target) => 'Progress: $reviewed/$target';
+  @override
+  String get challengeCompleteMsg => 'Great work. Come back tomorrow for a new run.';
+  @override
+  String get challengeNoDueCards => 'No due cards now. Review later to continue.';
+  @override
+  String challengeNextRun(int count) => 'Next run: $count cards';
+  @override
+  String get play => 'Play';
+  @override
+  String get challengeCompletedToast => 'Awesome! Daily challenge completed \uD83C\uDF89';
+
+  // -- Revenge Mode --
+  @override
+  String get revengeMode => 'Revenge Mode';
+  @override
+  String revengeCount(int count) => '$count wrong cards waiting for you';
+
   // -- Notifications --
   @override
   String get dailyReminder => 'Daily Review Reminder';
@@ -1043,6 +1499,256 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reminderTitle => 'Time to review!';
   @override
   String get reminderBody => 'You have cards to review. Open Recall now!';
+
+  // -- Folders (F7) --
+  @override
+  String get folders => 'Folders';
+  @override
+  String get noFoldersYet => 'No folders yet';
+  @override
+  String get newFolder => 'New Folder';
+  @override
+  String get editFolder => 'Edit Folder';
+  @override
+  String get folderName => 'Folder Name';
+  @override
+  String get deleteFolder => 'Delete Folder?';
+  @override
+  String deleteFolderConfirm(String name) => 'Are you sure you want to delete "$name"?';
+  @override
+  String get color => 'Color';
+  @override
+  String get icon => 'Icon';
+  @override
+  String get moveToFolder => 'Move to Folder';
+  @override
+  String get noFolder => 'No Folder';
+  @override
+  String get pin => 'Pin';
+  @override
+  String get unpin => 'Unpin';
+
+  // -- Sorting (F8) --
+  @override
+  String get sortNewest => 'Newest First';
+  @override
+  String get sortAlpha => 'Alphabetical';
+  @override
+  String get sortMostDue => 'Most Due';
+  @override
+  String get sortLastStudied => 'Last Studied';
+  @override
+  String get undo => 'Undo';
+
+  // -- Onboarding (F9) --
+  @override
+  String get onboardingWelcome => 'Welcome to Recall';
+  @override
+  String get onboardingWelcomeDesc => 'Smart review, efficient memory';
+  @override
+  String get onboardingFeatures => 'Powerful Features';
+  @override
+  String get onboardingFeaturesDesc => 'Spaced repetition, daily challenges, photo to flashcard\nLearn more efficiently';
+  @override
+  String get onboardingStart => 'Let\'s Go!';
+  @override
+  String get onboardingStartDesc => 'Sign in to sync your data, or start as a guest';
+  @override
+  String get skip => 'Skip';
+  @override
+  String get next => 'Next';
+  @override
+  String get getStarted => 'Get Started';
+
+  // -- QR Share (F10) --
+  @override
+  String get shareSet => 'Share Study Set';
+  @override
+  String get scanQr => 'Scan QR Code';
+  @override
+  String get scanToImport => 'Scan this QR code to import';
+  @override
+  String get linkCopied => 'Link copied';
+  @override
+  String get copyLink => 'Copy Link';
+  @override
+  String get share => 'Share';
+  @override
+  String get pointCameraAtQr => 'Point camera at QR code';
+  @override
+  String get qrInvalidData => 'Invalid QR code data';
+
+  // -- Achievements (F11) --
+  @override
+  String get achievements => 'Achievements';
+  @override
+  String get badgesUnlocked => 'unlocked';
+  @override
+  String get badgeFirstReview => 'First Review';
+  @override
+  String get badgeFirstReviewDesc => 'Complete your first review';
+  @override
+  String get badgeStreak7 => '7-Day Streak';
+  @override
+  String get badgeStreak7Desc => 'Review for 7 consecutive days';
+  @override
+  String get badgeStreak30 => '30-Day Streak';
+  @override
+  String get badgeStreak30Desc => 'Review for 30 consecutive days';
+  @override
+  String get badgeReviews100 => '100 Reviews';
+  @override
+  String get badgeReviews100Desc => 'Complete 100 total reviews';
+  @override
+  String get badgeReviews1000 => '1000 Reviews';
+  @override
+  String get badgeReviews1000Desc => 'Complete 1000 total reviews';
+  @override
+  String get badgeMastered50 => 'Master 50';
+  @override
+  String get badgeMastered50Desc => 'Master 50 flashcards';
+  @override
+  String get badgeRevengeClear => 'Revenge Clear';
+  @override
+  String get badgeRevengeClearDesc => 'Clear the wrong answer pool once';
+  @override
+  String get badgeSets10 => 'Set Creator';
+  @override
+  String get badgeSets10Desc => 'Create 10 study sets';
+  @override
+  String get badgePerfectQuiz => 'Perfect Quiz';
+  @override
+  String get badgePerfectQuizDesc => 'Score 100% on a quiz';
+  @override
+  String get badgeChallenge30 => '30 Challenges';
+  @override
+  String get badgeChallenge30Desc => 'Complete 30 daily challenges';
+  @override
+  String get badgePhoto10 => 'Photo Pro';
+  @override
+  String get badgePhoto10Desc => 'Use photo import 10 times';
+  @override
+  String get badgeSpeedrun => 'Speed Match';
+  @override
+  String get badgeSpeedrunDesc => 'Finish matching game in under 30 seconds';
+  @override
+  String get badgeUnlocked => 'Badge unlocked!';
+
+  // -- Pomodoro (F12) --
+  @override
+  String get pomodoro => 'Pomodoro';
+  @override
+  String get pomodoroDesc => 'Focus study timer';
+  @override
+  String get pomodoroStudy => 'Study';
+  @override
+  String get pomodoroShortBreak => 'Short Break';
+  @override
+  String get pomodoroLongBreak => 'Long Break';
+  @override
+  String get pomodoroReset => 'Reset';
+  @override
+  String get pomodoroStarted => 'Pomodoro started';
+  @override
+  String pomodoroSessions(int count) => '$count sessions completed';
+
+  // -- Rating labels (SRS) --
+  @override
+  String get ratingAgain => 'Again';
+  @override
+  String get ratingHard => 'Hard';
+  @override
+  String get ratingGood => 'Good';
+  @override
+  String get ratingEasy => 'Easy';
+
+  // -- Card Edit form --
+  @override
+  String get termLabel => 'Term';
+  @override
+  String get definitionInput => 'Definition';
+  @override
+  String get exampleSentenceLabel => 'Example sentence';
+  @override
+  String get deleteCard => 'Delete card';
+  @override
+  String get add => 'Add';
+  @override
+  String get tagNameHint => 'Tag name';
+
+  // -- Matching result --
+  @override
+  String get pairsLabel => 'Pairs';
+  @override
+  String get attemptsLabel => 'Attempts';
+
+  // -- Challenge detail (review summary) --
+  @override
+  String challengeCompleteDetail(int target) => 'Daily Challenge complete ($target cards).';
+  @override
+  String challengeProgressDetail(int reviewed, int target) => 'Daily Challenge progress: $reviewed/$target';
+
+  // -- Auto-image --
+  @override
+  String autoImageProgress(int done, int total) => 'Fetching images... $done/$total';
+  @override
+  String autoImageDone(int count) => 'Updated $count images';
+  @override
+  String get autoImageCancelled => 'Image fetch cancelled';
+
+  // -- Quiz Enhancement (A3) --
+  @override
+  String get typeYourAnswer => 'Type your answer';
+  @override
+  String get submit => 'Submit';
+  @override
+  String get trueLabel => 'True';
+  @override
+  String get falseLabel => 'False';
+  @override
+  String get isThisCorrect => 'Is this the correct definition?';
+  @override
+  String get correctAnswer => 'Correct answer';
+  @override
+  String get reinforcementRound => 'Reinforcement Round';
+  @override
+  String get reinforcementDesc => "Let's review the ones you missed!";
+  @override
+  String get almostCorrect => 'Almost! The correct answer is:';
+  @override
+  String wrongCount(int n) => '$n wrong';
+
+  // -- Editor Upgrade (B2) --
+  @override
+  String get selectMode => 'Select';
+  @override
+  String get selectAll => 'Select All';
+  @override
+  String get deselectAll => 'Deselect All';
+  @override
+  String get deleteSelected => 'Delete Selected';
+  @override
+  String get addTagToSelected => 'Add Tag';
+  @override
+  String get removeTagFromSelected => 'Remove Tag';
+  @override
+  String nSelected(int n) => '$n selected';
+  @override
+  String get undoAction => 'Undo';
+  @override
+  String get redoAction => 'Redo';
+  @override
+  String get duplicateWarning => 'Duplicate cards found';
+  @override
+  String get blankWarning => 'Incomplete cards found';
+  @override
+  String get saveAnyway => 'Save Anyway';
+  @override
+  String get goBackToFix => 'Go Back';
+  @override
+  String cardNMissingField(int n, String field) => 'Card #$n: missing $field';
+  @override
+  String cardsAreDuplicates(int a, int b) => 'Cards #$a and #$b are duplicates';
 }
 
 class _AppLocalizationsDelegate

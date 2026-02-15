@@ -31,6 +31,15 @@ void main() {
     expect(extractOptionalIntExtra('bad', 'questionCount'), isNull);
   });
 
+  test('extractOptionalBoolExtra returns nullable bool from map', () {
+    expect(extractOptionalBoolExtra({'challengeMode': true}, 'challengeMode'),
+        isTrue);
+    expect(
+        extractOptionalBoolExtra({'challengeMode': 'true'}, 'challengeMode'),
+        isNull);
+    expect(extractOptionalBoolExtra('bad', 'challengeMode'), isNull);
+  });
+
   test('isProtectedRoutePath marks auth and home as public', () {
     expect(isProtectedRoutePath('/'), isFalse);
     expect(isProtectedRoutePath('/login'), isFalse);

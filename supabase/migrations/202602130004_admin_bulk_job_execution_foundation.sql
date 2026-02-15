@@ -33,7 +33,7 @@ as $$
 declare
   claimed_id bigint;
 begin
-  if not public.is_global_admin(auth.uid()) then
+  if auth.role() <> 'service_role' and not public.is_global_admin(auth.uid()) then
     raise exception 'forbidden';
   end if;
 
@@ -84,7 +84,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_global_admin(auth.uid()) then
+  if auth.role() <> 'service_role' and not public.is_global_admin(auth.uid()) then
     raise exception 'forbidden';
   end if;
 

@@ -22,8 +22,20 @@ import 'package:recall_app/providers/widget_provider.dart';
 class SrsReviewScreen extends ConsumerStatefulWidget {
   final String? setId;
   final List<String>? filterTags;
+  final int? maxCards;
+  final bool challengeMode;
+  final int? challengeTarget;
+  final List<String>? revengeCardIds;
 
-  const SrsReviewScreen({super.key, this.setId, this.filterTags});
+  const SrsReviewScreen({
+    super.key,
+    this.setId,
+    this.filterTags,
+    this.maxCards,
+    this.challengeMode = false,
+    this.challengeTarget,
+    this.revengeCardIds,
+  });
 
   @override
   ConsumerState<SrsReviewScreen> createState() => _SrsReviewScreenState();
@@ -84,7 +96,22 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
     final List<_ReviewItem> items = [];
 
-    if (widget.setId != null) {
+    if (widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty) {
+      // Revenge mode: load specific cards by ID regardless of due status
+      final cardsById = <String, Flashcard>{};
+      for (final set in studySets) {
+        for (final card in set.cards) {
+          cardsById[card.id] = card;
+        }
+      }
+      for (final cardId in widget.revengeCardIds!) {
+        final card = cardsById[cardId];
+        if (card == null) continue;
+        final progress = localStorage.getCardProgress(cardId);
+        if (progress == null) continue;
+        items.add(_ReviewItem(card: card, progress: progress));
+      }
+    } else if (widget.setId != null) {
       final studySet = localStorage.getStudySet(widget.setId!);
       if (studySet == null) return;
       for (final card in studySet.cards) {
@@ -121,6 +148,9 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     }
 
     items.shuffle();
+    if (widget.maxCards != null && widget.maxCards! > 0 && items.length > widget.maxCards!) {
+      items.removeRange(widget.maxCards!, items.length);
+    }
     setState(() => _queue = items);
     if (items.isNotEmpty) {
       _speakCardTerm(items.first.card);
@@ -399,6 +429,12 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
     if (_currentIndex + 1 >= _queue.length) {
       final total = _againCount + _hardCount + _goodCount + _easyCount;
+      final challengeTarget = widget.challengeTarget ?? widget.maxCards;
+      final challengeCompleted =
+          widget.challengeMode &&
+          challengeTarget != null &&
+          challengeTarget > 0 &&
+          total >= challengeTarget;
       HapticFeedback.mediumImpact();
       context.go(
         '/review/summary',
@@ -408,6 +444,9 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           'hardCount': _hardCount,
           'goodCount': _goodCount,
           'easyCount': _easyCount,
+          'challengeMode': widget.challengeMode,
+          'challengeTarget': challengeTarget,
+          'challengeCompleted': challengeCompleted,
         },
       );
     } else {
@@ -618,15 +657,16 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   }
 
   String _ratingLabel(int? rating) {
+    final l10n = AppLocalizations.of(context);
     switch (rating) {
       case 1:
-        return 'Again';
+        return l10n.ratingAgain;
       case 2:
-        return 'Hard';
+        return l10n.ratingHard;
       case 3:
-        return 'Good';
+        return l10n.ratingGood;
       case 4:
-        return 'Easy';
+        return l10n.ratingEasy;
       default:
         return '';
     }

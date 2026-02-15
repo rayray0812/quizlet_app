@@ -3,12 +3,15 @@ class AppConstants {
   static const String hiveStudySetsBox = 'study_sets';
   static const String hiveCardProgressBox = 'card_progress';
   static const String hiveReviewLogsBox = 'review_logs';
+  static const String hiveFoldersBox = 'folders';
   static const String hiveSettingsBox = 'settings';
 
   static const String settingNotificationEnabledKey = 'notification_enabled';
   static const String settingBiometricQuickUnlockKey = 'biometric_quick_unlock';
+  static const String settingHasSeenOnboarding = 'has_seen_onboarding';
   static const String settingAuthEventsKey = 'auth_events';
   static const String settingSyncConflictsKey = 'sync_conflicts';
+  static const String settingDeletedStudySetIdsKey = 'deleted_study_set_ids';
 
   static const int maxCardsPerSet = 500;
   static const int defaultNewCardsPerDay = 20;

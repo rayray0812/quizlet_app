@@ -9,6 +9,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
+    if (kIsWeb) return;
     tz.initializeTimeZones();
 
     const androidSettings =
@@ -26,6 +27,7 @@ class NotificationService {
   }
 
   static Future<bool> requestPermission() async {
+    if (kIsWeb) return false;
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
@@ -53,6 +55,7 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
 
     final now = tz.TZDateTime.now(tz.local);
@@ -94,6 +97,7 @@ class NotificationService {
   }
 
   static Future<void> cancelAll() async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
   }
 }

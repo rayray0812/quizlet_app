@@ -10,6 +10,7 @@ class WidgetSnapshotService {
 
   /// Initialize the home_widget plugin (sets App Group for iOS).
   static Future<void> init() async {
+    if (kIsWeb) return;
     await HomeWidget.setAppGroupId(AppConstants.widgetAppGroupId);
   }
 
@@ -28,6 +29,7 @@ class WidgetSnapshotService {
     required List<({String setId, String title, int due})> topSets,
     required String locale,
   }) async {
+    if (kIsWeb) return;
     final data = computeSnapshot(
       dueTotal: dueTotal,
       dueNew: dueNew,

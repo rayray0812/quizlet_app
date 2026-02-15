@@ -8,6 +8,7 @@ class LocalStorageService {
   Box get _box => Hive.box(AppConstants.hiveStudySetsBox);
   Box get _progressBox => Hive.box(AppConstants.hiveCardProgressBox);
   Box get _reviewLogBox => Hive.box(AppConstants.hiveReviewLogsBox);
+  Box get _settingsBox => Hive.box(AppConstants.hiveSettingsBox);
 
   // ?? StudySet CRUD ??
 
@@ -26,6 +27,28 @@ class LocalStorageService {
 
   Future<void> deleteStudySet(String id) async {
     await _box.delete(id);
+  }
+
+  List<String> getDeletedStudySetIds() {
+    final raw = (_settingsBox.get(
+              AppConstants.settingDeletedStudySetIdsKey,
+              defaultValue: <dynamic>[],
+            ) as List)
+        .cast<dynamic>();
+    return raw.map((e) => e.toString()).toList();
+  }
+
+  Future<void> markStudySetDeleted(String id) async {
+    final ids = getDeletedStudySetIds();
+    if (!ids.contains(id)) {
+      ids.add(id);
+      await _settingsBox.put(AppConstants.settingDeletedStudySetIdsKey, ids);
+    }
+  }
+
+  Future<void> clearDeletedStudySetId(String id) async {
+    final ids = getDeletedStudySetIds()..removeWhere((item) => item == id);
+    await _settingsBox.put(AppConstants.settingDeletedStudySetIdsKey, ids);
   }
 
   List<StudySet> getUnsyncedSets() {
@@ -132,6 +155,17 @@ class LocalStorageService {
     if (log != null && !log.isSynced) {
       await saveReviewLog(log.copyWith(isSynced: true));
     }
+  }
+
+  Future<void> deleteReviewLogsForSet(String setId) async {
+    final keys = <dynamic>[];
+    for (final entry in _reviewLogBox.toMap().entries) {
+      final value = entry.value;
+      if (value is ReviewLog && value.setId == setId) {
+        keys.add(entry.key);
+      }
+    }
+    await _reviewLogBox.deleteAll(keys);
   }
 
   Future<void> clearAllStudyData() async {

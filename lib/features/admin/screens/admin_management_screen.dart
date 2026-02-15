@@ -42,6 +42,31 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
     ref.invalidate(adminBulkJobsProvider(_bulkJobStatus));
   }
 
+  /// Wraps an admin operation with try/catch and shows error SnackBar on failure.
+  Future<void> _safeAdminAction(
+    Future<void> Function() action, {
+    String? successMessage,
+  }) async {
+    try {
+      await action();
+      if (!mounted) return;
+      _refreshAll();
+      if (successMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMessage)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Operation failed: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(adminAccountsProvider(_query));
@@ -110,73 +135,47 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                     .map(
                       (account) => _AdminAccountCard(
                         account: account,
-                        onBlock: () async {
-                          await adminService.blockUser(
+                        onBlock: () => _safeAdminAction(
+                          () => adminService.blockUser(
                             targetUserId: account.userId,
                             reason: 'manual_admin_action',
-                          );
-                          if (!mounted) return;
-                          _refreshAll();
-                        },
-                        onUnblock: () async {
-                          await adminService.unblockUser(
+                          ),
+                        ),
+                        onUnblock: () => _safeAdminAction(
+                          () => adminService.unblockUser(
                             targetUserId: account.userId,
                             reason: 'manual_admin_action',
-                          );
-                          if (!mounted) return;
-                          _refreshAll();
-                        },
-                        onForceSignOut: () async {
-                          await adminService.forceSignOutAllSessions(
+                          ),
+                        ),
+                        onForceSignOut: () => _safeAdminAction(
+                          () => adminService.forceSignOutAllSessions(
                             targetUserId: account.userId,
                             reason: 'manual_admin_action',
-                          );
-                          if (!context.mounted) return;
-                          _refreshAll();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Sign-out job queued.'),
-                            ),
-                          );
-                        },
-                        onAssignSupportAdmin: () async {
-                          await adminService.assignRole(
+                          ),
+                          successMessage: 'Sign-out job queued.',
+                        ),
+                        onAssignSupportAdmin: () => _safeAdminAction(
+                          () => adminService.assignRole(
                             adminUserId: account.userId,
                             roleKey: 'support_admin',
                             scopeType: 'global',
-                          );
-                          if (!context.mounted) return;
-                          _refreshAll();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Role assigned.')),
-                          );
-                        },
-                        onRequestDeleteApproval: () async {
-                          await adminService.createApprovalRequest(
+                          ),
+                          successMessage: 'Role assigned.',
+                        ),
+                        onRequestDeleteApproval: () => _safeAdminAction(
+                          () => adminService.createApprovalRequest(
                             actionType: 'delete_account',
                             reason: 'manual_admin_review',
                             payload: {'target_user_id': account.userId},
-                          );
-                          if (!context.mounted) return;
-                          _refreshAll();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Delete approval request created.'),
-                            ),
-                          );
-                        },
-                        onRequestMfaEnforcement: () async {
-                          await adminService.requestMfaEnforcement(
+                          ),
+                          successMessage: 'Delete approval request created.',
+                        ),
+                        onRequestMfaEnforcement: () => _safeAdminAction(
+                          () => adminService.requestMfaEnforcement(
                             targetUserId: account.userId,
-                          );
-                          if (!context.mounted) return;
-                          _refreshAll();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('MFA enforcement request created.'),
-                            ),
-                          );
-                        },
+                          ),
+                          successMessage: 'MFA enforcement request created.',
+                        ),
                         onStartImpersonation: () async {
                           await _showStartImpersonationDialog(
                             context,
@@ -201,23 +200,37 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
             children: [
               OutlinedButton(
                 onPressed: () async {
-                  final changed = await adminService.assignApprovalOwners();
-                  if (!context.mounted) return;
-                  _refreshAll();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Assigned owners: $changed')),
-                  );
+                  try {
+                    final changed = await adminService.assignApprovalOwners();
+                    if (!context.mounted) return;
+                    _refreshAll();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Assigned owners: $changed')),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+                    );
+                  }
                 },
                 child: const Text('Assign Approval Owners'),
               ),
               OutlinedButton(
                 onPressed: () async {
-                  final queued = await adminService.enqueueSlaEscalations();
-                  if (!context.mounted) return;
-                  _refreshAll();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Queued SLA escalations: $queued')),
-                  );
+                  try {
+                    final queued = await adminService.enqueueSlaEscalations();
+                    if (!context.mounted) return;
+                    _refreshAll();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Queued SLA escalations: $queued')),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+                    );
+                  }
                 },
                 child: const Text('Run SLA Escalation'),
               ),
@@ -235,21 +248,13 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                     .map(
                       (request) => _AdminApprovalCard(
                         request: request,
-                        onApprove: () async {
-                          await adminService.approveRequest(
+                        onApprove: () => _safeAdminAction(
+                          () => adminService.approveRequest(
                             requestId: request.id,
                             reason: 'approved_in_console',
-                          );
-                          if (!context.mounted) return;
-                          _refreshAll();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Request #${request.id} approved and queued.',
-                              ),
-                            ),
-                          );
-                        },
+                          ),
+                          successMessage: 'Request #${request.id} approved and queued.',
+                        ),
                         onReject: () async {
                           final rejectReason = await _showRejectReasonDialog(
                             context,
@@ -257,12 +262,12 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                           if (rejectReason == null || rejectReason.isEmpty) {
                             return;
                           }
-                          await adminService.rejectRequest(
-                            requestId: request.id,
-                            rejectReason: rejectReason,
+                          await _safeAdminAction(
+                            () => adminService.rejectRequest(
+                              requestId: request.id,
+                              rejectReason: rejectReason,
+                            ),
                           );
-                          if (!context.mounted) return;
-                          _refreshAll();
                         },
                       ),
                     )
@@ -304,24 +309,20 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                       (session) => _ImpersonationSessionCard(
                         session: session,
                         onEnd: session.status == 'active'
-                            ? () async {
-                                await adminService.endImpersonationSession(
+                            ? () => _safeAdminAction(
+                                () => adminService.endImpersonationSession(
                                   sessionId: session.id,
                                   targetUserId: session.targetUserId,
-                                );
-                                if (!context.mounted) return;
-                                _refreshAll();
-                              }
+                                ),
+                              )
                             : null,
                         onRevoke: session.status == 'active'
-                            ? () async {
-                                await adminService.revokeImpersonationSession(
+                            ? () => _safeAdminAction(
+                                () => adminService.revokeImpersonationSession(
                                   sessionId: session.id,
                                   targetUserId: session.targetUserId,
-                                );
-                                if (!context.mounted) return;
-                                _refreshAll();
-                              }
+                                ),
+                              )
                             : null,
                         onViewTelemetry: () async {
                           await _showImpersonationTelemetryDialog(
@@ -384,27 +385,23 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                         onRetry:
                             (job.status == 'failed' ||
                                 job.status == 'cancelled')
-                            ? () async {
-                                await adminService.retryBulkJob(
+                            ? () => _safeAdminAction(
+                                () => adminService.retryBulkJob(
                                   jobId: job.id,
                                   reason: 'retry_from_console',
-                                );
-                                if (!context.mounted) return;
-                                _refreshAll();
-                              }
+                                ),
+                              )
                             : null,
                         onCancel:
                             (job.status == 'pending' ||
                                 job.status == 'running' ||
                                 job.status == 'failed')
-                            ? () async {
-                                await adminService.cancelBulkJob(
+                            ? () => _safeAdminAction(
+                                () => adminService.cancelBulkJob(
                                   jobId: job.id,
                                   reason: 'cancel_from_console',
-                                );
-                                if (!context.mounted) return;
-                                _refreshAll();
-                              }
+                                ),
+                              )
                             : null,
                       ),
                     )

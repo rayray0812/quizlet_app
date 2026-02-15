@@ -8,6 +8,7 @@ import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
 import 'package:recall_app/providers/locale_provider.dart';
 import 'package:recall_app/providers/theme_provider.dart';
+import 'package:recall_app/core/icons/material_icon_mapper.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
@@ -18,9 +19,16 @@ import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/widgets/study_set_card.dart';
 import 'package:recall_app/features/home/widgets/today_review_card.dart';
+import 'package:recall_app/features/home/widgets/daily_challenge_card.dart';
+import 'package:recall_app/features/home/widgets/revenge_card.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/services/local_storage_service.dart';
+import 'package:recall_app/providers/folder_provider.dart';
+import 'package:recall_app/providers/sort_provider.dart';
+import 'package:recall_app/providers/pomodoro_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
+import 'package:recall_app/features/home/widgets/folder_chips.dart';
+import 'package:recall_app/features/home/widgets/sort_selector.dart';
 import 'package:recall_app/providers/notification_provider.dart';
 import 'package:recall_app/providers/widget_provider.dart';
 import 'package:recall_app/providers/biometric_provider.dart';
@@ -213,10 +221,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 icon: Icon(
                   user != null
                       ? Icons.person_outline_rounded
-                      : Icons.person_outline_rounded,
+                      : Icons.no_accounts_outlined,
                 ),
                 selectedIcon: Icon(
-                  user != null ? Icons.person_rounded : Icons.person_rounded,
+                  user != null ? Icons.person_rounded : Icons.no_accounts_rounded,
                 ),
                 label: l10n.settings,
               ),
@@ -242,24 +250,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _buildSettingsTab(context, ref),
     ];
 
-    return Stack(
-      children: List.generate(pages.length, (index) {
-        final selected = index == _currentTab;
-        return IgnorePointer(
-          ignoring: !selected,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            opacity: selected ? 1 : 0,
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              offset: selected ? Offset.zero : const Offset(0.04, 0),
-              child: pages[index],
-            ),
-          ),
-        );
-      }),
+    return IndexedStack(
+      index: _currentTab,
+      children: pages,
     );
   }
 
@@ -334,6 +327,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         const _GeminiApiKeyCard(),
         const SizedBox(height: 14),
         const _NotificationCard(),
+        const SizedBox(height: 14),
+        _AdaptiveSettingsCard(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.emoji_events_rounded),
+                title: Text(l10n.achievements),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/achievements'),
+              ),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_rounded),
+                title: Text(l10n.folders),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/folders'),
+              ),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              ListTile(
+                leading: const Icon(Icons.timer_rounded),
+                title: Text(l10n.pomodoro),
+                subtitle: Text(l10n.pomodoroDesc),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  ref.read(pomodoroProvider.notifier).start();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.pomodoroStarted)),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 14),
         _AdaptiveSettingsCard(
           child: SwitchListTile(
@@ -631,6 +663,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           TextButton(
             onPressed: () async {
               final passphrase = passphraseController.text;
+              if (passphrase.length < 8) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Passphrase must be at least 8 characters.')),
+                );
+                return;
+              }
               try {
                 await importExportService.exportEncryptedBackup(
                   localStorage: localStorage,
@@ -820,25 +858,192 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  List<StudySet> _sortAndFilter(List<StudySet> studySets) {
+    final selectedFolderId = ref.read(selectedFolderIdProvider);
+    final sortOption = ref.read(sortOptionProvider);
+
+    var filtered = selectedFolderId == null
+        ? studySets
+        : studySets.where((s) => s.folderId == selectedFolderId).toList();
+
+    final pinned = filtered.where((s) => s.isPinned).toList();
+    final unpinned = filtered.where((s) => !s.isPinned).toList();
+
+    int compare(StudySet a, StudySet b) {
+      return switch (sortOption) {
+        SortOption.newestFirst => b.createdAt.compareTo(a.createdAt),
+        SortOption.alphabetical => a.title.compareTo(b.title),
+        SortOption.mostDue => 0, // handled below
+        SortOption.lastStudied =>
+          (b.lastStudiedAt ?? DateTime(2000)).compareTo(
+            a.lastStudiedAt ?? DateTime(2000),
+          ),
+      };
+    }
+
+    pinned.sort(compare);
+    unpinned.sort(compare);
+
+    return [...pinned, ...unpinned];
+  }
+
   Widget _buildList(BuildContext context, List<StudySet> studySets) {
+    // Watch sort/folder state to rebuild
+    ref.watch(selectedFolderIdProvider);
+    ref.watch(sortOptionProvider);
+    final sorted = _sortAndFilter(studySets);
+    final l10n = AppLocalizations.of(context);
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 100),
-      itemCount: studySets.length + 1,
+      itemCount: sorted.length + 5, // +3 cards +1 folderChips +1 sortSelector
       itemBuilder: (context, index) {
         if (index == 0) {
-          return const TodayReviewCard();
+          return TodayReviewCard(animating: _currentTab == 0);
         }
-        final set = studySets[index - 1];
+        if (index == 1) {
+          return const DailyChallengeCard();
+        }
+        if (index == 2) {
+          return const RevengeCard();
+        }
+        if (index == 3) {
+          return const FolderChips();
+        }
+        if (index == 4) {
+          return const SortSelector();
+        }
+        final set = sorted[index - 5];
         return _StaggeredFadeItem(
-          index: index - 1,
-          child: StudySetCard(
-            studySet: set,
-            onTap: () => context.push('/study/${set.id}'),
-            onDelete: () => _confirmDelete(context, ref, set),
-            onEdit: () => context.push('/edit/${set.id}'),
+          index: index - 4,
+          child: Dismissible(
+            key: ValueKey('dismiss-${set.id}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 24),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.red.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(Icons.delete_rounded, color: AppTheme.red),
+            ),
+            confirmDismiss: (_) async => true,
+            onDismissed: (_) {
+              ref.read(studySetsProvider.notifier).remove(set.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.deleteStudySetConfirm(set.title)),
+                  action: SnackBarAction(
+                    label: l10n.undo,
+                    onPressed: () {
+                      ref.read(studySetsProvider.notifier).add(set);
+                    },
+                  ),
+                ),
+              );
+            },
+            child: GestureDetector(
+              onLongPress: () => _showSetContextMenu(context, ref, set),
+              child: StudySetCard(
+                studySet: set,
+                onTap: () => context.push('/study/${set.id}'),
+                onDelete: () => _confirmDelete(context, ref, set),
+                onEdit: () => context.push('/edit/${set.id}'),
+              ),
+            ),
           ),
         );
       },
+    );
+  }
+
+  void _showSetContextMenu(
+      BuildContext context, WidgetRef ref, StudySet set) {
+    final l10n = AppLocalizations.of(context);
+    final folders = ref.read(foldersProvider);
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                set.isPinned
+                    ? Icons.push_pin_rounded
+                    : Icons.push_pin_outlined,
+              ),
+              title: Text(set.isPinned ? l10n.unpin : l10n.pin),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(studySetsProvider.notifier).togglePin(set.id);
+              },
+            ),
+            if (folders.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: Text(l10n.moveToFolder),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showMoveFolderDialog(context, ref, set);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_rounded),
+              title: Text(l10n.shareSet),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/study/${set.id}/share');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMoveFolderDialog(
+      BuildContext context, WidgetRef ref, StudySet set) {
+    final folders = ref.read(foldersProvider);
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.moveToFolder),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(l10n.noFolder),
+              selected: set.folderId == null,
+              onTap: () {
+                ref
+                    .read(studySetsProvider.notifier)
+                    .moveToFolder(set.id, null);
+                Navigator.pop(ctx);
+              },
+            ),
+            ...folders.map((folder) => ListTile(
+                  leading: Icon(
+                    MaterialIconMapper.fromCodePoint(folder.iconCodePoint),
+                    color: Color(int.parse(folder.colorHex, radix: 16)),
+                  ),
+                  title: Text(folder.name),
+                  selected: set.folderId == folder.id,
+                  onTap: () {
+                    ref
+                        .read(studySetsProvider.notifier)
+                        .moveToFolder(set.id, folder.id);
+                    Navigator.pop(ctx);
+                  },
+                )),
+          ],
+        ),
+      ),
     );
   }
 
@@ -936,6 +1141,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               },
             ),
             _SheetItem(
+              icon: Icons.qr_code_scanner_rounded,
+              iconColor: AppTheme.cyan,
+              title: l10n.scanQr,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                screenContext.push('/scan');
+              },
+            ),
+            _SheetItem(
               icon: Icons.camera_alt_rounded,
               iconColor: AppTheme.orange,
               title: l10n.photoToFlashcard,
@@ -994,8 +1208,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetRef ref,
   ) async {
     final l10n = AppLocalizations.of(screenContext);
-    String title = '';
-    String description = '';
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
 
     final result = await showDialog<Map<String, String>>(
       context: screenContext,
@@ -1006,16 +1220,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
+                controller: titleController,
                 decoration: InputDecoration(labelText: l10n.title),
                 autofocus: true,
-                onChanged: (value) => title = value,
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: descController,
                 decoration: InputDecoration(
                   labelText: l10n.descriptionOptional,
                 ),
-                onChanged: (value) => description = value,
               ),
             ],
           ),
@@ -1027,11 +1241,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              final trimmedTitle = title.trim();
+              final trimmedTitle = titleController.text.trim();
               if (trimmedTitle.isEmpty) return;
               Navigator.pop(dialogContext, <String, String>{
                 'title': trimmedTitle,
-                'description': description.trim(),
+                'description': descController.text.trim(),
               });
             },
             child: Text(l10n.create),
@@ -1039,6 +1253,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ],
       ),
     );
+    titleController.dispose();
+    descController.dispose();
 
     if (result == null || !mounted) return;
     final newSet = StudySet(

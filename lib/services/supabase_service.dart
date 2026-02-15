@@ -56,6 +56,7 @@ class SupabaseService {
     await client.auth.signOut(scope: SignOutScope.global);
   }
 
+  /// Matches SQL `is_global_admin()`: only super_admin / org_admin with global scope.
   Future<bool> isCurrentUserAdmin() async {
     final client = _clientOrNull;
     final user = currentUser;
@@ -65,6 +66,8 @@ class SupabaseService {
           .from(SupabaseConstants.adminRoleBindingsTable)
           .select('id')
           .eq('admin_user_id', user.id)
+          .eq('scope_type', 'global')
+          .inFilter('role_key', ['super_admin', 'org_admin'])
           .limit(1);
       return (rows as List).isNotEmpty;
     } catch (_) {
@@ -176,6 +179,18 @@ class SupabaseService {
       'updated_at': (studySet.updatedAt ?? DateTime.now().toUtc())
           .toIso8601String(),
     });
+  }
+
+  Future<void> deleteStudySetById(String setId) async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    await client
+        .from(SupabaseConstants.studySetsTable)
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', setId);
   }
 
   Future<void> upsertCardProgress(List<CardProgress> progresses) async {

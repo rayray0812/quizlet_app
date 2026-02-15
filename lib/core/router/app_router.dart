@@ -6,7 +6,14 @@ import 'package:go_router/go_router.dart';
 import 'package:recall_app/features/auth/screens/forgot_password_screen.dart';
 import 'package:recall_app/features/auth/screens/login_screen.dart';
 import 'package:recall_app/features/auth/screens/signup_screen.dart';
+import 'package:hive/hive.dart';
+import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/features/admin/screens/admin_management_screen.dart';
+import 'package:recall_app/features/onboarding/screens/onboarding_screen.dart';
+import 'package:recall_app/features/home/screens/folder_management_screen.dart';
+import 'package:recall_app/features/share/screens/share_screen.dart';
+import 'package:recall_app/features/share/screens/qr_scan_screen.dart';
+import 'package:recall_app/features/achievements/screens/achievements_screen.dart';
 import 'package:recall_app/features/home/screens/home_screen.dart';
 import 'package:recall_app/features/home/screens/card_editor_screen.dart';
 import 'package:recall_app/features/import/screens/web_import_screen.dart';
@@ -40,11 +47,18 @@ int? extractOptionalIntExtra(Object? extra, String key) {
   return value is int ? value : null;
 }
 
+bool? extractOptionalBoolExtra(Object? extra, String key) {
+  final data = extractMapExtra(extra);
+  final value = data[key];
+  return value is bool ? value : null;
+}
+
 const Set<String> _publicRoutePaths = {
   '/',
   '/login',
   '/signup',
   '/forgot-password',
+  '/onboarding',
 };
 
 bool isAuthRoutePath(String path) {
@@ -107,6 +121,18 @@ GoRouter createAppRouter({
     initialLocation: '/',
     refreshListenable: refreshListenable,
     redirect: (context, state) async {
+      // Onboarding redirect
+      final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+      final hasSeenOnboarding = settingsBox.get(
+            AppConstants.settingHasSeenOnboarding,
+            defaultValue: false,
+          ) as bool;
+      if (!hasSeenOnboarding &&
+          state.matchedLocation == '/' &&
+          state.matchedLocation != '/onboarding') {
+        return '/onboarding';
+      }
+
       final isAuthenticated = supabaseService.currentUser != null;
       final baseRedirect = resolveAppRedirect(
         isAuthenticated: isAuthenticated,
@@ -123,6 +149,22 @@ GoRouter createAppRouter({
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/folders',
+        builder: (context, state) => const FolderManagementScreen(),
+      ),
+      GoRoute(
+        path: '/scan',
+        builder: (context, state) => const QrScanScreen(),
+      ),
+      GoRoute(
+        path: '/achievements',
+        builder: (context, state) => const AchievementsScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/signup',
@@ -153,11 +195,24 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/review',
         builder: (context, state) {
-          final extra = state.extra;
-          final tags = extra is Map<String, dynamic>
-              ? (extra['tags'] as List<dynamic>?)?.cast<String>()
-              : null;
-          return SrsReviewScreen(filterTags: tags);
+          final data = extractMapExtra(state.extra);
+          final tags = (data['tags'] as List<dynamic>?)?.cast<String>();
+          final maxCards = extractOptionalIntExtra(state.extra, 'maxCards');
+          final challengeMode =
+              extractOptionalBoolExtra(state.extra, 'challengeMode') ?? false;
+          final challengeTarget = extractOptionalIntExtra(
+            state.extra,
+            'challengeTarget',
+          );
+          final revengeCardIds =
+              (data['revengeCardIds'] as List<dynamic>?)?.cast<String>();
+          return SrsReviewScreen(
+            filterTags: tags,
+            maxCards: maxCards,
+            challengeMode: challengeMode,
+            challengeTarget: challengeTarget,
+            revengeCardIds: revengeCardIds,
+          );
         },
       ),
       GoRoute(
@@ -170,6 +225,9 @@ GoRouter createAppRouter({
             hardCount: data['hardCount'] as int? ?? 0,
             goodCount: data['goodCount'] as int? ?? 0,
             easyCount: data['easyCount'] as int? ?? 0,
+            challengeMode: data['challengeMode'] as bool? ?? false,
+            challengeTarget: data['challengeTarget'] as int?,
+            challengeCompleted: data['challengeCompleted'] as bool? ?? false,
           );
         },
       ),
@@ -233,6 +291,13 @@ GoRouter createAppRouter({
             },
           ),
           GoRoute(
+            path: 'share',
+            builder: (context, state) {
+              final setId = state.pathParameters['setId']!;
+              return ShareScreen(setId: setId);
+            },
+          ),
+          GoRoute(
             path: 'match',
             builder: (context, state) {
               final setId = state.pathParameters['setId']!;
@@ -249,6 +314,23 @@ GoRouter createAppRouter({
   );
 }
 
+GoRouter? _globalRouter;
+
+/// Callback invoked when the router becomes ready.
+/// Set by main.dart to flush pending deep links.
+VoidCallback? onRouterReady;
+
+/// Navigate from outside the widget tree (e.g. HomeWidget deep links).
+/// Returns true if the router was available and navigation occurred.
+bool navigateFromDeepLink(String path) {
+  final router = _globalRouter;
+  if (router != null) {
+    router.go(path);
+    return true;
+  }
+  return false;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
   final refreshListenable = GoRouterRefreshStream(
@@ -260,6 +342,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     supabaseService: supabaseService,
     refreshListenable: refreshListenable,
   );
-  ref.onDispose(router.dispose);
+  _globalRouter = router;
+  // Flush any deep link that arrived before the router was ready.
+  onRouterReady?.call();
+  ref.onDispose(() {
+    if (_globalRouter == router) _globalRouter = null;
+    router.dispose();
+  });
   return router;
 });

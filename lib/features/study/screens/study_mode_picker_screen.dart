@@ -28,6 +28,9 @@ class StudyModePickerScreen extends ConsumerStatefulWidget {
 
 class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   bool _isAutoFetching = false;
+  bool _cancelAutoFetch = false;
+  int _autoFetchDone = 0;
+  int _autoFetchTotal = 0;
   final Random _random = Random();
   late final FlutterTts _tts;
   bool _isTtsReady = false;
@@ -236,13 +239,25 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   }) async {
     if (_isAutoFetching) return;
 
-    setState(() => _isAutoFetching = true);
+    final cardsToFetch = studySet.cards
+        .where((c) => c.imageUrl.isEmpty && c.term.isNotEmpty)
+        .length;
+    if (cardsToFetch == 0) return;
+
+    setState(() {
+      _isAutoFetching = true;
+      _cancelAutoFetch = false;
+      _autoFetchDone = 0;
+      _autoFetchTotal = cardsToFetch;
+    });
+
     final unsplash = UnsplashService();
     final updatedCards = <Flashcard>[];
     Object? firstError;
     var updatedCount = 0;
 
     for (final card in studySet.cards) {
+      if (_cancelAutoFetch) break;
       if (card.imageUrl.isEmpty && card.term.isNotEmpty) {
         try {
           final url = await unsplash.searchPhoto(card.term);
@@ -256,23 +271,40 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
           firstError ??= e;
           updatedCards.add(card);
         }
+        if (mounted) {
+          setState(() => _autoFetchDone++);
+        }
       } else {
         updatedCards.add(card);
       }
     }
 
-    if (mounted && updatedCount > 0) {
+    if (mounted && updatedCount > 0 && !_cancelAutoFetch) {
       await ref
           .read(studySetsProvider.notifier)
           .update(studySet.copyWith(cards: updatedCards));
     }
 
     if (mounted) {
-      setState(() => _isAutoFetching = false);
-      if (firstError != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.importFailed('$firstError'))),
-        );
+      final wasCancelled = _cancelAutoFetch;
+      setState(() {
+        _isAutoFetching = false;
+        _cancelAutoFetch = false;
+      });
+      if (context.mounted) {
+        if (wasCancelled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.autoImageCancelled)),
+          );
+        } else if (firstError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.importFailed('$firstError'))),
+          );
+        } else if (updatedCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.autoImageDone(updatedCount))),
+          );
+        }
       }
     }
   }
@@ -318,13 +350,31 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
         title: Text(studySet.title),
         actions: [
           if (_isAutoFetching)
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
               child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$_autoFetchDone/$_autoFetchTotal',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _cancelAutoFetch = true),
+                      tooltip: l10n.cancel,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -336,6 +386,8 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                 await service.exportAsJson(studySet);
               } else if (value == 'csv') {
                 await service.exportAsCsv(studySet);
+              } else if (value == 'share') {
+                context.push('/study/${widget.setId}/share');
               } else if (value == 'auto_image') {
                 await _autoFetchImages(
                   context: context,
@@ -359,6 +411,15 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.table_chart),
                   title: Text(l10n.exportAsCsv),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'share',
+                child: ListTile(
+                  leading: const Icon(Icons.qr_code_rounded),
+                  title: Text(l10n.shareSet),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                 ),

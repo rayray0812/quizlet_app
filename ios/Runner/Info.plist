@@ -57,6 +57,16 @@
 				<string>recall</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>supabase-login-callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.supabase.flutter</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>拾憶需要使用相機來拍照建立單字卡</string>
@@ -70,18 +80,5 @@
 	<string>拾憶需要語音辨識來分析你的口說內容</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>拾憶可使用 Face ID 快速解鎖已登入帳號</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>supabase-login-callback</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>io.supabase.flutter</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>

@@ -32,6 +32,11 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
           : null,
       cards: cardsList,
       isSynced: map['isSynced'] as bool? ?? false,
+      folderId: map['folderId'] as String?,
+      isPinned: map['isPinned'] as bool? ?? false,
+      lastStudiedAt: map['lastStudiedAt'] != null
+          ? DateTime.parse(map['lastStudiedAt'] as String).toUtc()
+          : null,
     );
   }
 
@@ -55,6 +60,9 @@ class StudySetAdapter extends TypeAdapter<StudySet> {
               })
           .toList(),
       'isSynced': obj.isSynced,
+      'folderId': obj.folderId,
+      'isPinned': obj.isPinned,
+      'lastStudiedAt': obj.lastStudiedAt?.toUtc().toIso8601String(),
     });
   }
 }

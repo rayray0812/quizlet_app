@@ -8,6 +8,7 @@ import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/features/auth/widgets/app_auth_lifecycle_gate.dart';
 import 'package:recall_app/providers/locale_provider.dart';
 import 'package:recall_app/providers/theme_provider.dart';
+import 'package:recall_app/features/pomodoro/widgets/pomodoro_fab.dart';
 
 class RecallApp extends ConsumerWidget {
   const RecallApp({super.key});
@@ -26,7 +27,14 @@ class RecallApp extends ConsumerWidget {
       routerConfig: router,
       builder: (context, child) {
         if (child == null) return const SizedBox.shrink();
-        return AppAuthLifecycleGate(child: child);
+        return AppAuthLifecycleGate(
+          child: Stack(
+            children: [
+              child,
+              const PomodoroFab(),
+            ],
+          ),
+        );
       },
       debugShowCheckedModeBanner: false,
       locale: locale,

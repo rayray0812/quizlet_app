@@ -8,7 +8,10 @@ import 'package:recall_app/core/widgets/liquid_glass.dart';
 
 /// Banner shown at top of home screen showing total due cards + breakdown.
 class TodayReviewCard extends ConsumerStatefulWidget {
-  const TodayReviewCard({super.key});
+  /// When false, the glow/arrow animation is paused to save resources.
+  final bool animating;
+
+  const TodayReviewCard({super.key, this.animating = true});
 
   @override
   ConsumerState<TodayReviewCard> createState() => _TodayReviewCardState();
@@ -27,7 +30,8 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2100),
-    )..repeat(reverse: true);
+    );
+    if (widget.animating) _glowController.repeat(reverse: true);
     _glow = CurvedAnimation(parent: _glowController, curve: Curves.easeInOut);
     _arrowFloat =
         Tween<Offset>(
@@ -36,6 +40,16 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
         ).animate(
           CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
         );
+  }
+
+  @override
+  void didUpdateWidget(covariant TodayReviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animating && !_glowController.isAnimating) {
+      _glowController.repeat(reverse: true);
+    } else if (!widget.animating && _glowController.isAnimating) {
+      _glowController.stop();
+    }
   }
 
   @override
@@ -56,7 +70,7 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
       animation: _glow,
       builder: (context, child) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
           child: GestureDetector(
             onTapDown: (_) => setState(() => _pressed = true),
             onTapUp: (_) {
@@ -72,7 +86,7 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
                 context,
                 glowValue: _glow.value,
                 child: Padding(
-                  padding: const EdgeInsets.all(22),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
                       // Large due count
@@ -108,19 +122,19 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
                             _BreakdownRow(
                               label: l10n.newCards,
                               count: breakdown.newCount,
-                              color: const Color(0xFF82D9FF),
+                              color: AppTheme.breakdownNew,
                             ),
                             const SizedBox(height: 8),
                             _BreakdownRow(
                               label: l10n.learningCards,
                               count: breakdown.learning,
-                              color: const Color(0xFFFFD580),
+                              color: AppTheme.breakdownLearning,
                             ),
                             const SizedBox(height: 8),
                             _BreakdownRow(
                               label: l10n.reviewCards,
                               count: breakdown.review,
-                              color: const Color(0xFF80FFB0),
+                              color: AppTheme.breakdownReview,
                             ),
                           ],
                         ),

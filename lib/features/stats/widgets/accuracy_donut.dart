@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 
 class AccuracyDonut extends StatelessWidget {
   final ({int again, int hard, int good, int easy}) ratingCounts;
@@ -22,6 +23,7 @@ class AccuracyDonut extends StatelessWidget {
       );
     }
 
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
@@ -79,13 +81,13 @@ class AccuracyDonut extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Legend(color: Colors.red, label: 'Again', count: ratingCounts.again),
+            _Legend(color: Colors.red, label: l10n.ratingAgain, count: ratingCounts.again),
             const SizedBox(height: 6),
-            _Legend(color: Colors.orange, label: 'Hard', count: ratingCounts.hard),
+            _Legend(color: Colors.orange, label: l10n.ratingHard, count: ratingCounts.hard),
             const SizedBox(height: 6),
-            _Legend(color: Colors.green, label: 'Good', count: ratingCounts.good),
+            _Legend(color: Colors.green, label: l10n.ratingGood, count: ratingCounts.good),
             const SizedBox(height: 6),
-            _Legend(color: Colors.blue, label: 'Easy', count: ratingCounts.easy),
+            _Legend(color: Colors.blue, label: l10n.ratingEasy, count: ratingCounts.easy),
           ],
         ),
       ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 
 /// Four rating buttons: Again / Hard / Good / Easy with predicted intervals.
@@ -17,10 +18,11 @@ class RatingButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         _RatingButton(
-          label: 'Again',
+          label: l10n.ratingAgain,
           interval: intervals[1] ?? '',
           color: AppTheme.red,
           enabled: enabled,
@@ -28,7 +30,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
-          label: 'Hard',
+          label: l10n.ratingHard,
           interval: intervals[2] ?? '',
           color: AppTheme.orange,
           enabled: enabled,
@@ -36,7 +38,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
-          label: 'Good',
+          label: l10n.ratingGood,
           interval: intervals[3] ?? '',
           color: AppTheme.green,
           enabled: enabled,
@@ -44,7 +46,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
-          label: 'Easy',
+          label: l10n.ratingEasy,
           interval: intervals[4] ?? '',
           color: AppTheme.indigo,
           enabled: enabled,

@@ -14,6 +14,9 @@ class StudySet with _$StudySet {
     DateTime? updatedAt,
     @Default([]) List<Flashcard> cards,
     @Default(false) bool isSynced,
+    String? folderId,
+    @Default(false) bool isPinned,
+    DateTime? lastStudiedAt,
   }) = _StudySet;
 
   factory StudySet.fromJson(Map<String, dynamic> json) =>

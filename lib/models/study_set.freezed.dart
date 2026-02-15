@@ -28,6 +28,9 @@ mixin _$StudySet {
   DateTime? get updatedAt => throw _privateConstructorUsedError;
   List<Flashcard> get cards => throw _privateConstructorUsedError;
   bool get isSynced => throw _privateConstructorUsedError;
+  String? get folderId => throw _privateConstructorUsedError;
+  bool get isPinned => throw _privateConstructorUsedError;
+  DateTime? get lastStudiedAt => throw _privateConstructorUsedError;
 
   /// Serializes this StudySet to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -52,6 +55,9 @@ abstract class $StudySetCopyWith<$Res> {
     DateTime? updatedAt,
     List<Flashcard> cards,
     bool isSynced,
+    String? folderId,
+    bool isPinned,
+    DateTime? lastStudiedAt,
   });
 }
 
@@ -77,6 +83,9 @@ class _$StudySetCopyWithImpl<$Res, $Val extends StudySet>
     Object? updatedAt = freezed,
     Object? cards = null,
     Object? isSynced = null,
+    Object? folderId = freezed,
+    Object? isPinned = null,
+    Object? lastStudiedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -108,6 +117,18 @@ class _$StudySetCopyWithImpl<$Res, $Val extends StudySet>
                 ? _value.isSynced
                 : isSynced // ignore: cast_nullable_to_non_nullable
                       as bool,
+            folderId: freezed == folderId
+                ? _value.folderId
+                : folderId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isPinned: null == isPinned
+                ? _value.isPinned
+                : isPinned // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            lastStudiedAt: freezed == lastStudiedAt
+                ? _value.lastStudiedAt
+                : lastStudiedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -131,6 +152,9 @@ abstract class _$$StudySetImplCopyWith<$Res>
     DateTime? updatedAt,
     List<Flashcard> cards,
     bool isSynced,
+    String? folderId,
+    bool isPinned,
+    DateTime? lastStudiedAt,
   });
 }
 
@@ -155,6 +179,9 @@ class __$$StudySetImplCopyWithImpl<$Res>
     Object? updatedAt = freezed,
     Object? cards = null,
     Object? isSynced = null,
+    Object? folderId = freezed,
+    Object? isPinned = null,
+    Object? lastStudiedAt = freezed,
   }) {
     return _then(
       _$StudySetImpl(
@@ -186,6 +213,18 @@ class __$$StudySetImplCopyWithImpl<$Res>
             ? _value.isSynced
             : isSynced // ignore: cast_nullable_to_non_nullable
                   as bool,
+        folderId: freezed == folderId
+            ? _value.folderId
+            : folderId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isPinned: null == isPinned
+            ? _value.isPinned
+            : isPinned // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        lastStudiedAt: freezed == lastStudiedAt
+            ? _value.lastStudiedAt
+            : lastStudiedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -202,6 +241,9 @@ class _$StudySetImpl implements _StudySet {
     this.updatedAt,
     final List<Flashcard> cards = const [],
     this.isSynced = false,
+    this.folderId,
+    this.isPinned = false,
+    this.lastStudiedAt,
   }) : _cards = cards;
 
   factory _$StudySetImpl.fromJson(Map<String, dynamic> json) =>
@@ -230,10 +272,17 @@ class _$StudySetImpl implements _StudySet {
   @override
   @JsonKey()
   final bool isSynced;
+  @override
+  final String? folderId;
+  @override
+  @JsonKey()
+  final bool isPinned;
+  @override
+  final DateTime? lastStudiedAt;
 
   @override
   String toString() {
-    return 'StudySet(id: $id, title: $title, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, cards: $cards, isSynced: $isSynced)';
+    return 'StudySet(id: $id, title: $title, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, cards: $cards, isSynced: $isSynced, folderId: $folderId, isPinned: $isPinned, lastStudiedAt: $lastStudiedAt)';
   }
 
   @override
@@ -251,7 +300,13 @@ class _$StudySetImpl implements _StudySet {
                 other.updatedAt == updatedAt) &&
             const DeepCollectionEquality().equals(other._cards, _cards) &&
             (identical(other.isSynced, isSynced) ||
-                other.isSynced == isSynced));
+                other.isSynced == isSynced) &&
+            (identical(other.folderId, folderId) ||
+                other.folderId == folderId) &&
+            (identical(other.isPinned, isPinned) ||
+                other.isPinned == isPinned) &&
+            (identical(other.lastStudiedAt, lastStudiedAt) ||
+                other.lastStudiedAt == lastStudiedAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -265,6 +320,9 @@ class _$StudySetImpl implements _StudySet {
     updatedAt,
     const DeepCollectionEquality().hash(_cards),
     isSynced,
+    folderId,
+    isPinned,
+    lastStudiedAt,
   );
 
   /// Create a copy of StudySet
@@ -290,6 +348,9 @@ abstract class _StudySet implements StudySet {
     final DateTime? updatedAt,
     final List<Flashcard> cards,
     final bool isSynced,
+    final String? folderId,
+    final bool isPinned,
+    final DateTime? lastStudiedAt,
   }) = _$StudySetImpl;
 
   factory _StudySet.fromJson(Map<String, dynamic> json) =
@@ -309,6 +370,12 @@ abstract class _StudySet implements StudySet {
   List<Flashcard> get cards;
   @override
   bool get isSynced;
+  @override
+  String? get folderId;
+  @override
+  bool get isPinned;
+  @override
+  DateTime? get lastStudiedAt;
 
   /// Create a copy of StudySet
   /// with the given fields replaced by the non-null parameter values.

@@ -18,22 +18,10 @@ class AdminService {
   AdminService({required SupabaseService supabaseService})
     : _supabaseService = supabaseService;
 
+  /// Delegates to [SupabaseService.isCurrentUserAdmin] which mirrors
+  /// the SQL `is_global_admin()` check (super_admin / org_admin + global scope).
   Future<bool> hasAdminAccess() async {
-    final user = _supabaseService.currentUser;
-    if (user == null) return false;
-    final client = _supabaseService.clientOrNull;
-    if (client == null) return false;
-
-    try {
-      final data = await client
-          .from(SupabaseConstants.adminRoleBindingsTable)
-          .select('id')
-          .eq('admin_user_id', user.id)
-          .limit(1);
-      return (data as List).isNotEmpty;
-    } catch (_) {
-      return false;
-    }
+    return _supabaseService.isCurrentUserAdmin();
   }
 
   Future<List<AdminAccountSummary>> fetchAccounts({

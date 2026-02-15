@@ -34,7 +34,7 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),
         onTapUp: (_) {
@@ -156,6 +156,15 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
               ],
             ),
           ),
+          if (widget.studySet.isPinned)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(
+                Icons.push_pin_rounded,
+                size: 16,
+                color: AppTheme.indigo.withValues(alpha: 0.6),
+              ),
+            ),
           if (widget.studySet.isSynced)
             Padding(
               padding: const EdgeInsets.only(right: 4),

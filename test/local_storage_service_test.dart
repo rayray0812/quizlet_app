@@ -20,12 +20,14 @@ void main() {
     await Hive.openBox(AppConstants.hiveStudySetsBox);
     await Hive.openBox(AppConstants.hiveCardProgressBox);
     await Hive.openBox(AppConstants.hiveReviewLogsBox);
+    await Hive.openBox(AppConstants.hiveSettingsBox);
   });
 
   tearDownAll(() async {
     await Hive.box(AppConstants.hiveReviewLogsBox).clear();
     await Hive.box(AppConstants.hiveCardProgressBox).clear();
     await Hive.box(AppConstants.hiveStudySetsBox).clear();
+    await Hive.box(AppConstants.hiveSettingsBox).clear();
     await Hive.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
@@ -35,6 +37,7 @@ void main() {
   setUp(() async {
     service = LocalStorageService();
     await Hive.box(AppConstants.hiveReviewLogsBox).clear();
+    await Hive.box(AppConstants.hiveSettingsBox).clear();
   });
 
   test('getReviewLogsForDate includes exact start-of-day boundary', () async {
@@ -109,6 +112,47 @@ void main() {
     expect(ids, contains('from'));
     expect(ids, contains('middle'));
     expect(ids, isNot(contains('to')));
+  });
+
+  test('markStudySetDeleted stores unique tombstone ids', () async {
+    await service.markStudySetDeleted('set_1');
+    await service.markStudySetDeleted('set_1');
+    await service.markStudySetDeleted('set_2');
+
+    final ids = service.getDeletedStudySetIds();
+    expect(ids, ['set_1', 'set_2']);
+  });
+
+  test('deleteReviewLogsForSet removes only target set logs', () async {
+    await service.saveReviewLog(ReviewLog(
+      id: 'a1',
+      cardId: 'c1',
+      setId: 'set_a',
+      rating: 3,
+      state: 0,
+      reviewedAt: DateTime.utc(2026, 2, 15, 8),
+    ));
+    await service.saveReviewLog(ReviewLog(
+      id: 'a2',
+      cardId: 'c2',
+      setId: 'set_a',
+      rating: 4,
+      state: 1,
+      reviewedAt: DateTime.utc(2026, 2, 15, 9),
+    ));
+    await service.saveReviewLog(ReviewLog(
+      id: 'b1',
+      cardId: 'c3',
+      setId: 'set_b',
+      rating: 2,
+      state: 1,
+      reviewedAt: DateTime.utc(2026, 2, 15, 10),
+    ));
+
+    await service.deleteReviewLogsForSet('set_a');
+    final remainingIds = service.getAllReviewLogs().map((e) => e.id).toSet();
+
+    expect(remainingIds, {'b1'});
   });
 }
 

@@ -11,6 +11,11 @@ class AppTheme {
   static const green = Color(0xFF23B26D);
   static const purple = Color(0xFF7B68EE);
 
+  // Breakdown colors (used in TodayReviewCard)
+  static const breakdownNew = Color(0xFF82D9FF);
+  static const breakdownLearning = Color(0xFFFFD580);
+  static const breakdownReview = Color(0xFF80FFB0);
+
   /// Soft card decoration with gentle shadow.
   static BoxDecoration softCardDecoration({
     Color? fillColor,

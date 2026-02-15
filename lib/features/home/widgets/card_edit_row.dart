@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/features/home/widgets/tag_chips.dart';
 
@@ -14,6 +15,8 @@ class CardEditRow extends StatelessWidget {
   final VoidCallback? onAutoImage;
   final void Function(String tag)? onAddTag;
   final void Function(String tag)? onRemoveTag;
+  final bool isSelected;
+  final ValueChanged<bool?>? onSelectionChanged;
 
   const CardEditRow({
     super.key,
@@ -27,10 +30,13 @@ class CardEditRow extends StatelessWidget {
     this.onAutoImage,
     this.onAddTag,
     this.onRemoveTag,
+    this.isSelected = false,
+    this.onSelectionChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AdaptiveGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       fillColor: Theme.of(context).cardColor,
@@ -41,6 +47,12 @@ class CardEditRow extends StatelessWidget {
             // Header row: number + actions
             Row(
               children: [
+                if (onSelectionChanged != null)
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: onSelectionChanged,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 Text(
                   '#${index + 1}',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -56,7 +68,7 @@ class CardEditRow extends StatelessWidget {
                       size: 20,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    tooltip: 'Auto Image',
+                    tooltip: l10n.autoFetchImage,
                     visualDensity: VisualDensity.compact,
                   ),
                 IconButton(
@@ -66,7 +78,7 @@ class CardEditRow extends StatelessWidget {
                     color: Theme.of(context).colorScheme.error,
                   ),
                   onPressed: onDelete,
-                  tooltip: 'Delete card',
+                  tooltip: l10n.deleteCard,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -93,8 +105,8 @@ class CardEditRow extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: TextField(
                 controller: termController,
-                decoration: const InputDecoration(
-                  labelText: 'Term',
+                decoration: InputDecoration(
+                  labelText: l10n.termLabel,
                   border: OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
@@ -107,8 +119,8 @@ class CardEditRow extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: TextField(
                 controller: definitionController,
-                decoration: const InputDecoration(
-                  labelText: 'Definition',
+                decoration: InputDecoration(
+                  labelText: l10n.definitionInput,
                   border: OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
@@ -121,8 +133,8 @@ class CardEditRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: TextField(
                   controller: exampleSentenceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Example sentence',
+                  decoration: InputDecoration(
+                    labelText: l10n.exampleSentenceLabel,
                     border: OutlineInputBorder(),
                   ),
                   textInputAction: TextInputAction.next,

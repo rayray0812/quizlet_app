@@ -10,6 +10,9 @@ class ReviewSummaryScreen extends StatefulWidget {
   final int hardCount;
   final int goodCount;
   final int easyCount;
+  final bool challengeMode;
+  final int? challengeTarget;
+  final bool challengeCompleted;
 
   const ReviewSummaryScreen({
     super.key,
@@ -18,6 +21,9 @@ class ReviewSummaryScreen extends StatefulWidget {
     required this.hardCount,
     required this.goodCount,
     required this.easyCount,
+    this.challengeMode = false,
+    this.challengeTarget,
+    this.challengeCompleted = false,
   });
 
   @override
@@ -69,6 +75,7 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
     final percent = widget.totalReviewed > 0
         ? (correctCount / widget.totalReviewed * 100).round()
         : 0;
+    final challengeTarget = widget.challengeTarget;
     final accentColor = percent >= 80 ? AppTheme.green : AppTheme.indigo;
     final needsMorePractice = widget.againCount + widget.hardCount > 0;
 
@@ -162,25 +169,25 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                             runSpacing: 10,
                             children: [
                               _RatingChip(
-                                label: 'Again',
+                                label: l10n.ratingAgain,
                                 count: widget.againCount,
                                 color: AppTheme.red,
                                 icon: Icons.replay_rounded,
                               ),
                               _RatingChip(
-                                label: 'Hard',
+                                label: l10n.ratingHard,
                                 count: widget.hardCount,
                                 color: AppTheme.orange,
                                 icon: Icons.trending_flat_rounded,
                               ),
                               _RatingChip(
-                                label: 'Good',
+                                label: l10n.ratingGood,
                                 count: widget.goodCount,
                                 color: AppTheme.green,
                                 icon: Icons.check_rounded,
                               ),
                               _RatingChip(
-                                label: 'Easy',
+                                label: l10n.ratingEasy,
                                 count: widget.easyCount,
                                 color: AppTheme.indigo,
                                 icon: Icons.bolt_rounded,
@@ -188,6 +195,32 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                             ],
                           ),
                           const SizedBox(height: 22),
+                          if (widget.challengeMode && challengeTarget != null) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: (widget.challengeCompleted
+                                        ? AppTheme.green
+                                        : AppTheme.orange)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                widget.challengeCompleted
+                                    ? l10n.challengeCompleteDetail(challengeTarget)
+                                    : l10n.challengeProgressDetail(widget.totalReviewed, challengeTarget),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: widget.challengeCompleted
+                                      ? AppTheme.green
+                                      : AppTheme.orange,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
                           if (needsMorePractice) ...[
                             SizedBox(
                               width: double.infinity,
