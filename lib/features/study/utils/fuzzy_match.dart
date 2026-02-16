@@ -4,8 +4,8 @@
 /// - Strings of length <= 3 require an exact match (case-insensitive).
 /// - Longer strings allow up to 20 % edit distance (minimum 1).
 bool isFuzzyMatch(String input, String expected) {
-  final a = input.trim().toLowerCase();
-  final b = expected.trim().toLowerCase();
+  final a = _normalizeForFuzzy(input);
+  final b = _normalizeForFuzzy(expected);
 
   if (a == b) return true;
   if (a.isEmpty || b.isEmpty) return false;
@@ -15,6 +15,12 @@ bool isFuzzyMatch(String input, String expected) {
 
   final maxDist = (b.length * 0.2).ceil().clamp(1, b.length);
   return _levenshtein(a, b) <= maxDist;
+}
+
+String _normalizeForFuzzy(String value) {
+  final normalized = value.trim().toLowerCase();
+  // Common transliteration variant in English words (e.g. photo -> foto).
+  return normalized.replaceAll('ph', 'f');
 }
 
 int _levenshtein(String s, String t) {

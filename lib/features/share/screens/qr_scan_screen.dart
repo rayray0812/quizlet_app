@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/share/utils/share_codec.dart';
 
 class QrScanScreen extends StatefulWidget {
@@ -61,7 +62,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.scanQr)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: Text(l10n.scanQr),
+      ),
       body: Stack(
         children: [
           MobileScanner(

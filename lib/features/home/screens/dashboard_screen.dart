@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -36,14 +36,14 @@ import 'package:recall_app/providers/auth_analytics_provider.dart';
 import 'package:recall_app/providers/admin_provider.dart';
 import 'package:recall_app/models/sync_conflict.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen>
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
@@ -133,7 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                     Text(
-                      '${now.month}/${now.day} �P ${l10n.todayReview}',
+                      '${now.month}/${now.day} · ${l10n.todayReview}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.outline,
                             fontWeight: FontWeight.w600,
@@ -1751,4 +1751,5 @@ class _StaggeredFadeItemState extends State<_StaggeredFadeItem>
     );
   }
 }
+
 

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
 import 'package:recall_app/features/auth/widgets/auth_form.dart';
 import 'package:recall_app/features/auth/widgets/social_auth_buttons.dart';
 import 'package:recall_app/providers/auth_analytics_provider.dart';
@@ -49,8 +53,8 @@ class LoginScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               Text(
                 AppConstants.appName,
-                style: TextStyle(
-                  fontSize: 30,
+                style: GoogleFonts.notoSerifTc(
+                  fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.indigo,
                 ),
@@ -59,9 +63,12 @@ class LoginScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 'Welcome Back',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                style: GoogleFonts.notoSansTc(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 36),
@@ -72,7 +79,9 @@ class LoginScreen extends ConsumerWidget {
                   final supabase = ref.read(supabaseServiceProvider);
                   final analytics = ref.read(authAnalyticsServiceProvider);
                   try {
-                    await supabase.signIn(email: email, password: password);
+                    await supabase
+                        .signIn(email: email, password: password)
+                        .timeout(const Duration(seconds: 15));
                     await analytics.logAuthEvent(
                       action: 'sign_in',
                       provider: 'email',
@@ -86,7 +95,30 @@ class LoginScreen extends ConsumerWidget {
                       result: 'failure',
                       note: e.toString(),
                     );
-                    rethrow;
+                    final lower = e.toString().toLowerCase();
+                    if (lower.contains('email not confirmed') &&
+                        context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            'Email not confirmed yet. Check your inbox first.',
+                          ),
+                          action: SnackBarAction(
+                            label: 'Resend',
+                            onPressed: () {
+                              supabase.resendSignupConfirmation(email);
+                            },
+                          ),
+                        ),
+                      );
+                    }
+                    final msg = mapAuthErrorMessage(e.toString());
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                    }
+                    throw Exception(msg);
                   }
                 },
                 secondaryActionText: 'Send Magic Link',
@@ -94,7 +126,9 @@ class LoginScreen extends ConsumerWidget {
                   final supabase = ref.read(supabaseServiceProvider);
                   final analytics = ref.read(authAnalyticsServiceProvider);
                   try {
-                    await supabase.signInWithMagicLink(email);
+                    await supabase
+                        .signInWithMagicLink(email)
+                        .timeout(const Duration(seconds: 15));
                     await analytics.logAuthEvent(
                       action: 'magic_link',
                       provider: 'email',
@@ -107,7 +141,13 @@ class LoginScreen extends ConsumerWidget {
                       result: 'failure',
                       note: e.toString(),
                     );
-                    rethrow;
+                    final msg = mapAuthErrorMessage(e.toString());
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                    }
+                    throw Exception(msg);
                   }
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(

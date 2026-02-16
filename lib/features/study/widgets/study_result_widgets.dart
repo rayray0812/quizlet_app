@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:flutter/material.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class StudyResultHeader extends StatelessWidget {
   final Color accentColor;
@@ -161,10 +161,13 @@ class StudyResultCard extends StatelessWidget {
       width: double.infinity,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
-        child: AdaptiveGlassCard(
-          borderRadius: 24,
-          fillColor: Theme.of(context).cardColor,
-          elevation: 1.6,
+        child: Container(
+          decoration: AppTheme.softCardDecoration(
+            fillColor: Theme.of(context).cardColor,
+            borderRadius: 12,
+            borderColor: Theme.of(context).colorScheme.outlineVariant,
+            elevation: 1.2,
+          ),
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
           child: child,
         ),
@@ -172,3 +175,4 @@ class StudyResultCard extends StatelessWidget {
     );
   }
 }
+

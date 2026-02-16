@@ -1,5 +1,62 @@
 # Development Log
 
+## 2026-02-15
+
+### UI Refactor (Stitch-style, layout-level)
+- Reworked core home information architecture to be closer to stitch composition:
+  - hero review block
+  - quick-action grid
+  - task cards
+  - study set section
+- Refactored major screens beyond color/theme-only changes:
+  - `lib/features/home/screens/home_screen.dart`
+  - `lib/features/home/screens/search_screen.dart`
+  - `lib/features/stats/screens/stats_screen.dart`
+  - `lib/features/study/screens/srs_review_screen.dart`
+- Refactored key widgets for hierarchy/interaction parity:
+  - `lib/features/home/widgets/today_review_card.dart`
+  - `lib/features/home/widgets/study_set_card.dart`
+  - `lib/features/home/widgets/revenge_card.dart`
+  - `lib/features/study/widgets/rating_buttons.dart`
+- Validation status:
+  - `flutter analyze` passed (full project)
+  - `flutter build web` passed
+
+### Supabase Setup & Auth Progress
+- Added local runtime define workflow (non-committed secrets):
+  - `dart_defines.local.json` (gitignored)
+  - `dart_defines.example.json`
+  - `tool/run_web_local.ps1`
+- Updated `.gitignore` to exclude local define file.
+- Verified Supabase project endpoint is reachable and auth settings are active:
+  - `disable_signup = false`
+  - `email provider = true`
+  - `mailer_autoconfirm = false` (email verification required)
+- Added auth UX fallback for verification-required scenarios:
+  - resend signup confirmation API in `SupabaseService`
+  - `Resend` actions in signup/login flow snackbars
+  - files:
+    - `lib/services/supabase_service.dart`
+    - `lib/features/auth/screens/signup_screen.dart`
+    - `lib/features/auth/screens/login_screen.dart`
+
+### Current Blocker
+- User-reported runtime error: "Supabase 沒有定義" when trying to login.
+- Most likely cause: app started without `--dart-define-from-file=dart_defines.local.json` (or wrong launch command).
+- Secondary expected behavior: unverified new accounts cannot password-login until email confirmation (because `mailer_autoconfirm = false`).
+
+### Next Session First Actions
+- Reproduce login path using exact command:
+  - `powershell -ExecutionPolicy Bypass -File tool\\run_web_local.ps1`
+- Confirm startup log does NOT print:
+  - `Supabase not configured. Pass SUPABASE_URL and SUPABASE_ANON_KEY with --dart-define.`
+- If issue persists, capture and inspect:
+  - browser console/network for auth calls
+  - exact exception stack from app login submit handler
+- Decide auth policy:
+  - keep email verification flow
+  - or enable autoconfirm in Supabase dashboard for immediate login after signup
+
 ## 2026-02-13
 
 ### Auth & Security

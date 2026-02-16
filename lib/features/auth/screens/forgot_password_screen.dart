@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forgot Password')),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const Text('Forgot Password'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

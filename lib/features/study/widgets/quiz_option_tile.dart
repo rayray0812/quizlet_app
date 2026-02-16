@@ -42,7 +42,7 @@ class _QuizOptionTileState extends State<QuizOptionTile> {
         trailing = const Icon(Icons.cancel_rounded, color: AppTheme.red);
       case QuizOptionState.normal:
         bgColor = Theme.of(context).cardColor;
-        borderColor = Colors.grey.shade200;
+        borderColor = Theme.of(context).colorScheme.outlineVariant;
         textColor = Theme.of(context).colorScheme.onSurface;
         trailing = null;
     }
@@ -51,8 +51,8 @@ class _QuizOptionTileState extends State<QuizOptionTile> {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: GestureDetector(
         onTapDown: widget.onTap != null ? (_) => setState(() => _pressed = true) : null,
-        onTapUp: widget.onTap != null
-            ? (_) {
+        onTap: widget.onTap != null
+            ? () {
                 setState(() => _pressed = false);
                 widget.onTap!();
               }
@@ -74,9 +74,9 @@ class _QuizOptionTileState extends State<QuizOptionTile> {
               boxShadow: widget.state == QuizOptionState.normal
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
                     ]
                   : [],

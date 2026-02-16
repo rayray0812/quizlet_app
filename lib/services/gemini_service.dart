@@ -7,7 +7,13 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 enum PhotoScanMode { vocabularyList, textbookPage }
 
 /// Specific failure reasons for UI to display.
-enum ScanFailureReason { timeout, quotaExceeded, parseError, networkError, unknown }
+enum ScanFailureReason {
+  timeout,
+  quotaExceeded,
+  parseError,
+  networkError,
+  unknown,
+}
 
 class ScanException implements Exception {
   final ScanFailureReason reason;
@@ -20,7 +26,12 @@ class ScanException implements Exception {
 }
 
 class GeminiService {
-  static const _models = ['gemini-2.0-flash', 'gemini-3-flash-preview'];
+  static const _models = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+  ];
   static const _timeout = Duration(seconds: 30);
   static const maxCards = 50;
 
@@ -36,6 +47,10 @@ class GeminiService {
       'Create concise term (question/concept) and definition (answer/explanation). '
       'Keep original language. Focus on testable knowledge points. '
       'Also provide an example sentence in the same language when possible; otherwise use empty string.';
+
+  static const _jsonOnlySuffix =
+      'Return ONLY valid JSON array. Do not use markdown fences. '
+      'Each item must be: {"term":"...","definition":"...","exampleSentence":"..."}';
 
   static final _responseSchema = Schema.array(
     items: Schema.object(
@@ -75,18 +90,12 @@ class GeminiService {
 
     for (final modelName in _models) {
       try {
-        final model = GenerativeModel(
-          model: modelName,
+        final response = await _generateWithFallback(
           apiKey: apiKey,
-          generationConfig: GenerationConfig(
-            temperature: 0,
-            maxOutputTokens: 4096,
-            responseMimeType: 'application/json',
-            responseSchema: _responseSchema,
-          ),
-        );
-        final response =
-            await model.generateContent([content]).timeout(_timeout);
+          modelName: modelName,
+          content: content,
+          prompt: prompt,
+        ).timeout(_timeout);
         final text = response.text;
         if (text == null || text.trim().isEmpty) return [];
 
@@ -96,8 +105,10 @@ class GeminiService {
         }
         return results;
       } on TimeoutException {
-        lastError =
-            ScanException(ScanFailureReason.timeout, 'Request timed out');
+        lastError = ScanException(
+          ScanFailureReason.timeout,
+          'Request timed out',
+        );
       } on GenerativeAIException catch (e) {
         final msg = e.toString().toLowerCase();
         if (msg.contains('quota') ||
@@ -107,23 +118,63 @@ class GeminiService {
             msg.contains('resource has been exhausted') ||
             msg.contains('resource_exhausted')) {
           // Quota/rate error — try next model
-          lastError =
-              ScanException(ScanFailureReason.quotaExceeded, e.toString());
+          lastError = ScanException(
+            ScanFailureReason.quotaExceeded,
+            e.toString(),
+          );
           continue;
         }
         lastError = ScanException(ScanFailureReason.unknown, e.toString());
       } on FormatException catch (e) {
-        lastError =
-            ScanException(ScanFailureReason.parseError, e.toString());
+        lastError = ScanException(ScanFailureReason.parseError, e.toString());
       } catch (e) {
-        if (e is ScanException) rethrow;
-        lastError =
-            ScanException(ScanFailureReason.networkError, e.toString());
+        if (e is ScanException) throw e;
+        lastError = ScanException(ScanFailureReason.networkError, e.toString());
       }
     }
 
     throw lastError ??
         ScanException(ScanFailureReason.unknown, 'All models failed');
+  }
+
+  static Future<GenerateContentResponse> _generateWithFallback({
+    required String apiKey,
+    required String modelName,
+    required Content content,
+    required String prompt,
+  }) async {
+    try {
+      final structuredModel = GenerativeModel(
+        model: modelName,
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(
+          temperature: 0,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+          responseSchema: _responseSchema,
+        ),
+      );
+      return await structuredModel.generateContent([content]);
+    } on GenerativeAIException catch (e) {
+      final msg = e.toString().toLowerCase();
+      final likelySchemaIssue =
+          msg.contains('response_schema') ||
+          msg.contains('responsemime') ||
+          msg.contains('invalid argument') ||
+          msg.contains('unsupported');
+      if (!likelySchemaIssue) throw e;
+    }
+
+    final jsonOnlyModel = GenerativeModel(
+      model: modelName,
+      apiKey: apiKey,
+      generationConfig: GenerationConfig(temperature: 0, maxOutputTokens: 4096),
+    );
+    final jsonOnlyContent = Content.multi([
+      TextPart('$prompt $_jsonOnlySuffix'),
+      content.parts.whereType<DataPart>().first,
+    ]);
+    return jsonOnlyModel.generateContent([jsonOnlyContent]);
   }
 
   /// Parses Gemini response text into flashcard maps.

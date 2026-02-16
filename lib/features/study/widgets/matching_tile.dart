@@ -43,7 +43,7 @@ class _MatchingTileState extends State<MatchingTile> {
         opacity = 1.0;
       case MatchingTileState.normal:
         bgColor = Theme.of(context).cardColor;
-        borderColor = Colors.grey.shade200;
+        borderColor = Theme.of(context).colorScheme.outlineVariant;
         opacity = 1.0;
     }
 
@@ -51,8 +51,8 @@ class _MatchingTileState extends State<MatchingTile> {
 
     return GestureDetector(
       onTapDown: canTap ? (_) => setState(() => _pressed = true) : null,
-      onTapUp: canTap
-          ? (_) {
+      onTap: canTap
+          ? () {
               setState(() => _pressed = false);
               widget.onTap!();
             }
@@ -76,9 +76,9 @@ class _MatchingTileState extends State<MatchingTile> {
               boxShadow: widget.state == MatchingTileState.normal
                   ? [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
                     ]
                   : [],

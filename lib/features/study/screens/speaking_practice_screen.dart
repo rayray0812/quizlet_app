@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/services/speaking_auto_score_service.dart';
+import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
 import 'package:recall_app/providers/stats_provider.dart';
@@ -527,6 +530,15 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     setState(() => _index++);
   }
 
+  void _goHomeSmooth() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+    context.go('/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -537,7 +549,17 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
 
     if (studySet == null || studySet.cards.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.speakingPractice)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.speakingPractice),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home_rounded),
+              onPressed: _goHomeSmooth,
+              tooltip: l10n.home,
+            ),
+          ],
+        ),
         body: Center(child: Text(l10n.noCardsAvailable)),
       );
     }
@@ -551,7 +573,17 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
           ? 0.0
           : values.reduce((a, b) => a + b) / values.length;
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.speakingPractice)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.speakingPractice),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home_rounded),
+              onPressed: _goHomeSmooth,
+              tooltip: l10n.home,
+            ),
+          ],
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -608,153 +640,186 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${_index + 1} / ${cards.length}'),
+        leading: const AppBackButton(),
+        title: Text(l10n.speakingPractice),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Center(
+              child: Text(
+                '${_index + 1} / ${cards.length}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.green,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.home_rounded),
+            onPressed: _goHomeSmooth,
+            tooltip: l10n.home,
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 7,
-              borderRadius: BorderRadius.circular(6),
-            ),
+            RoundedProgressBar(value: progress),
             const SizedBox(height: 22),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    current.term,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (hasSentence) ...[
-                    Text(
-                      l10n.exampleLabel,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer
-                            .withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w700,
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: AppTheme.softCardDecoration(
+                        fillColor: Colors.white,
+                        borderRadius: 16,
+                        borderColor: AppTheme.indigo.withValues(alpha: 0.24),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            current.term,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          if (hasSentence) ...[
+                            Text(
+                              l10n.exampleLabel,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.labelMedium?.copyWith(
+                                color: AppTheme.indigo.withValues(alpha: 0.8),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (!hasExample && isAutoGenerated) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                l10n.autoGeneratedLabel,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Text(
+                              sentence,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ] else
+                            Text(
+                              l10n.noExampleSentence,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context).colorScheme.outline,
+                                  ),
+                            ),
+                        ],
                       ),
                     ),
-                    if (!hasExample && isAutoGenerated) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.autoGeneratedLabel,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.72),
-                          fontWeight: FontWeight.w600,
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _speak(current.term, userInitiated: true),
+                          icon: const Icon(Icons.volume_up_rounded),
+                          label: Text(l10n.speakWord),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: hasSentence
+                              ? () => _speak(
+                                    sentence,
+                                    userInitiated: true,
+                                  )
+                              : null,
+                          icon: const Icon(Icons.record_voice_over_rounded),
+                          label: Text(l10n.speakSentence),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _playSequence(current),
+                          icon: const Icon(Icons.replay_rounded),
+                          label: Text(l10n.replaySequence),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        l10n.rateSpeaking,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isListening
+                                ? () => _finishAutoScore(current, cards)
+                                : () => _startAutoScore(current, cards),
+                            icon: Icon(
+                              _isListening
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_rounded,
+                            ),
+                            label: Text(
+                              _isListening
+                                  ? l10n.stopListening
+                                  : l10n.autoScore,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_lastAutoScore != null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          l10n.useScore(_lastAutoScore!),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 6),
-                    Text(
-                      sentence,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ] else
-                    Text(
-                      l10n.noExampleSentence,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer
-                            .withValues(alpha: 0.72),
+                    if (_recognizedText.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: AppTheme.softCardDecoration(
+                          fillColor: Colors.white,
+                          borderRadius: 12,
+                          borderColor: AppTheme.cyan.withValues(alpha: 0.34),
+                        ),
+                        child: Text(
+                          l10n.recognizedSpeech(_recognizedText),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _speak(current.term, userInitiated: true),
-                  icon: const Icon(Icons.volume_up_rounded),
-                  label: Text(l10n.speakWord),
-                ),
-                OutlinedButton.icon(
-                  onPressed: hasSentence
-                      ? () => _speak(
-                            sentence,
-                            userInitiated: true,
-                          )
-                      : null,
-                  icon: const Icon(Icons.record_voice_over_rounded),
-                  label: Text(l10n.speakSentence),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _playSequence(current),
-                  icon: const Icon(Icons.replay_rounded),
-                  label: Text(l10n.replaySequence),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.rateSpeaking,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                    ],
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isListening
-                        ? () => _finishAutoScore(current, cards)
-                        : () => _startAutoScore(current, cards),
-                    icon: Icon(
-                      _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                    ),
-                    label: Text(
-                      _isListening ? l10n.stopListening : l10n.autoScore,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_lastAutoScore != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  l10n.useScore(_lastAutoScore!),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-            if (_recognizedText.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  l10n.recognizedSpeech(_recognizedText),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ],
           ],
         ),
       ),

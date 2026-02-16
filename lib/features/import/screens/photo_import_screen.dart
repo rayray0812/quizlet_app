@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
@@ -23,7 +25,8 @@ class PhotoImportScreen extends ConsumerStatefulWidget {
 
 enum _Stage { pickImage, pickMode, analyzing }
 
-class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
+class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
+    with SingleTickerProviderStateMixin {
   final _picker = ImagePicker();
   Uint8List? _imageBytes;
   String _mimeType = 'image/jpeg';
@@ -32,6 +35,22 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
 
   final List<Flashcard> _accumulatedCards = [];
   int _photoCount = 0;
+  late final AnimationController _scanLineController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _scanLineController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
@@ -156,6 +175,22 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     });
   }
 
+  void _goBack() {
+    if (_stage == _Stage.analyzing) {
+      _cancelAnalysis();
+      return;
+    }
+    if (_stage == _Stage.pickMode) {
+      _reset();
+      return;
+    }
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   void _reviewAndSave() {
     final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
@@ -173,12 +208,84 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
     context.push('/import/review', extra: studySet);
   }
 
+  Future<void> _showScanModeBottomSheet(AppLocalizations l10n) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      builder: (sheetContext) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(DS.r24),
+                  boxShadow: DS.cardShadow,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: DS.text2.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      child: _ModeCard(
+                        icon: Icons.list_alt_rounded,
+                        iconColor: DS.primary,
+                        title: l10n.vocabularyList,
+                        description: l10n.vocabularyListDesc,
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _analyze(PhotoScanMode.vocabularyList);
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                      child: _ModeCard(
+                        icon: Icons.menu_book_rounded,
+                        iconColor: AppTheme.purple,
+                        title: l10n.textbookPage,
+                        description: l10n.textbookPageDesc,
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _analyze(PhotoScanMode.textbookPage);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: _goBack,
+        ),
         title: Text(
           l10n.photoToFlashcard,
           style: TextStyle(
@@ -339,25 +446,20 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
             label: Text(l10n.retryOrChooseAnother),
           ),
           const SizedBox(height: 16),
-          Text(
-            l10n.chooseMode,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 16),
-          _ModeCard(
-            icon: Icons.list_alt_rounded,
-            iconColor: AppTheme.indigo,
-            title: l10n.vocabularyList,
-            description: l10n.vocabularyListDesc,
-            onTap: () => _analyze(PhotoScanMode.vocabularyList),
-          ),
-          const SizedBox(height: 12),
-          _ModeCard(
-            icon: Icons.menu_book_rounded,
-            iconColor: AppTheme.purple,
-            title: l10n.textbookPage,
-            description: l10n.textbookPageDesc,
-            onTap: () => _analyze(PhotoScanMode.textbookPage),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _showScanModeBottomSheet(l10n),
+              icon: const Icon(Icons.tune_rounded),
+              label: Text(l10n.chooseMode),
+              style: FilledButton.styleFrom(
+                backgroundColor: DS.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(DS.r16),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -370,10 +472,47 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
-            width: 56,
-            height: 56,
-            child: CircularProgressIndicator(strokeWidth: 3),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 220,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: DS.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(DS.r16),
+                  border: Border.all(color: DS.primary.withValues(alpha: 0.24)),
+                ),
+              ),
+              AnimatedBuilder(
+                animation: _scanLineController,
+                builder: (context, child) {
+                  return Positioned(
+                    top: 20 + (_scanLineController.value * 92),
+                    child: Container(
+                      width: 200,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            DS.primary.withValues(alpha: 0.16),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(
+                width: 56,
+                height: 56,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
@@ -22,6 +23,7 @@ class RatingButtons extends StatelessWidget {
     return Row(
       children: [
         _RatingButton(
+          icon: Icons.replay_rounded,
           label: l10n.ratingAgain,
           interval: intervals[1] ?? '',
           color: AppTheme.red,
@@ -30,6 +32,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
+          icon: Icons.sentiment_dissatisfied_rounded,
           label: l10n.ratingHard,
           interval: intervals[2] ?? '',
           color: AppTheme.orange,
@@ -38,6 +41,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
+          icon: Icons.sentiment_satisfied_rounded,
           label: l10n.ratingGood,
           interval: intervals[3] ?? '',
           color: AppTheme.green,
@@ -46,6 +50,7 @@ class RatingButtons extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _RatingButton(
+          icon: Icons.sentiment_very_satisfied_rounded,
           label: l10n.ratingEasy,
           interval: intervals[4] ?? '',
           color: AppTheme.indigo,
@@ -58,6 +63,7 @@ class RatingButtons extends StatelessWidget {
 }
 
 class _RatingButton extends StatefulWidget {
+  final IconData icon;
   final String label;
   final String interval;
   final Color color;
@@ -65,6 +71,7 @@ class _RatingButton extends StatefulWidget {
   final bool enabled;
 
   const _RatingButton({
+    required this.icon,
     required this.label,
     required this.interval,
     required this.color,
@@ -76,8 +83,47 @@ class _RatingButton extends StatefulWidget {
   State<_RatingButton> createState() => _RatingButtonState();
 }
 
-class _RatingButtonState extends State<_RatingButton> {
-  bool _pressed = false;
+class _RatingButtonState extends State<_RatingButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _springController;
+
+  @override
+  void initState() {
+    super.initState();
+    _springController = AnimationController.unbounded(
+      vsync: this,
+      value: 1,
+    );
+  }
+
+  @override
+  void dispose() {
+    _springController.dispose();
+    super.dispose();
+  }
+
+  void _runSpringDown() {
+    _springController.value = 1;
+    _springController.animateWith(
+      SpringSimulation(
+        const SpringDescription(mass: 1, stiffness: 180, damping: 12),
+        1,
+        0.93,
+        0,
+      ),
+    );
+  }
+
+  void _runSpringUp() {
+    _springController.animateWith(
+      SpringSimulation(
+        const SpringDescription(mass: 1, stiffness: 180, damping: 12),
+        _springController.value,
+        1,
+        0,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,51 +132,66 @@ class _RatingButtonState extends State<_RatingButton> {
         onTapDown: widget.enabled
             ? (_) {
                 HapticFeedback.selectionClick();
-                setState(() => _pressed = true);
+                _runSpringDown();
               }
             : null,
-        onTapUp: widget.enabled
-            ? (_) {
+        onTap: widget.enabled
+            ? () {
                 HapticFeedback.lightImpact();
-                setState(() => _pressed = false);
+                _runSpringUp();
                 widget.onTap();
               }
             : null,
         onTapCancel: widget.enabled
-            ? () => setState(() => _pressed = false)
+            ? _runSpringUp
             : null,
-        child: AnimatedScale(
-          scale: _pressed ? 0.93 : 1.0,
-          duration: const Duration(milliseconds: 100),
+        child: ScaleTransition(
+          scale: _springController,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 120),
             opacity: widget.enabled ? 1 : 0.45,
             child: Container(
-              decoration: BoxDecoration(
-                color: widget.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: widget.color.withValues(alpha: 0.3)),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 2),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.interval,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: widget.color,
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: widget.color.withValues(alpha: 0.11),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: widget.color.withValues(alpha: 0.34),
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(widget.icon, color: widget.color, size: 27),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 8),
                   Text(
                     widget.label,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
                       color: widget.color,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.interval,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: widget.color.withValues(alpha: 0.84),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

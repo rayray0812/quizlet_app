@@ -15,6 +15,7 @@ import 'package:recall_app/features/study/widgets/count_picker_dialog.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class StudyModePickerScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -33,6 +34,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   int _autoFetchTotal = 0;
   final Random _random = Random();
   late final FlutterTts _tts;
+  bool _ttsInitialized = false;
   bool _isTtsReady = false;
   Set<String>? _supportedLanguages;
   List<Map<String, String>>? _availableVoices;
@@ -51,7 +53,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
 
   @override
   void dispose() {
-    if (_isTtsReady) {
+    if (_ttsInitialized) {
       _isSpeaking = false;
       _tts.stop();
     }
@@ -59,7 +61,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   }
 
   Future<void> _initTts() async {
-    _tts = FlutterTts();
+    if (!_ttsInitialized) {
+      _tts = FlutterTts();
+      _ttsInitialized = true;
+    }
     try {
       await _tts.awaitSpeakCompletion(true);
       await _tts.setSpeechRate(0.48);
@@ -337,7 +342,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
 
     if (studySet == null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(leading: const AppBackButton()),
         body: Center(child: Text(l10n.studySetNotFound)),
       );
     }
@@ -347,6 +352,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text(studySet.title),
         actions: [
           if (_isAutoFetching)
@@ -792,9 +798,9 @@ class _StudyModeCardState extends State<_StudyModeCard> {
 
     return GestureDetector(
       onTapDown: isDisabled ? null : (_) => setState(() => _pressed = true),
-      onTapUp: isDisabled
+      onTap: isDisabled
           ? null
-          : (_) {
+          : () {
               setState(() => _pressed = false);
               widget.onTap?.call();
             },

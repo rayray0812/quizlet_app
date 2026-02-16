@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/providers/revenge_provider.dart';
 
 class RevengeCard extends ConsumerStatefulWidget {
@@ -26,45 +28,38 @@ class _RevengeCardState extends ConsumerState<RevengeCard> {
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) {
+        onTap: () {
           setState(() => _pressed = false);
-          context.push(
-            '/review',
-            extra: {'revengeCardIds': cardIds},
-          );
+          context.push('/revenge');
         },
         onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedScale(
-          scale: _pressed ? 0.97 : 1.0,
+          scale: _pressed ? 0.98 : 1.0,
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                colors: [
-                  Colors.deepPurple.withValues(alpha: 0.88),
-                  Colors.indigo.withValues(alpha: 0.82),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.deepPurple.withValues(alpha: _pressed ? 0.09 : 0.18),
-                  blurRadius: _pressed ? 6 : 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+            decoration: AppTheme.softCardDecoration(
+              fillColor: Colors.white,
+              borderRadius: 14,
+              borderColor: AppTheme.purple.withValues(alpha: 0.25),
+              elevation: _pressed ? 0.8 : 1.1,
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.replay_rounded,
-                    color: Colors.white,
-                    size: 28,
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.purple.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.replay_rounded,
+                      color: AppTheme.purple,
+                      size: 23,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -73,36 +68,34 @@ class _RevengeCardState extends ConsumerState<RevengeCard> {
                       children: [
                         Text(
                           l10n.revengeMode,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                          style: GoogleFonts.notoSerifTc(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
                           l10n.revengeCount(count),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 12,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
                         ),
                       ],
                     ),
                   ),
-                  FilledButton.icon(
+                  FilledButton(
                     onPressed: () {
-                      context.push(
-                        '/review',
-                        extra: {'revengeCardIds': cardIds},
-                      );
+                      context.push('/review', extra: {'revengeCardIds': cardIds});
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.deepPurple,
+                      backgroundColor: AppTheme.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                     ),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(l10n.play),
+                    child: Text(l10n.play),
                   ),
                 ],
               ),

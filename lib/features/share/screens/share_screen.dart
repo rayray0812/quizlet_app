@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/features/share/utils/share_codec.dart';
 
@@ -22,7 +23,7 @@ class ShareScreen extends ConsumerWidget {
 
     if (studySet == null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(leading: const AppBackButton()),
         body: Center(child: Text(l10n.studySetNotFound)),
       );
     }
@@ -32,7 +33,10 @@ class ShareScreen extends ConsumerWidget {
     final qrData = deepLink.length <= 2953 ? deepLink : encoded;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.shareSet)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: Text(l10n.shareSet),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

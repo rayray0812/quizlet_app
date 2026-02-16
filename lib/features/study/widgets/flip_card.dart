@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 
 class FlipCardWidget extends StatefulWidget {
@@ -39,7 +40,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _animation = Tween<double>(
@@ -316,22 +317,19 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
       width: double.infinity,
       height: cardHeight,
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: bgColor.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(DS.r24),
+        border: Border.all(
+          color: DS.primary.withValues(alpha: 0.2),
+        ),
+        boxShadow: DS.cardShadow,
       ),
       child: Column(
         children: [
           if (hasImage)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
+                top: Radius.circular(DS.r24),
               ),
               child: CachedNetworkImage(
                 imageUrl: widget.imageUrl,

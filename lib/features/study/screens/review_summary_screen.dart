@@ -13,6 +13,8 @@ class ReviewSummaryScreen extends StatefulWidget {
   final bool challengeMode;
   final int? challengeTarget;
   final bool challengeCompleted;
+  final bool isRevengeMode;
+  final int revengeCardCount;
 
   const ReviewSummaryScreen({
     super.key,
@@ -24,6 +26,8 @@ class ReviewSummaryScreen extends StatefulWidget {
     this.challengeMode = false,
     this.challengeTarget,
     this.challengeCompleted = false,
+    this.isRevengeMode = false,
+    this.revengeCardCount = 0,
   });
 
   @override
@@ -217,6 +221,33 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                                       : AppTheme.orange,
                                   fontWeight: FontWeight.w700,
                                 ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (widget.isRevengeMode && widget.revengeCardCount > 0) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.purple.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.verified_rounded, color: AppTheme.purple, size: 20),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      l10n.revengeClearedCount(widget.revengeCardCount),
+                                      style: const TextStyle(
+                                        color: AppTheme.purple,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 14),

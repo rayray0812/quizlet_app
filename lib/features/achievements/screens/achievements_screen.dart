@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/providers/badge_provider.dart';
 import 'package:recall_app/features/achievements/widgets/badge_card.dart';
 
@@ -16,7 +17,10 @@ class AchievementsScreen extends ConsumerWidget {
     final unlockedCount = badges.where((b) => b.isUnlocked).length;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.achievements)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: Text(l10n.achievements),
+      ),
       body: Column(
         children: [
           Padding(

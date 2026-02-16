@@ -9,6 +9,7 @@ import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class MatchingGameScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -188,7 +189,10 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
 
     if (studySet == null || studySet.cards.length < 2) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.matchingGame)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.matchingGame),
+        ),
         body: Center(child: Text(l10n.needAtLeast2Cards)),
       );
     }
@@ -199,8 +203,21 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.matched(_matchedCardIds.length, _gameCards.length)),
+        leading: const AppBackButton(),
+        title: Text(l10n.matchingGame),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Center(
+              child: Text(
+                l10n.matched(_matchedCardIds.length, _gameCards.length),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.green,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => setState(() => _initGame()),
@@ -216,9 +233,36 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen> {
       body: Column(
         children: [
           RoundedProgressBar(value: progress),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: AppTheme.softCardDecoration(
+                fillColor: Colors.white,
+                borderRadius: 12,
+                borderColor: AppTheme.indigo.withValues(alpha: 0.22),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.touch_app_rounded, size: 18, color: AppTheme.indigo),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${l10n.attemptsLabel}: $_attempts',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.indigo,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final crossCount = _gameCards.length <= 3 ? 2 : 3;

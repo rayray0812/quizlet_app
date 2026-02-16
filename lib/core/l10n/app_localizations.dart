@@ -242,6 +242,19 @@ class AppLocalizations {
   // -- Revenge Mode --
   String get revengeMode => '';
   String revengeCount(int count) => '';
+  String revengeClearedCount(int count) => '';
+  String get revengeDetail => '';
+  String get revengeLookbackDays => '';
+  String revengeDaysOption(int days) => '';
+  String get revengeFilterAll => '';
+  String get revengeStats => '';
+  String get revengeClearRate => '';
+  String get revengeMostWrong => '';
+  String revengeWrongTimes(int count) => '';
+  String get revengeStartFlip => '';
+  String get revengeStartQuiz => '';
+  String get revengeNeedMoreCards => '';
+  String get revengeSelectSets => '';
 
   // -- Notifications --
   String get dailyReminder => '';
@@ -815,6 +828,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get revengeMode => '\u932F\u984C\u8907\u7FD2';
   @override
   String revengeCount(int count) => '$count \u5F35\u7B54\u932F\u7684\u5361\u7247\u7B49\u4F60\u6311\u6230';
+  @override
+  String revengeClearedCount(int count) => '\u5DF2\u6E05\u9664 $count \u9053\u932F\u984C\uFF01';
+  @override
+  String get revengeDetail => '\u932F\u984C\u8907\u7FD2\u8A73\u60C5';
+  @override
+  String get revengeLookbackDays => '\u56DE\u9867\u5929\u6578';
+  @override
+  String revengeDaysOption(int days) => '$days \u5929';
+  @override
+  String get revengeFilterAll => '\u5168\u90E8';
+  @override
+  String get revengeStats => '\u7D71\u8A08';
+  @override
+  String get revengeClearRate => '\u6E05\u9664\u7387';
+  @override
+  String get revengeMostWrong => '\u6700\u5E38\u7B54\u932F';
+  @override
+  String revengeWrongTimes(int count) => '\u932F $count \u6B21';
+  @override
+  String get revengeStartFlip => '\u7FFB\u5361\u8907\u7FD2';
+  @override
+  String get revengeStartQuiz => '\u6E2C\u9A57\u6A21\u5F0F';
+  @override
+  String get revengeNeedMoreCards => '\u6E2C\u9A57\u81F3\u5C11\u9700\u8981 4 \u5F35\u932F\u984C\u5361';
+  @override
+  String get revengeSelectSets => '\u9078\u64C7\u5B78\u7FD2\u96C6';
 
   // -- Notifications --
   @override
@@ -1489,6 +1528,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revengeMode => 'Revenge Mode';
   @override
   String revengeCount(int count) => '$count wrong cards waiting for you';
+  @override
+  String revengeClearedCount(int count) =>
+      'Cleared $count wrong ${count == 1 ? "answer" : "answers"}!';
+  @override
+  String get revengeDetail => 'Revenge Detail';
+  @override
+  String get revengeLookbackDays => 'Lookback';
+  @override
+  String revengeDaysOption(int days) => '$days days';
+  @override
+  String get revengeFilterAll => 'All';
+  @override
+  String get revengeStats => 'Stats';
+  @override
+  String get revengeClearRate => 'Clear Rate';
+  @override
+  String get revengeMostWrong => 'Most Wrong';
+  @override
+  String revengeWrongTimes(int count) => '$count ${count == 1 ? "time" : "times"} wrong';
+  @override
+  String get revengeStartFlip => 'Flip Review';
+  @override
+  String get revengeStartQuiz => 'Quiz Mode';
+  @override
+  String get revengeNeedMoreCards => 'Need at least 4 wrong cards for quiz';
+  @override
+  String get revengeSelectSets => 'Select Study Sets';
 
   // -- Notifications --
   @override

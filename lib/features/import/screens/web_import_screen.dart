@@ -9,6 +9,7 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class WebImportScreen extends StatefulWidget {
   const WebImportScreen({super.key});
@@ -227,7 +228,10 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
     if (kIsWeb) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.importTitle)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.importTitle),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -275,11 +279,8 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text(l10n.importFromRecall),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.go('/'),
-        ),
       ),
       body: Column(
         children: [

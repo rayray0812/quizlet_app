@@ -6,6 +6,7 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/features/import/widgets/import_preview_card.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class ReviewImportScreen extends ConsumerStatefulWidget {
   final StudySet studySet;
@@ -60,6 +61,7 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const Text('Review Import'),
         actions: [
           Padding(

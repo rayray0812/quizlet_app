@@ -14,7 +14,7 @@ import 'package:recall_app/features/home/screens/folder_management_screen.dart';
 import 'package:recall_app/features/share/screens/share_screen.dart';
 import 'package:recall_app/features/share/screens/qr_scan_screen.dart';
 import 'package:recall_app/features/achievements/screens/achievements_screen.dart';
-import 'package:recall_app/features/home/screens/home_screen.dart';
+import 'package:recall_app/features/home/screens/dashboard_screen.dart';
 import 'package:recall_app/features/home/screens/card_editor_screen.dart';
 import 'package:recall_app/features/import/screens/web_import_screen.dart';
 import 'package:recall_app/features/import/screens/review_import_screen.dart';
@@ -26,6 +26,8 @@ import 'package:recall_app/features/study/screens/matching_game_screen.dart';
 import 'package:recall_app/features/study/screens/srs_review_screen.dart';
 import 'package:recall_app/features/study/screens/review_summary_screen.dart';
 import 'package:recall_app/features/study/screens/speaking_practice_screen.dart';
+import 'package:recall_app/features/study/screens/revenge_detail_screen.dart';
+import 'package:recall_app/features/study/screens/revenge_quiz_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/study/screens/custom_study_screen.dart';
@@ -148,7 +150,7 @@ GoRouter createAppRouter({
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+      GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
@@ -183,7 +185,7 @@ GoRouter createAppRouter({
         builder: (context, state) {
           final studySet = extractStudySetExtra(state.extra);
           if (studySet == null) {
-            return const HomeScreen();
+            return const DashboardScreen();
           }
           return ReviewImportScreen(studySet: studySet);
         },
@@ -228,6 +230,8 @@ GoRouter createAppRouter({
             challengeMode: data['challengeMode'] as bool? ?? false,
             challengeTarget: data['challengeTarget'] as int?,
             challengeCompleted: data['challengeCompleted'] as bool? ?? false,
+            isRevengeMode: data['isRevengeMode'] as bool? ?? false,
+            revengeCardCount: data['revengeCardCount'] as int? ?? 0,
           );
         },
       ),
@@ -243,6 +247,19 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/study/custom',
         builder: (context, state) => const CustomStudyScreen(),
+      ),
+      GoRoute(
+        path: '/revenge',
+        builder: (context, state) => const RevengeDetailScreen(),
+      ),
+      GoRoute(
+        path: '/revenge/quiz',
+        builder: (context, state) {
+          final data = extractMapExtra(state.extra);
+          final cardIds = (data['cardIds'] as List<dynamic>?)?.cast<String>() ??
+              const <String>[];
+          return RevengeQuizScreen(cardIds: cardIds);
+        },
       ),
       GoRoute(
         path: '/edit/:setId',

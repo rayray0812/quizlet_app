@@ -1,4 +1,4 @@
-import 'package:recall_app/core/constants/supabase_constants.dart';
+﻿import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
@@ -47,13 +47,21 @@ class SupabaseService {
   Future<void> signOut() async {
     final client = _clientOrNull;
     if (client == null) return;
-    await client.auth.signOut();
+    try {
+      await client.auth.signOut();
+    } catch (_) {
+      // Network/DNS failures (e.g., failed host lookup) should not crash logout flow.
+    }
   }
 
   Future<void> signOutAllSessions() async {
     final client = _clientOrNull;
     if (client == null) return;
-    await client.auth.signOut(scope: SignOutScope.global);
+    try {
+      await client.auth.signOut(scope: SignOutScope.global);
+    } catch (_) {
+      // Keep local UX responsive even when remote revoke cannot be reached.
+    }
   }
 
   /// Matches SQL `is_global_admin()`: only super_admin / org_admin with global scope.
@@ -102,6 +110,15 @@ class SupabaseService {
   Future<void> resetPasswordForEmail(String email) async {
     final client = _requireClient();
     await client.auth.resetPasswordForEmail(email);
+  }
+
+  Future<void> resendSignupConfirmation(String email) async {
+    final client = _requireClient();
+    await client.auth.resend(
+      email: email,
+      type: OtpType.signup,
+      emailRedirectTo: SupabaseConstants.authRedirectUrl,
+    );
   }
 
   /// Try to fully delete current user account via RPC `delete_my_account`.
@@ -158,7 +175,9 @@ class SupabaseService {
       await client.auth.getUser();
       return client.auth.currentUser != null;
     } catch (_) {
-      await client.auth.signOut();
+      try {
+        await client.auth.signOut();
+      } catch (_) {}
       return false;
     }
   }

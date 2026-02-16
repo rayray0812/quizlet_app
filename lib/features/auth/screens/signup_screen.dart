@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
 import 'package:recall_app/features/auth/widgets/auth_form.dart';
 import 'package:recall_app/features/auth/widgets/social_auth_buttons.dart';
 import 'package:recall_app/providers/auth_analytics_provider.dart';
@@ -86,9 +87,15 @@ class SignupScreen extends ConsumerWidget {
                       );
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
+                        SnackBar(
+                          content: const Text(
                             'Account created. Please verify your email before login.',
+                          ),
+                          action: SnackBarAction(
+                            label: 'Resend',
+                            onPressed: () {
+                              supabase.resendSignupConfirmation(email);
+                            },
                           ),
                         ),
                       );
@@ -109,7 +116,13 @@ class SignupScreen extends ConsumerWidget {
                       result: 'failure',
                       note: e.toString(),
                     );
-                    rethrow;
+                    final msg = mapAuthErrorMessage(e.toString());
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(msg)),
+                      );
+                    }
+                    throw Exception(msg);
                   }
                 },
               ),

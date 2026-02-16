@@ -5,6 +5,7 @@ import 'package:recall_app/core/icons/material_icon_mapper.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/providers/folder_provider.dart';
 
@@ -17,7 +18,10 @@ class FolderManagementScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.folders)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: Text(l10n.folders),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showFolderDialog(context, ref),
         backgroundColor: AppTheme.indigo,

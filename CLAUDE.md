@@ -13,7 +13,7 @@
 ## 目前進度
 
 所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge 皆已完成。
-程式碼已通過 `flutter analyze`（零問題）和 `flutter test`（92 個測試全部通過）。
+程式碼已通過 `flutter analyze`（零問題）和 `flutter test`（158 個測試全部通過）。
 
 ### 基礎建設（Step 1–10）✅
 - [x] Step 1：專案骨架 + 核心設定
@@ -82,8 +82,17 @@
 - [x] F11：成就徽章系統（12 個 AppBadge + BadgeChecker + 成就頁面）
 - [x] F12：番茄鐘學習計時器（PomodoroNotifier + 全域 FAB overlay + TimerDial）
 
+### Wrong Answer Revenge Mode（2026-02-16）✅
+- [x] Revenge Provider（revengeCardIdsProvider + revengeCardCountProvider）
+- [x] RevengeCard widget（首頁錯題複習入口）
+- [x] Review Summary 加入 Revenge Mode 完成 banner（紫色「已清除 X 道錯題！」）
+- [x] l10n 字串（中/英 revengeClearedCount）
+- [x] RevengeCard widget test（4 個）
+- [x] Quiz scoring unit tests（10 個）
+- [x] QuizOptionTile widget test（4 個）
+- [x] Deep-link routing test（7 個）
+
 ### 待辦 / 下一步
-- [ ] Wrong Answer Revenge Mode（錯題複習模式）
 - [ ] 在 `supabase_constants.dart` 填入真實 Supabase URL 和 anon key
 - [ ] 在 Supabase 建立資料表 + RLS 政策
 - [ ] 實機測試驗證（Android/iOS/Web）

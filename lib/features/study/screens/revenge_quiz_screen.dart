@@ -8,27 +8,20 @@ import 'package:recall_app/features/study/widgets/quiz_option_tile.dart';
 import 'package:recall_app/features/study/widgets/text_input_question.dart';
 import 'package:recall_app/features/study/widgets/true_false_question.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
-import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 
-enum QuizQuestionType { multipleChoice, textInput, trueFalse }
+enum _QuestionType { multipleChoice, textInput, trueFalse }
 
-class QuizQuestion {
+class _QuizQuestion {
   final Flashcard card;
-  final QuizQuestionType type;
-
-  /// For multiple choice: 4 indices into [_allCards].
+  final _QuestionType type;
   final List<int> optionIndices;
-
-  /// For true/false: the definition shown (may be wrong).
   final String shownDefinition;
-
-  /// For true/false: whether [shownDefinition] is the correct definition.
   final bool isCorrectPair;
 
-  const QuizQuestion({
+  const _QuizQuestion({
     required this.card,
     required this.type,
     this.optionIndices = const [],
@@ -37,26 +30,26 @@ class QuizQuestion {
   });
 }
 
-class QuizScreen extends ConsumerStatefulWidget {
-  final String setId;
-  final int? questionCount;
+class RevengeQuizScreen extends ConsumerStatefulWidget {
+  final List<String> cardIds;
 
-  const QuizScreen({super.key, required this.setId, this.questionCount});
+  const RevengeQuizScreen({super.key, required this.cardIds});
 
   @override
-  ConsumerState<QuizScreen> createState() => _QuizScreenState();
+  ConsumerState<RevengeQuizScreen> createState() => _RevengeQuizScreenState();
 }
 
-class _QuizScreenState extends ConsumerState<QuizScreen> {
+class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
   final _random = Random();
   int _currentIndex = 0;
   int _score = 0;
   int? _selectedOption;
   late List<Flashcard> _allCards;
-  late List<QuizQuestion> _questions;
+  late List<_QuizQuestion> _questions;
   final List<int> _wrongIndices = [];
   bool _isReinforcementRound = false;
   int _reinforcementScore = 0;
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -65,58 +58,75 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _initQuiz() {
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
-    if (studySet == null || studySet.cards.length < 4) return;
+    // Collect all flashcards from all study sets
+    final allSets = ref.read(studySetsProvider);
+    final cardMap = <String, Flashcard>{};
+    for (final s in allSets) {
+      for (final c in s.cards) {
+        cardMap[c.id] = c;
+      }
+    }
 
-    _allCards = studySet.cards;
-    final shuffled = List.of(_allCards)..shuffle(_random);
-    final limit = widget.questionCount ?? shuffled.length;
-    final selected = shuffled.take(min(limit, shuffled.length)).toList();
+    // Resolve the revenge card IDs to actual Flashcard objects
+    final revengeCards = <Flashcard>[];
+    for (final id in widget.cardIds) {
+      final card = cardMap[id];
+      if (card != null) revengeCards.add(card);
+    }
 
-    _questions = _generateMixedQuestions(selected);
+    if (revengeCards.length < 4) {
+      _initialized = false;
+      return;
+    }
+
+    // _allCards = all unique cards (for generating wrong options)
+    _allCards = cardMap.values.toList();
+
+    final shuffled = List.of(revengeCards)..shuffle(_random);
+    _questions = _generateMixedQuestions(shuffled);
     _currentIndex = 0;
     _score = 0;
     _selectedOption = null;
     _wrongIndices.clear();
     _isReinforcementRound = false;
     _reinforcementScore = 0;
+    _initialized = true;
   }
 
-  List<QuizQuestion> _generateMixedQuestions(List<Flashcard> cards) {
-    final questions = <QuizQuestion>[];
-    for (var i = 0; i < cards.length; i++) {
+  List<_QuizQuestion> _generateMixedQuestions(List<Flashcard> cards) {
+    final questions = <_QuizQuestion>[];
+    for (final card in cards) {
       final roll = _random.nextDouble();
-      QuizQuestionType type;
+      _QuestionType type;
       if (roll < 0.6) {
-        type = QuizQuestionType.multipleChoice;
+        type = _QuestionType.multipleChoice;
       } else if (roll < 0.8) {
-        type = QuizQuestionType.textInput;
+        type = _QuestionType.textInput;
       } else {
-        type = QuizQuestionType.trueFalse;
+        type = _QuestionType.trueFalse;
       }
-      questions.add(_buildQuestion(cards[i], type));
+      questions.add(_buildQuestion(card, type));
     }
     return questions;
   }
 
-  QuizQuestion _buildQuestion(Flashcard card, QuizQuestionType type) {
+  _QuizQuestion _buildQuestion(Flashcard card, _QuestionType type) {
     switch (type) {
-      case QuizQuestionType.multipleChoice:
+      case _QuestionType.multipleChoice:
         final correctIndex = _allCards.indexOf(card);
         final wrongIndices = List.generate(_allCards.length, (i) => i)
           ..remove(correctIndex)
           ..shuffle(_random);
         final optionIndices = [correctIndex, ...wrongIndices.take(3)]
           ..shuffle(_random);
-        return QuizQuestion(
+        return _QuizQuestion(
           card: card,
           type: type,
           optionIndices: optionIndices,
         );
-      case QuizQuestionType.textInput:
-        return QuizQuestion(card: card, type: type);
-      case QuizQuestionType.trueFalse:
+      case _QuestionType.textInput:
+        return _QuizQuestion(card: card, type: type);
+      case _QuestionType.trueFalse:
         final isCorrect = _random.nextBool();
         String shownDef;
         if (isCorrect) {
@@ -126,7 +136,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           others.shuffle(_random);
           shownDef = others.first.definition;
         }
-        return QuizQuestion(
+        return _QuizQuestion(
           card: card,
           type: type,
           shownDefinition: shownDef,
@@ -161,7 +171,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _wrongIndices.add(_currentIndex);
       }
     });
-
     _advanceAfterDelay(2000);
   }
 
@@ -173,7 +182,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _wrongIndices.add(_currentIndex);
       }
     });
-
     _advanceAfterDelay(1200);
   }
 
@@ -188,84 +196,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       } else if (!_isReinforcementRound && _wrongIndices.isNotEmpty) {
         _startReinforcementRound();
       } else {
-        _showResults();
+        _navigateToSummary();
       }
     });
   }
 
   void _startReinforcementRound() {
-    final wrongCards =
-        _wrongIndices.map((i) => _questions[i].card).toList();
+    final wrongCards = _wrongIndices.map((i) => _questions[i].card).toList();
     setState(() {
       _isReinforcementRound = true;
       _reinforcementScore = 0;
       _questions = wrongCards
-          .map((c) => _buildQuestion(c, QuizQuestionType.multipleChoice))
+          .map((c) => _buildQuestion(c, _QuestionType.multipleChoice))
           .toList();
       _currentIndex = 0;
       _selectedOption = null;
     });
   }
 
-  void _showResults() {
-    final l10n = AppLocalizations.of(context);
-    final mainTotal =
-        _isReinforcementRound ? _wrongIndices.length : _questions.length;
-    final mainScore = _score;
-    final percent = (mainScore / mainTotal * 100).round();
-    final accent = percent >= 80 ? AppTheme.green : AppTheme.orange;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            StudyResultHeader(
-              accentColor: accent,
-              icon: percent >= 80
-                  ? Icons.emoji_events_rounded
-                  : Icons.auto_graph_rounded,
-              title: l10n.quizComplete,
-              primaryText: l10n.quizResult(mainScore, mainTotal),
-              badgeText: l10n.percentCorrect(percent),
-            ),
-            if (_isReinforcementRound) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppTheme.cyan.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${l10n.reinforcementRound}: $_reinforcementScore / ${_questions.length}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.cyan,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            StudyResultDialogActions(
-              leftLabel: l10n.tryAgain,
-              rightLabel: l10n.done,
-              onLeft: () {
-                Navigator.pop(context);
-                setState(() => _initQuiz());
-              },
-              onRight: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
+  void _navigateToSummary() {
+    final mainTotal = _isReinforcementRound
+        ? _wrongIndices.length
+        : _questions.length;
+    final wrongCount = mainTotal - _score;
+    context.pushReplacement(
+      '/review/summary',
+      extra: {
+        'totalReviewed': mainTotal,
+        'againCount': wrongCount,
+        'hardCount': 0,
+        'goodCount': _score,
+        'easyCount': 0,
+        'isRevengeMode': true,
+        'revengeCardCount': widget.cardIds.length,
+      },
     );
   }
 
@@ -280,24 +244,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final studySet = ref
-        .watch(studySetsProvider)
-        .where((s) => s.id == widget.setId)
-        .firstOrNull;
-
     final l10n = AppLocalizations.of(context);
 
-    if (studySet == null || studySet.cards.length < 4) {
+    if (!_initialized) {
       return Scaffold(
         appBar: AppBar(
           leading: const AppBackButton(),
-          title: Text(l10n.quiz),
+          title: Text(l10n.revengeStartQuiz),
         ),
-        body: Center(child: Text(l10n.needAtLeast4Cards)),
+        body: Center(child: Text(l10n.revengeNeedMoreCards)),
       );
     }
-
-    if (_questions.isEmpty) return const SizedBox();
 
     final question = _questions[_currentIndex];
     final progress = (_currentIndex + 1) / _questions.length;
@@ -305,26 +262,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: Text(l10n.quiz),
+        title: Text('${_currentIndex + 1} / ${_questions.length}'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Center(
-              child: Text(
-                '${_currentIndex + 1} / ${_questions.length}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.green,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
                 l10n.scoreLabel(
-                    _isReinforcementRound ? _reinforcementScore : _score),
+                  _isReinforcementRound ? _reinforcementScore : _score,
+                ),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -343,42 +289,54 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              decoration: AppTheme.softCardDecoration(
-                fillColor: Colors.white,
-                borderRadius: 12,
-                borderColor: AppTheme.cyan.withValues(alpha: 0.28),
-              ),
+              color: AppTheme.cyan.withValues(alpha: 0.08),
               child: Row(
                 children: [
-                  const Icon(Icons.refresh_rounded,
-                      size: 18, color: AppTheme.cyan),
+                  const Icon(
+                    Icons.refresh_rounded,
+                    size: 18,
+                    color: AppTheme.cyan,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '${l10n.reinforcementRound} \u2014 ${l10n.reinforcementDesc}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.cyan,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: AppTheme.cyan,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+          // Revenge mode banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            color: AppTheme.purple.withValues(alpha: 0.08),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.replay_rounded,
+                  size: 16,
+                  color: AppTheme.purple,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.revengeMode,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.purple,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                decoration: AppTheme.softCardDecoration(
-                  fillColor: Colors.white,
-                  borderRadius: 16,
-                  borderColor: AppTheme.indigo.withValues(alpha: 0.24),
-                ),
-                child: _buildQuestionBody(question, l10n),
-              ),
+              child: _buildQuestionBody(question, l10n),
             ),
           ),
         ],
@@ -386,18 +344,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     );
   }
 
-  Widget _buildQuestionBody(QuizQuestion question, AppLocalizations l10n) {
+  Widget _buildQuestionBody(_QuizQuestion question, AppLocalizations l10n) {
     switch (question.type) {
-      case QuizQuestionType.multipleChoice:
+      case _QuestionType.multipleChoice:
         return _buildMultipleChoice(question, l10n);
-      case QuizQuestionType.textInput:
+      case _QuestionType.textInput:
         return _buildTextInput(question, l10n);
-      case QuizQuestionType.trueFalse:
+      case _QuestionType.trueFalse:
         return _buildTrueFalse(question);
     }
   }
 
-  Widget _buildMultipleChoice(QuizQuestion question, AppLocalizations l10n) {
+  Widget _buildMultipleChoice(_QuizQuestion question, AppLocalizations l10n) {
     final correctIndex = _allCards.indexOf(question.card);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,15 +363,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         Text(
           l10n.whatIsDefinitionOf,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
         const SizedBox(height: 10),
         Text(
           question.card.term,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 32),
         ...List.generate(4, (i) {
@@ -441,19 +399,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     );
   }
 
-  Widget _buildTextInput(QuizQuestion question, AppLocalizations l10n) {
+  Widget _buildTextInput(_QuizQuestion question, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           l10n.whatIsDefinitionOf,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
         const SizedBox(height: 16),
         TextInputQuestion(
-          key: ValueKey('text_${question.card.id}_$_currentIndex'),
+          key: ValueKey('revenge_text_${question.card.id}_$_currentIndex'),
           definition: question.card.definition,
           correctAnswer: question.card.term,
           onAnswered: _onTextInputAnswered,
@@ -462,9 +420,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     );
   }
 
-  Widget _buildTrueFalse(QuizQuestion question) {
+  Widget _buildTrueFalse(_QuizQuestion question) {
     return TrueFalseQuestion(
-      key: ValueKey('tf_${question.card.id}_$_currentIndex'),
+      key: ValueKey('revenge_tf_${question.card.id}_$_currentIndex'),
       term: question.card.term,
       shownDefinition: question.shownDefinition,
       isCorrectPair: question.isCorrectPair,

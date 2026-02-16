@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
-import 'package:recall_app/core/widgets/liquid_glass.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 
@@ -31,178 +31,145 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
   Widget build(BuildContext context) {
     final dueCount = ref.watch(dueCountForSetProvider(widget.studySet.id));
     final l10n = AppLocalizations.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) {
+        onTap: () {
           setState(() => _pressed = false);
           widget.onTap();
         },
         onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedScale(
-          scale: _pressed ? 0.97 : 1.0,
-          duration: const Duration(milliseconds: 150),
+          scale: _pressed ? 0.98 : 1,
+          duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            transform: Matrix4.identity()..translate(0.0, _pressed ? 2.0 : 0.0),
-            child: isLiquidGlassSupported
-                ? LiquidGlass(
-                    borderRadius: 16,
-                    tintColor:
-                        Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
-                    border: Border.all(
-                      color: dueCount > 0
-                          ? AppTheme.orange.withValues(alpha: 0.24)
-                          : Colors.white.withValues(alpha: 0.46),
-                      width: 1,
-                    ),
-                    child: _buildCardContent(context, colorScheme, dueCount, l10n),
-                  )
-                : Container(
-                    decoration: AppTheme.softCardDecoration(
-                      fillColor: Theme.of(context).cardColor,
-                      borderRadius: 16,
-                      borderColor: dueCount > 0
-                          ? AppTheme.orange.withValues(alpha: 0.22)
-                          : null,
-                      elevation: _pressed ? 0.7 : 1.5,
-                    ),
-                    child: _buildCardContent(context, colorScheme, dueCount, l10n),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardContent(
-    BuildContext context,
-    ColorScheme colorScheme,
-    int dueCount,
-    AppLocalizations l10n,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: AppTheme.softCardDecoration(
+              fillColor: Colors.white,
+              borderRadius: 14,
+              borderColor: dueCount > 0
+                  ? AppTheme.indigo.withValues(alpha: 0.28)
+                  : Theme.of(context).colorScheme.outlineVariant,
+              elevation: _pressed ? 0.8 : 1,
             ),
-            child: Center(
-              child: Text(
-                '${widget.studySet.cards.length}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.studySet.title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      '${widget.studySet.cards.length} cards',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppTheme.indigo.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    if (dueCount > 0) ...[
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.orange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          l10n.nDueCards(dueCount),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.orange,
-                          ),
+                    child: Center(
+                      child: Text(
+                        '${widget.studySet.cards.length}',
+                        style: GoogleFonts.notoSerifTc(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.green,
                         ),
                       ),
-                    ],
-                  ],
-                ),
-              ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.studySet.title,
+                                style: GoogleFonts.notoSerifTc(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (widget.studySet.isPinned)
+                              Icon(
+                                Icons.push_pin_rounded,
+                                size: 16,
+                                color: AppTheme.indigo.withValues(alpha: 0.7),
+                              ),
+                            if (widget.studySet.isSynced)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.cloud_done_rounded,
+                                  size: 16,
+                                  color: Color(0xFF8CA08D),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Text(
+                              '${widget.studySet.cards.length} cards',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (dueCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.orange.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  l10n.nDueCards(dueCount),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.green,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.onEdit != null)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      color: Theme.of(context).colorScheme.outline,
+                      onPressed: widget.onEdit,
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Edit cards',
+                    ),
+                  if (widget.onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      color: Theme.of(context).colorScheme.outline,
+                      onPressed: widget.onDelete,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Theme.of(context).colorScheme.outline,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
-          if (widget.studySet.isPinned)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Icon(
-                Icons.push_pin_rounded,
-                size: 16,
-                color: AppTheme.indigo.withValues(alpha: 0.6),
-              ),
-            ),
-          if (widget.studySet.isSynced)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Icon(
-                Icons.cloud_done_outlined,
-                size: 18,
-                color: colorScheme.outline,
-              ),
-            ),
-          if (widget.onEdit != null)
-            IconButton(
-              icon: Icon(Icons.edit_outlined, size: 19, color: colorScheme.outline),
-              onPressed: widget.onEdit,
-              tooltip: 'Edit cards',
-              visualDensity: VisualDensity.compact,
-            ),
-          if (widget.onDelete != null)
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 19,
-                color: colorScheme.outline,
-              ),
-              onPressed: widget.onDelete,
-              visualDensity: VisualDensity.compact,
-            ),
-          const SizedBox(width: 4),
-          AnimatedSlide(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            offset: _pressed ? const Offset(0.16, 0) : Offset.zero,
-            child: Icon(
-              Icons.chevron_right_rounded,
-              color: colorScheme.outline,
-              size: 20,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

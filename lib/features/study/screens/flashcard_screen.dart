@@ -8,6 +8,7 @@ import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class FlashcardScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -79,7 +80,10 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
 
     if (studySet == null || studySet.cards.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.flashcards)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.flashcards),
+        ),
         body: Center(child: Text(l10n.noCardsAvailable)),
       );
     }
@@ -90,6 +94,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text('$_swipedCount / ${_currentCards.length}'),
         actions: [
           IconButton(

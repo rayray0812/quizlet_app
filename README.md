@@ -6,7 +6,21 @@ A cross-platform flashcard app for efficient learning and review.
 
 1. Install Flutter SDK.
 2. Run `flutter pub get`.
-3. Run the app with `--dart-define` values:
+3. Create local defines file (recommended):
+
+```bash
+cp dart_defines.example.json dart_defines.local.json
+```
+
+4. Fill in real Supabase values in `dart_defines.local.json`.
+
+5. Run the app with `--dart-define-from-file`:
+
+```bash
+flutter run --dart-define-from-file=dart_defines.local.json
+```
+
+Alternative: pass values inline with `--dart-define`:
 
 ```bash
 flutter run \

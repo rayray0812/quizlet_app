@@ -10,6 +10,7 @@ import 'package:recall_app/features/home/widgets/batch_edit_bar.dart';
 import 'package:recall_app/features/home/widgets/save_warning_dialog.dart';
 import 'package:recall_app/features/home/utils/editor_history.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/services/unsplash_service.dart';
 
 class CardEditorScreen extends ConsumerStatefulWidget {
@@ -413,6 +414,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text(l10n.editCards),
         actions: [
           if (_history.canUndo)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class RoundedProgressBar extends StatelessWidget {
   final double value;
@@ -10,15 +11,13 @@ class RoundedProgressBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(999),
         child: SizedBox(
-          height: 8,
+          height: 6,
           child: LinearProgressIndicator(
             value: value,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary,
-            ),
+            backgroundColor: AppTheme.indigo.withValues(alpha: 0.14),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.green),
           ),
         ),
       ),

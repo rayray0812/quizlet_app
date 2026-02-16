@@ -5,6 +5,7 @@ import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/tag_provider.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class CustomStudyScreen extends ConsumerStatefulWidget {
   const CustomStudyScreen({super.key});
@@ -35,7 +36,10 @@ class _CustomStudyScreenState extends ConsumerState<CustomStudyScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.customStudy)),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: Text(l10n.customStudy),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

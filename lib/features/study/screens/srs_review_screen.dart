@@ -10,11 +10,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/widgets/rating_buttons.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/providers/stats_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/widget_provider.dart';
 
@@ -52,11 +54,14 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
   List<_ReviewItem> _queue = [];
   int _currentIndex = 0;
+  bool _isQueueLoading = true;
+  String? _queueError;
   int _againCount = 0;
   int _hardCount = 0;
   int _goodCount = 0;
   int _easyCount = 0;
   late final FlutterTts _tts;
+  bool _ttsInitialized = false;
   bool _isTtsReady = false;
   String _lastSpokenCardId = '';
   bool _suppressFlipOnce = false;
@@ -71,7 +76,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   void initState() {
     super.initState();
     _flipController = AnimationController(
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
@@ -89,77 +94,99 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     _initTts();
   }
 
-  void _buildQueue() {
-    final localStorage = ref.read(localStorageServiceProvider);
-    final studySets = ref.read(studySetsProvider);
-    final now = DateTime.now().toUtc();
+  Future<void> _buildQueue() async {
+    if (mounted) {
+      setState(() {
+        _isQueueLoading = true;
+        _queueError = null;
+      });
+    }
 
-    final List<_ReviewItem> items = [];
+    try {
+      final localStorage = ref.read(localStorageServiceProvider);
+      final studySets = ref.read(studySetsProvider);
+      final now = DateTime.now().toUtc();
+      final List<_ReviewItem> items = [];
 
-    if (widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty) {
-      // Revenge mode: load specific cards by ID regardless of due status
-      final cardsById = <String, Flashcard>{};
-      for (final set in studySets) {
-        for (final card in set.cards) {
-          cardsById[card.id] = card;
-        }
-      }
-      for (final cardId in widget.revengeCardIds!) {
-        final card = cardsById[cardId];
-        if (card == null) continue;
-        final progress = localStorage.getCardProgress(cardId);
-        if (progress == null) continue;
-        items.add(_ReviewItem(card: card, progress: progress));
-      }
-    } else if (widget.setId != null) {
-      final studySet = localStorage.getStudySet(widget.setId!);
-      if (studySet == null) return;
-      for (final card in studySet.cards) {
-        final progress = localStorage.getCardProgress(card.id);
-        if (progress != null) {
-          final isDue = progress.due == null || !progress.due!.isAfter(now);
-          if (isDue) {
-            items.add(_ReviewItem(card: card, progress: progress));
+      if (widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty) {
+        final cardsById = <String, Flashcard>{};
+        for (final set in studySets) {
+          for (final card in set.cards) {
+            cardsById[card.id] = card;
           }
         }
-      }
-    } else {
-      final dueProgress = localStorage.getDueCardProgress();
-      final cardsById = <String, Flashcard>{};
-      for (final set in studySets) {
-        for (final card in set.cards) {
-          cardsById[card.id] = card;
+        for (final cardId in widget.revengeCardIds!) {
+          final card = cardsById[cardId];
+          if (card == null) continue;
+          final progress = localStorage.getCardProgress(cardId);
+          if (progress == null) continue;
+          items.add(_ReviewItem(card: card, progress: progress));
+        }
+      } else if (widget.setId != null) {
+        final studySet = localStorage.getStudySet(widget.setId!);
+        if (studySet != null) {
+          for (final card in studySet.cards) {
+            final progress = localStorage.getCardProgress(card.id);
+            if (progress == null) continue;
+            final isDue = progress.due == null || !progress.due!.isAfter(now);
+            if (isDue) {
+              items.add(_ReviewItem(card: card, progress: progress));
+            }
+          }
+        }
+      } else {
+        final dueProgress = localStorage.getDueCardProgress();
+        final cardsById = <String, Flashcard>{};
+        for (final set in studySets) {
+          for (final card in set.cards) {
+            cardsById[card.id] = card;
+          }
+        }
+
+        final tags = widget.filterTags;
+        for (final progress in dueProgress) {
+          final card = cardsById[progress.cardId];
+          if (card == null) continue;
+          if (tags != null &&
+              tags.isNotEmpty &&
+              !card.tags.any((t) => tags.contains(t))) {
+            continue;
+          }
+          items.add(_ReviewItem(card: card, progress: progress));
         }
       }
 
-      final tags = widget.filterTags;
-
-      for (final progress in dueProgress) {
-        final card = cardsById[progress.cardId];
-        if (card == null) continue;
-
-        // If tags are specified (custom study), only include matching cards
-        if (tags != null && tags.isNotEmpty) {
-          if (!card.tags.any((t) => tags.contains(t))) continue;
-        }
-
-        items.add(_ReviewItem(card: card, progress: progress));
+      items.shuffle();
+      if (widget.maxCards != null &&
+          widget.maxCards! > 0 &&
+          items.length > widget.maxCards!) {
+        items.removeRange(widget.maxCards!, items.length);
       }
-    }
 
-    items.shuffle();
-    if (widget.maxCards != null && widget.maxCards! > 0 && items.length > widget.maxCards!) {
-      items.removeRange(widget.maxCards!, items.length);
-    }
-    setState(() => _queue = items);
-    if (items.isNotEmpty) {
-      _speakCardTerm(items.first.card);
+      if (!mounted) return;
+      setState(() {
+        _queue = items;
+        _currentIndex = 0;
+      });
+      if (items.isNotEmpty) {
+        _speakCardTerm(items.first.card);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _queueError = e.toString();
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isQueueLoading = false;
+      });
     }
   }
 
   @override
   void dispose() {
-    if (_isTtsReady) {
+    if (_ttsInitialized) {
       _isSpeaking = false;
       _tts.stop();
     }
@@ -168,7 +195,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   }
 
   Future<void> _initTts() async {
-    _tts = FlutterTts();
+    if (!_ttsInitialized) {
+      _tts = FlutterTts();
+      _ttsInitialized = true;
+    }
     try {
       await _tts.awaitSpeakCompletion(true);
       await _tts.setSpeechRate(0.48);
@@ -399,7 +429,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   }
 
   Future<void> _onRate(int rating) async {
-    if (_isSubmittingRating) return;
+    if (_isSubmittingRating || _queue.isEmpty) return;
     setState(() {
       _isSubmittingRating = true;
       _lastRating = rating;
@@ -413,6 +443,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     await localStorage.saveCardProgress(result.progress);
     await localStorage.saveReviewLog(result.log);
     ref.invalidate(allCardProgressProvider);
+    ref.invalidate(allReviewLogsProvider);
     ref.read(widgetRefreshProvider)();
     if (!mounted) return;
 
@@ -447,6 +478,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           'challengeMode': widget.challengeMode,
           'challengeTarget': challengeTarget,
           'challengeCompleted': challengeCompleted,
+          'isRevengeMode': widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty,
+          'revengeCardCount': widget.revengeCardIds?.length ?? 0,
         },
       );
     } else {
@@ -477,38 +510,114 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    if (_isQueueLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.srsReview),
+        ),
+        body: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            decoration: AppTheme.softCardDecoration(
+              fillColor: Colors.white,
+              borderRadius: 14,
+              borderColor: AppTheme.indigo.withValues(alpha: 0.22),
+            ),
+            child: const CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    if (_queueError != null) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.srsReview),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+              decoration: AppTheme.softCardDecoration(
+                fillColor: Colors.white,
+                borderRadius: 14,
+                borderColor: AppTheme.red.withValues(alpha: 0.25),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Failed to load review queue',
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _queueError!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _buildQueue,
+                    child: Text(l10n.retryOrChooseAnother),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     if (_queue.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.srsReview)),
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.srsReview),
+        ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: AppTheme.green.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+            decoration: AppTheme.softCardDecoration(
+              fillColor: Colors.white,
+              borderRadius: 16,
+              borderColor: AppTheme.green.withValues(alpha: 0.24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: AppTheme.green.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 48,
+                    color: AppTheme.green,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  size: 48,
-                  color: AppTheme.green,
+                const SizedBox(height: 20),
+                Text(
+                  l10n.noDueCards,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                l10n.noDueCards,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 28),
-              ElevatedButton(
-                onPressed: () => context.pop(),
-                child: Text(l10n.done),
-              ),
-            ],
+                const SizedBox(height: 28),
+                ElevatedButton(
+                  onPressed: () => context.pop(),
+                  child: Text(l10n.done),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -528,7 +637,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${_currentIndex + 1} / ${_queue.length}'),
+        leading: const AppBackButton(),
+        title: Text(l10n.srsReview),
         actions: [
           IconButton(
             icon: const Icon(Icons.home_rounded),
@@ -540,6 +650,29 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       body: Column(
         children: [
           RoundedProgressBar(value: progress),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 2),
+            child: Row(
+              children: [
+                Text(
+                  'Reviewing',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.indigo.withValues(alpha: 0.72),
+                      ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_currentIndex + 1} / ${_queue.length}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppTheme.green,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: Stack(
               alignment: Alignment.center,
@@ -547,61 +680,61 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                 GestureDetector(
                   onTap: _isFlipped ? null : _flip,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 8),
                     child: AnimatedScale(
                       scale: _isSubmittingRating ? 0.98 : 1,
                       duration: const Duration(milliseconds: 140),
-                      child: AnimatedBuilder(
-                        animation: _flipAnimation,
-                        builder: (context, child) {
-                          final angle = _flipAnimation.value * pi;
-                          return Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.001)
-                              ..rotateY(angle),
-                            child: _showFront
-                                ? _buildCardSide(
-                                    text: item.card.term,
-                                    label: l10n.tapToFlip,
-                                    onSpeak: () {
-                                      _suppressFlipOnce = true;
-                                      _speakText(
-                                        item.card.term,
-                                        userInitiated: true,
-                                      );
-                                    },
-                                    bgColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer,
-                                    textColor: Theme.of(
-                                      context,
-                                    ).colorScheme.onPrimaryContainer,
-                                    imageUrl: item.card.imageUrl,
-                                  )
-                                : Transform(
-                                    alignment: Alignment.center,
-                                    transform: Matrix4.identity()..rotateY(pi),
-                                    child: _buildCardSide(
-                                      text: item.card.definition,
-                                      label: l10n.definitionLabel,
+                      child: Hero(
+                        tag: 'flashcard_${item.card.id}',
+                        child: AnimatedBuilder(
+                          animation: _flipAnimation,
+                          builder: (context, child) {
+                            final angle = _flipAnimation.value * pi;
+                            return Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.identity()
+                                ..setEntry(3, 2, 0.001)
+                                ..rotateY(angle),
+                              child: _showFront
+                                  ? _buildCardSide(
+                                      text: item.card.term,
+                                      label: l10n.tapToFlip,
                                       onSpeak: () {
                                         _suppressFlipOnce = true;
                                         _speakText(
-                                          item.card.definition,
+                                          item.card.term,
                                           userInitiated: true,
                                         );
                                       },
-                                      bgColor: Theme.of(
-                                        context,
-                                      ).colorScheme.secondaryContainer,
+                                      bgColor: Colors.white,
                                       textColor: Theme.of(
                                         context,
-                                      ).colorScheme.onSecondaryContainer,
+                                      ).colorScheme.onSurface,
+                                      imageUrl: item.card.imageUrl,
+                                    )
+                                  : Transform(
+                                      alignment: Alignment.center,
+                                      transform:
+                                          Matrix4.identity()..rotateY(pi),
+                                      child: _buildCardSide(
+                                        text: item.card.definition,
+                                        label: l10n.definitionLabel,
+                                        onSpeak: () {
+                                          _suppressFlipOnce = true;
+                                          _speakText(
+                                            item.card.definition,
+                                            userInitiated: true,
+                                          );
+                                        },
+                                        bgColor: Colors.white,
+                                        textColor: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                      ),
                                     ),
-                                  ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -634,7 +767,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           ),
           if (_isFlipped)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: RatingButtons(
                 intervals: intervals,
                 onRating: _onRate,
@@ -643,7 +776,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
             )
           else
             Padding(
-              padding: const EdgeInsets.only(bottom: 36),
+              padding: const EdgeInsets.only(bottom: 30),
               child: Text(
                 l10n.tapToFlip,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -681,33 +814,28 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     String imageUrl = '',
   }) {
     final hasImage = imageUrl.isNotEmpty;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final cardHeight = screenHeight * 0.5;
+    final cardWidth = MediaQuery.of(context).size.width - 44;
+    final cardHeight = cardWidth * 1.25;
 
     return Container(
       width: double.infinity,
       height: cardHeight,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+      decoration: AppTheme.softCardDecoration(
+        fillColor: bgColor,
+        borderRadius: 18,
+        borderColor: AppTheme.indigo.withValues(alpha: 0.22),
+        elevation: 1.2,
       ),
       child: Column(
         children: [
           if (hasImage)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
+                top: Radius.circular(18),
               ),
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
-                height: screenHeight * 0.18,
+                height: cardHeight * 0.32,
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => const SizedBox.shrink(),
@@ -726,7 +854,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: textColor.withValues(alpha: 0.45),
+                      color: textColor.withValues(alpha: 0.5),
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -758,8 +886,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                 child: Text(
                   text,
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
                     color: textColor,
                     height: 1.3,
                   ),

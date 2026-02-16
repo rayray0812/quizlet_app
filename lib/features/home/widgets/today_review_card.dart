@@ -1,10 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
-import 'package:recall_app/core/widgets/liquid_glass.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
 
 /// Banner shown at top of home screen showing total due cards + breakdown.
 class TodayReviewCard extends ConsumerStatefulWidget {
@@ -20,41 +20,33 @@ class TodayReviewCard extends ConsumerStatefulWidget {
 class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
     with SingleTickerProviderStateMixin {
   bool _pressed = false;
-  late final AnimationController _glowController;
-  late final Animation<double> _glow;
-  late final Animation<Offset> _arrowFloat;
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulse;
 
   @override
   void initState() {
     super.initState();
-    _glowController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2100),
+      duration: const Duration(milliseconds: 2200),
     );
-    if (widget.animating) _glowController.repeat(reverse: true);
-    _glow = CurvedAnimation(parent: _glowController, curve: Curves.easeInOut);
-    _arrowFloat =
-        Tween<Offset>(
-          begin: const Offset(-0.08, 0),
-          end: const Offset(0.08, 0),
-        ).animate(
-          CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-        );
+    _pulse = CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut);
+    if (widget.animating) _pulseController.repeat(reverse: true);
   }
 
   @override
   void didUpdateWidget(covariant TodayReviewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.animating && !_glowController.isAnimating) {
-      _glowController.repeat(reverse: true);
-    } else if (!widget.animating && _glowController.isAnimating) {
-      _glowController.stop();
+    if (widget.animating && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (!widget.animating && _pulseController.isAnimating) {
+      _pulseController.stop();
     }
   }
 
   @override
   void dispose() {
-    _glowController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -67,94 +59,98 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
     if (dueCount == 0) return const SizedBox.shrink();
 
     return AnimatedBuilder(
-      animation: _glow,
+      animation: _pulse,
       builder: (context, child) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
           child: GestureDetector(
             onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) {
+            onTap: () {
               setState(() => _pressed = false);
               context.push('/review');
             },
             onTapCancel: () => setState(() => _pressed = false),
             child: AnimatedScale(
-              scale: _pressed ? 0.97 : 1.0,
+              scale: _pressed ? 0.98 : 1,
               duration: const Duration(milliseconds: 120),
-              curve: Curves.easeOut,
-              child: _buildCardShell(
-                context,
-                glowValue: _glow.value,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                decoration: AppTheme.softCardDecoration(
+                  fillColor: Colors.white,
+                  borderRadius: 12,
+                  borderColor: AppTheme.indigo.withValues(alpha: 0.26),
+                  elevation: 1.0 + (_pulse.value * 0.4),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Large due count
-                      Column(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '$dueCount',
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.todayReview,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.outline,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '$dueCount',
+                                  style: GoogleFonts.notoSerifTc(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.indigo,
+                                    height: 1,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.todayReview,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.8),
+                          FilledButton.icon(
+                            onPressed: () => context.push('/review'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.indigo,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
                             ),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                            label: Text(l10n.startReview),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 28),
-                      // Breakdown
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _BreakdownRow(
-                              label: l10n.newCards,
-                              count: breakdown.newCount,
-                              color: AppTheme.breakdownNew,
-                            ),
-                            const SizedBox(height: 8),
-                            _BreakdownRow(
-                              label: l10n.learningCards,
-                              count: breakdown.learning,
-                              color: AppTheme.breakdownLearning,
-                            ),
-                            const SizedBox(height: 8),
-                            _BreakdownRow(
-                              label: l10n.reviewCards,
-                              count: breakdown.review,
-                              color: AppTheme.breakdownReview,
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Start arrow
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: SlideTransition(
-                          position: _arrowFloat,
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 28,
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _BreakdownChip(
+                            label: l10n.newCards,
+                            count: breakdown.newCount,
+                            color: AppTheme.breakdownNew,
                           ),
-                        ),
+                          _BreakdownChip(
+                            label: l10n.learningCards,
+                            count: breakdown.learning,
+                            color: AppTheme.breakdownLearning,
+                          ),
+                          _BreakdownChip(
+                            label: l10n.reviewCards,
+                            count: breakdown.review,
+                            color: AppTheme.breakdownReview,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -166,74 +162,14 @@ class _TodayReviewCardState extends ConsumerState<TodayReviewCard>
       },
     );
   }
-
-  Widget _buildCardShell(
-    BuildContext context, {
-    required double glowValue,
-    required Widget child,
-  }) {
-    if (isLiquidGlassSupported) {
-      return LiquidGlass(
-        borderRadius: 20,
-        blurSigma: 24,
-        tintColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.5),
-          width: 1,
-        ),
-        shadows: [
-          BoxShadow(
-            color: AppTheme.indigo.withValues(alpha: 0.12 + (glowValue * 0.08)),
-            blurRadius: 14 + (glowValue * 7),
-            offset: const Offset(0, 8),
-          ),
-        ],
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.indigo.withValues(alpha: 0.2),
-                AppTheme.purple.withValues(alpha: 0.16),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: child,
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.indigo.withValues(alpha: 0.84),
-            AppTheme.purple.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.indigo.withValues(alpha: 0.14 + (glowValue * 0.1)),
-            blurRadius: 10 + (glowValue * 7),
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
 }
 
-class _BreakdownRow extends StatelessWidget {
+class _BreakdownChip extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
 
-  const _BreakdownRow({
+  const _BreakdownChip({
     required this.label,
     required this.count,
     required this.color,
@@ -241,23 +177,31 @@ class _BreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$count $label',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withValues(alpha: 0.9),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F5F0),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        ),
-      ],
+          const SizedBox(width: 7),
+          Text(
+            '$count $label',
+            style: GoogleFonts.notoSansTc(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF3A3A38),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

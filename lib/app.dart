@@ -18,7 +18,6 @@ class RecallApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(appRouterProvider);
-
     return MaterialApp.router(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
@@ -48,3 +47,4 @@ class RecallApp extends ConsumerWidget {
     );
   }
 }
+

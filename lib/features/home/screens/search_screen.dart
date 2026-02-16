@@ -1,8 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:recall_app/models/flashcard.dart';
-import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final bool embedded;
@@ -23,117 +26,343 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.dispose();
   }
 
+  void _applyQuery(String value) {
+    _controller.text = value;
+    setState(() => _query = value.trim());
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final studySets = ref.watch(studySetsProvider);
+    final results = _buildResults(studySets, _query);
 
-    // Search results grouped by set
-    final results = <({String setTitle, List<Flashcard> cards})>[];
-    if (_query.isNotEmpty) {
-      final q = _query.toLowerCase();
-      for (final set in studySets) {
-        final matched = set.cards.where((c) =>
-            c.term.toLowerCase().contains(q) ||
-            c.definition.toLowerCase().contains(q) ||
-            c.tags.any((t) => t.toLowerCase().contains(q)));
-        if (matched.isNotEmpty) {
-          results.add((setTitle: set.title, cards: matched.toList()));
-        }
-      }
-    }
-
-    final body = _query.isEmpty
-        ? Center(
-            child: Text(
-              l10n.search,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+    final body = Stack(
+      children: [
+        Positioned(
+          top: -60,
+          right: -40,
+          child: Container(
+            width: 180,
+            height: 180,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppTheme.indigo.withValues(alpha: 0.22),
+                  AppTheme.indigo.withValues(alpha: 0),
+                ],
+              ),
             ),
-          )
-        : results.isEmpty
-            ? Center(child: Text(l10n.noResults))
-            : ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: results.map((entry) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: Text(
-                          entry.setTitle,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            if (widget.embedded) ...[
+              Text(
+                l10n.search,
+                style: GoogleFonts.notoSerifTc(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF2A2A28),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Find terms, definitions, and tags',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                      letterSpacing: 0.3,
+                    ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            Container(
+              decoration: AppTheme.softCardDecoration(
+                fillColor: Colors.white,
+                borderRadius: 14,
+                borderColor: AppTheme.indigo.withValues(alpha: 0.15),
+              ),
+              child: TextField(
+                controller: _controller,
+                autofocus: !widget.embedded,
+                decoration: InputDecoration(
+                  hintText: l10n.search,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => _applyQuery(''),
                         ),
-                      ),
-                      ...entry.cards.map((card) => ListTile(
-                            title: Text(card.term),
-                            subtitle: Text(
-                              card.definition,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: card.tags.isNotEmpty
-                                ? Wrap(
-                                    spacing: 4,
-                                    children: card.tags
-                                        .take(2)
-                                        .map((t) => Chip(
-                                              label: Text(t,
-                                                  style: const TextStyle(
-                                                      fontSize: 10)),
-                                              visualDensity:
-                                                  VisualDensity.compact,
-                                              padding: EdgeInsets.zero,
-                                            ))
-                                        .toList(),
-                                  )
-                                : null,
-                          )),
-                    ],
-                  );
-                }).toList(),
-              );
-
-    final searchField = TextField(
-      controller: _controller,
-      autofocus: true,
-      decoration: InputDecoration(
-        hintText: l10n.search,
-        border: InputBorder.none,
-      ),
-      onChanged: (v) => setState(() => _query = v.trim()),
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _query = v.trim()),
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (_query.isEmpty)
+              _buildDiscovery(context, l10n, studySets)
+            else
+              _buildResultsView(context, l10n, results),
+          ],
+        ),
+      ],
     );
 
     if (!widget.embedded) {
-      return Scaffold(
-        appBar: AppBar(
-          title: searchField,
+      return Scaffold(body: SafeArea(child: body));
+    }
+
+    return body;
+  }
+
+  Widget _buildDiscovery(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<StudySet> sets,
+  ) {
+    final tags = _topTags(sets);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(
+          title: 'Recent Search',
+          trailing: TextButton(
+            onPressed: () => _applyQuery(''),
+            child: const Text('Clear'),
+          ),
         ),
-        body: body,
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: tags
+              .map(
+                (tag) => ActionChip(
+                  label: Text(tag),
+                  onPressed: () => _applyQuery(tag),
+                  backgroundColor: AppTheme.indigo.withValues(alpha: 0.1),
+                  labelStyle: TextStyle(
+                    color: AppTheme.indigo,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  side: BorderSide(color: AppTheme.indigo.withValues(alpha: 0.16)),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 22),
+        _SectionTitle(title: 'Collections'),
+        const SizedBox(height: 8),
+        ...sets.take(8).map((set) => _CollectionRow(set: set, onTap: () => _applyQuery(set.title))),
+      ],
+    );
+  }
+
+  Widget _buildResultsView(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<({String setTitle, List<Flashcard> cards})> results,
+  ) {
+    if (results.isEmpty) {
+      return Container(
+        decoration: AppTheme.softCardDecoration(
+          fillColor: Colors.white,
+          borderRadius: 14,
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.search_off_rounded, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(width: 10),
+            Text(l10n.noResults),
+          ],
+        ),
       );
     }
 
     return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: l10n.search,
-              prefixIcon: const Icon(Icons.search_rounded),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: results.map((entry) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(2, 8, 2, 8),
+              child: _SectionTitle(title: entry.setTitle),
             ),
-            onChanged: (v) => setState(() => _query = v.trim()),
+            ...entry.cards.take(8).map(
+                  (card) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: AppTheme.softCardDecoration(
+                      fillColor: Colors.white,
+                      borderRadius: 12,
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
+                      title: Text(
+                        card.term,
+                        style: GoogleFonts.notoSerifTc(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          card.definition,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  List<String> _topTags(List<StudySet> sets) {
+    final tagCount = <String, int>{};
+    for (final set in sets) {
+      for (final card in set.cards) {
+        for (final tag in card.tags) {
+          final clean = tag.trim();
+          if (clean.isEmpty) continue;
+          tagCount.update(clean, (value) => value + 1, ifAbsent: () => 1);
+        }
+      }
+    }
+
+    final sorted = tagCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final tags = sorted.take(6).map((e) => e.key).toList();
+    if (tags.isEmpty) {
+      tags.addAll(['TOEIC', 'English', 'Biology', 'History']);
+    }
+    return tags;
+  }
+
+  List<({String setTitle, List<Flashcard> cards})> _buildResults(
+    List<StudySet> studySets,
+    String query,
+  ) {
+    final results = <({String setTitle, List<Flashcard> cards})>[];
+    if (query.isEmpty) return results;
+
+    final q = query.toLowerCase();
+    for (final set in studySets) {
+      final matched = set.cards.where((c) {
+        return c.term.toLowerCase().contains(q) ||
+            c.definition.toLowerCase().contains(q) ||
+            c.tags.any((t) => t.toLowerCase().contains(q));
+      }).toList();
+      if (matched.isNotEmpty) {
+        results.add((setTitle: set.title, cards: matched));
+      }
+    }
+    return results;
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final Widget? trailing;
+
+  const _SectionTitle({required this.title, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppTheme.indigo,
+            borderRadius: BorderRadius.circular(999),
           ),
         ),
-        Expanded(child: body),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.notoSerifTc(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF2A2A28),
+            ),
+          ),
+        ),
+        if (trailing != null) trailing!,
       ],
     );
   }
 }
 
+class _CollectionRow extends StatelessWidget {
+  final StudySet set;
+  final VoidCallback onTap;
+
+  const _CollectionRow({required this.set, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.folder_rounded, color: AppTheme.indigo),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    set.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.notoSerifTc(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${set.cards.length} cards',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -18,4 +18,12 @@ void main() {
     final message = mapAuthErrorMessage('Exception: Something bad happened');
     expect(message, 'Something bad happened');
   });
+
+  test('maps supabase missing config/define error', () {
+    final message = mapAuthErrorMessage('ReferenceError: supabase is not defined');
+    expect(
+      message,
+      'Supabase is not configured for this build. Run with --dart-define (or --dart-define-from-file).',
+    );
+  });
 }
