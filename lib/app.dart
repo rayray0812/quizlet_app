@@ -7,7 +7,6 @@ import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/features/auth/widgets/app_auth_lifecycle_gate.dart';
 import 'package:recall_app/providers/locale_provider.dart';
-import 'package:recall_app/providers/theme_provider.dart';
 import 'package:recall_app/features/pomodoro/widgets/pomodoro_fab.dart';
 
 class RecallApp extends ConsumerWidget {
@@ -16,13 +15,11 @@ class RecallApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       builder: (context, child) {
         if (child == null) return const SizedBox.shrink();
