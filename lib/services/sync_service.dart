@@ -38,7 +38,7 @@ class SyncService {
   /// Push local changes that haven't been synced yet.
   Future<void> _pushUnsynced() async {
     final deletedSetIds = _localStorage.getDeletedStudySetIds();
-    for (final setId in deletedSetIds) {
+    await _runInBatches<String>(deletedSetIds, (setId) async {
       try {
         await _supabaseService.deleteStudySetById(setId);
         await _localStorage.clearDeletedStudySetId(setId);
@@ -46,20 +46,19 @@ class SyncService {
       } catch (e) {
         debugPrint('Failed to sync deleted set $setId: $e');
       }
-    }
+    });
 
     final unsyncedSets = _localStorage.getUnsyncedSets();
     final pushedSetIds = <String>{};
-
-    for (final studySet in unsyncedSets) {
+    await _runInBatches(unsyncedSets, (studySet) async {
       try {
         await _supabaseService.upsertStudySet(studySet);
-        await _localStorage.markAsSynced(studySet.id);
         pushedSetIds.add(studySet.id);
       } catch (e) {
         debugPrint('Failed to sync set ${studySet.id}: $e');
       }
-    }
+    });
+    await _localStorage.markStudySetsAsSynced(pushedSetIds.toList());
 
     final unsyncedProgress = _localStorage.getUnsyncedCardProgress();
     final progressToPush = unsyncedProgress.where((p) {
@@ -69,9 +68,9 @@ class SyncService {
     if (progressToPush.isNotEmpty) {
       try {
         await _supabaseService.upsertCardProgress(progressToPush);
-        for (final progress in progressToPush) {
-          await _localStorage.markCardProgressAsSynced(progress.cardId);
-        }
+        await _localStorage.markCardProgressAsSyncedBatch(
+          progressToPush.map((p) => p.cardId).toList(),
+        );
       } catch (e) {
         debugPrint('Failed to sync card progress: $e');
       }
@@ -85,12 +84,28 @@ class SyncService {
     if (logsToPush.isNotEmpty) {
       try {
         await _supabaseService.upsertReviewLogs(logsToPush);
-        for (final log in logsToPush) {
-          await _localStorage.markReviewLogAsSynced(log.id);
-        }
+        await _localStorage.markReviewLogsAsSyncedBatch(
+          logsToPush.map((log) => log.id).toList(),
+        );
       } catch (e) {
         debugPrint('Failed to sync review logs: $e');
       }
+    }
+  }
+
+  Future<void> _runInBatches<T>(
+    List<T> items,
+    Future<void> Function(T item) task, {
+    int batchSize = 4,
+  }) async {
+    if (items.isEmpty) return;
+    final safeBatchSize = batchSize < 1 ? 1 : batchSize;
+    for (var i = 0; i < items.length; i += safeBatchSize) {
+      final end = (i + safeBatchSize < items.length)
+          ? i + safeBatchSize
+          : items.length;
+      final batch = items.sublist(i, end);
+      await Future.wait(batch.map(task));
     }
   }
 

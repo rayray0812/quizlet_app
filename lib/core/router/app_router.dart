@@ -159,7 +159,8 @@ GoRouter createAppRouter({
       );
       if (baseRedirect != null) return baseRedirect;
 
-      if (state.matchedLocation == '/admin') {
+      if (state.matchedLocation == '/admin' ||
+          state.matchedLocation.startsWith('/admin/')) {
         final isAdmin = await supabaseService.isCurrentUserAdmin();
         if (!isAdmin) return '/';
       }
@@ -274,20 +275,6 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/study/custom',
         builder: (context, state) => const CustomStudyScreen(),
-      ),
-      GoRoute(
-        path: '/revenge',
-        builder: (context, state) => const RevengeDetailScreen(),
-      ),
-      GoRoute(
-        path: '/revenge/quiz',
-        builder: (context, state) {
-          final data = extractMapExtra(state.extra);
-          final cardIds =
-              (data['cardIds'] as List<dynamic>?)?.cast<String>() ??
-              const <String>[];
-          return RevengeQuizScreen(cardIds: cardIds);
-        },
       ),
       GoRoute(
         path: '/edit/:setId',

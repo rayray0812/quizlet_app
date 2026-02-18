@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/features/study/models/conversation_transcript.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/review_log.dart';
@@ -52,7 +53,7 @@ class LocalStorageService {
   }
 
   List<StudySet> getUnsyncedSets() {
-    return getAllStudySets().where((s) => !s.isSynced).toList();
+    return _box.values.whereType<StudySet>().where((s) => !s.isSynced).toList();
   }
 
   Future<void> markAsSynced(String id) async {
@@ -77,7 +78,10 @@ class LocalStorageService {
   }
 
   List<CardProgress> getUnsyncedCardProgress() {
-    return getAllCardProgress().where((p) => !p.isSynced).toList();
+    return _progressBox.values
+        .whereType<CardProgress>()
+        .where((p) => !p.isSynced)
+        .toList();
   }
 
   List<CardProgress> getCardProgressForSet(String setId) {
@@ -129,7 +133,10 @@ class LocalStorageService {
   }
 
   List<ReviewLog> getUnsyncedReviewLogs() {
-    return getAllReviewLogs().where((log) => !log.isSynced).toList();
+    return _reviewLogBox.values
+        .whereType<ReviewLog>()
+        .where((log) => !log.isSynced)
+        .toList();
   }
 
   List<ReviewLog> getReviewLogsForDate(DateTime date) {
@@ -189,5 +196,99 @@ class LocalStorageService {
     for (final log in logs) {
       await saveReviewLog(log);
     }
+  }
+
+  Future<void> saveStudySetsBatch(List<StudySet> sets) async {
+    if (sets.isEmpty) return;
+    final payload = <String, StudySet>{for (final set in sets) set.id: set};
+    await _box.putAll(payload);
+  }
+
+  Future<void> saveCardProgressBatch(List<CardProgress> progresses) async {
+    if (progresses.isEmpty) return;
+    final payload = <String, CardProgress>{
+      for (final progress in progresses) progress.cardId: progress,
+    };
+    await _progressBox.putAll(payload);
+  }
+
+  Future<void> saveReviewLogsBatch(List<ReviewLog> logs) async {
+    if (logs.isEmpty) return;
+    final payload = <String, ReviewLog>{for (final log in logs) log.id: log};
+    await _reviewLogBox.putAll(payload);
+  }
+
+  Future<void> deleteCardProgressBatch(List<String> cardIds) async {
+    if (cardIds.isEmpty) return;
+    await _progressBox.deleteAll(cardIds);
+  }
+
+  Future<void> markStudySetsAsSynced(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final payload = <String, StudySet>{};
+    for (final id in ids) {
+      final set = getStudySet(id);
+      if (set != null && !set.isSynced) {
+        payload[id] = set.copyWith(isSynced: true);
+      }
+    }
+    if (payload.isNotEmpty) {
+      await _box.putAll(payload);
+    }
+  }
+
+  Future<void> markCardProgressAsSyncedBatch(List<String> cardIds) async {
+    if (cardIds.isEmpty) return;
+    final payload = <String, CardProgress>{};
+    for (final cardId in cardIds) {
+      final progress = getCardProgress(cardId);
+      if (progress != null && !progress.isSynced) {
+        payload[cardId] = progress.copyWith(isSynced: true);
+      }
+    }
+    if (payload.isNotEmpty) {
+      await _progressBox.putAll(payload);
+    }
+  }
+
+  Future<void> markReviewLogsAsSyncedBatch(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final payload = <String, ReviewLog>{};
+    for (final id in ids) {
+      final log = getReviewLog(id);
+      if (log != null && !log.isSynced) {
+        payload[id] = log.copyWith(isSynced: true);
+      }
+    }
+    if (payload.isNotEmpty) {
+      await _reviewLogBox.putAll(payload);
+    }
+  }
+
+  // — Conversation Transcripts —
+
+  static const _transcriptsKey = 'conversation_transcripts';
+
+  Future<void> saveConversationTranscript(
+      ConversationTranscript transcript) async {
+    final all = getAllConversationTranscripts();
+    all.insert(0, transcript);
+    // Keep at most 50 transcripts
+    final trimmed = all.take(50).toList();
+    await _settingsBox.put(
+        _transcriptsKey, ConversationTranscript.encodeList(trimmed));
+  }
+
+  List<ConversationTranscript> getAllConversationTranscripts() {
+    final raw = _settingsBox.get(_transcriptsKey) as String?;
+    if (raw == null || raw.isEmpty) return [];
+    return ConversationTranscript.decodeList(raw);
+  }
+
+  Future<void> deleteConversationTranscript(String id) async {
+    final all = getAllConversationTranscripts();
+    all.removeWhere((t) => t.id == id);
+    await _settingsBox.put(
+        _transcriptsKey, ConversationTranscript.encodeList(all));
   }
 }

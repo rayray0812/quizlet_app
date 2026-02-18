@@ -6,6 +6,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:recall_app/app.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/core/router/app_router.dart';
 import 'package:recall_app/models/adapters/study_set_adapter.dart';
@@ -75,12 +76,19 @@ void main() async {
 
   // Re-schedule daily reminder if enabled (survives reboots)
   final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+  final localeLangCode =
+      settingsBox.get('locale_language_code', defaultValue: 'zh') as String;
+  final localeCountryCode =
+      settingsBox.get('locale_country_code', defaultValue: 'TW') as String;
+  final reminderL10n = localeLangCode.toLowerCase() == 'en'
+      ? AppLocalizationsEn(const Locale('en', 'US'))
+      : AppLocalizationsZh(Locale(localeLangCode, localeCountryCode));
   if (settingsBox.get('notification_enabled', defaultValue: false) as bool) {
     await NotificationService.scheduleDailyReminder(
       hour: AppConstants.defaultNotificationHour,
       minute: AppConstants.defaultNotificationMinute,
-      title: '\u8A72\u4F86\u8907\u7FD2\u4E86\uFF01',
-      body: '\u4F60\u6709\u5F85\u8907\u7FD2\u7684\u5361\u7247\uFF0C\u6253\u958B\u62FE\u61B6\u770B\u770B\u5427',
+      title: reminderL10n.reminderTitle,
+      body: reminderL10n.reminderBody,
     );
   }
 

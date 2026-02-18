@@ -3,8 +3,10 @@ import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/services/local_storage_service.dart';
 
+final LocalStorageService _localStorageSingleton = LocalStorageService();
+
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
-  return LocalStorageService();
+  return _localStorageSingleton;
 });
 
 final studySetsProvider =
@@ -20,31 +22,31 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     _loadAndReconcile();
   }
 
-  Future<void> _load() async {
-    state = _localStorage.getAllStudySets();
+  void _reloadFromStorage() {
+    state = _sortSets(_localStorage.getAllStudySets());
   }
 
   Future<void> _loadAndReconcile() async {
-    state = _localStorage.getAllStudySets();
+    _reloadFromStorage();
     await _ensureCardProgress();
     await _cleanOrphanedCardProgress();
   }
 
   /// Create CardProgress entries for any cards that don't have one yet.
   Future<void> _ensureCardProgress() async {
-    final allProgress = {
-      for (final p in _localStorage.getAllCardProgress()) p.cardId: p,
+    final allProgressIds = {
+      for (final p in _localStorage.getAllCardProgress()) p.cardId,
     };
+    final missing = <CardProgress>[];
     for (final set in state) {
       for (final card in set.cards) {
-        if (!allProgress.containsKey(card.id)) {
-          await _localStorage.saveCardProgress(CardProgress(
-            cardId: card.id,
-            setId: set.id,
-          ));
+        if (!allProgressIds.contains(card.id)) {
+          missing.add(CardProgress(cardId: card.id, setId: set.id));
+          allProgressIds.add(card.id);
         }
       }
     }
+    await _localStorage.saveCardProgressBatch(missing);
   }
 
   /// Remove CardProgress entries whose cardId no longer exists in any set.
@@ -56,18 +58,20 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
       }
     }
     final allProgress = _localStorage.getAllCardProgress();
+    final orphanedIds = <String>[];
     for (final progress in allProgress) {
       if (!validCardIds.contains(progress.cardId)) {
-        await _localStorage.deleteCardProgress(progress.cardId);
+        orphanedIds.add(progress.cardId);
       }
     }
+    await _localStorage.deleteCardProgressBatch(orphanedIds);
   }
 
   Future<void> add(StudySet studySet) async {
     final stamped = studySet.copyWith(updatedAt: DateTime.now().toUtc());
     await _localStorage.saveStudySet(stamped);
     await _ensureCardProgressForSet(stamped);
-    await _load();
+    state = _sortSets(<StudySet>[...state, stamped]);
   }
 
   Future<void> remove(String id) async {
@@ -75,7 +79,7 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     await _localStorage.deleteCardProgressForSet(id);
     await _localStorage.deleteReviewLogsForSet(id);
     await _localStorage.deleteStudySet(id);
-    await _load();
+    state = state.where((set) => set.id != id).toList();
   }
 
   Future<void> update(StudySet studySet) async {
@@ -86,34 +90,51 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     await _localStorage.saveStudySet(stamped);
     await _ensureCardProgressForSet(stamped);
     await _removeStaleProgressForSet(stamped);
-    await _load();
+    state = _sortSets(
+      state
+          .map((set) => set.id == stamped.id ? stamped : set)
+          .toList(growable: false),
+    );
   }
 
   void refresh() {
-    _load();
+    _reloadFromStorage();
   }
 
   Future<void> togglePin(String id) async {
     final set = _localStorage.getStudySet(id);
     if (set == null) return;
-    await _localStorage.saveStudySet(set.copyWith(isPinned: !set.isPinned));
-    _load();
+    final updated = set.copyWith(isPinned: !set.isPinned);
+    await _localStorage.saveStudySet(updated);
+    state = _sortSets(
+      state
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList(growable: false),
+    );
   }
 
   Future<void> updateLastStudied(String id) async {
     final set = _localStorage.getStudySet(id);
     if (set == null) return;
-    await _localStorage.saveStudySet(
-      set.copyWith(lastStudiedAt: DateTime.now().toUtc()),
+    final updated = set.copyWith(lastStudiedAt: DateTime.now().toUtc());
+    await _localStorage.saveStudySet(updated);
+    state = _sortSets(
+      state
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList(growable: false),
     );
-    _load();
   }
 
   Future<void> moveToFolder(String setId, String? folderId) async {
     final set = _localStorage.getStudySet(setId);
     if (set == null) return;
-    await _localStorage.saveStudySet(set.copyWith(folderId: folderId));
-    _load();
+    final updated = set.copyWith(folderId: folderId);
+    await _localStorage.saveStudySet(updated);
+    state = _sortSets(
+      state
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList(growable: false),
+    );
   }
 
   StudySet? getById(String id) {
@@ -121,25 +142,34 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
   }
 
   Future<void> _ensureCardProgressForSet(StudySet set) async {
+    final existingIds =
+        _localStorage.getCardProgressForSet(set.id).map((p) => p.cardId).toSet();
+    final missing = <CardProgress>[];
     for (final card in set.cards) {
-      final existing = _localStorage.getCardProgress(card.id);
-      if (existing == null) {
-        await _localStorage.saveCardProgress(CardProgress(
-          cardId: card.id,
-          setId: set.id,
-        ));
+      if (!existingIds.contains(card.id)) {
+        missing.add(CardProgress(cardId: card.id, setId: set.id));
+        existingIds.add(card.id);
       }
     }
+    await _localStorage.saveCardProgressBatch(missing);
   }
 
   Future<void> _removeStaleProgressForSet(StudySet set) async {
     final currentCardIds = set.cards.map((c) => c.id).toSet();
     final progresses = _localStorage.getCardProgressForSet(set.id);
+    final staleIds = <String>[];
     for (final progress in progresses) {
       if (!currentCardIds.contains(progress.cardId)) {
-        await _localStorage.deleteCardProgress(progress.cardId);
+        staleIds.add(progress.cardId);
       }
     }
+    await _localStorage.deleteCardProgressBatch(staleIds);
+  }
+
+  List<StudySet> _sortSets(List<StudySet> sets) {
+    final sorted = List<StudySet>.from(sets);
+    sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return sorted;
   }
 }
 

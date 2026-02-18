@@ -1,4 +1,5 @@
-﻿import 'package:recall_app/core/constants/supabase_constants.dart';
+import 'package:flutter/foundation.dart';
+import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
@@ -49,8 +50,9 @@ class SupabaseService {
     if (client == null) return;
     try {
       await client.auth.signOut();
-    } catch (_) {
+    } catch (e) {
       // Network/DNS failures (e.g., failed host lookup) should not crash logout flow.
+      debugPrint('Supabase signOut failed: $e');
     }
   }
 
@@ -416,3 +418,5 @@ class SupabaseService {
     return client;
   }
 }
+
+

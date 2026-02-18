@@ -1,5 +1,57 @@
 # Development Log
 
+## 2026-02-18
+
+### Conversation Voice Pipeline Stabilization (In Progress)
+- Refactored conversation voice playback flow toward a deterministic single entry point in:
+  - `lib/features/study/screens/conversation_practice_screen.dart`
+- Added explicit runtime voice states and diagnostics:
+  - state enum: `idle -> preparing -> playing -> completed/error`
+  - guard panel badges now show voice state + latest voice path diagnostic.
+- Unified playback entry to reduce mixed engine races:
+  - first-line auto play
+  - AI message tap replay
+  - local coach AI-question playback
+  all now route through one orchestrator (`_playAiMessage`).
+- Tightened first-line replay contract:
+  - replay of first line does not trigger remote generation
+  - uses AI cache first, then immediate local TTS fallback when cache missing.
+- First-line auto play behavior:
+  - tries AI cache first
+  - optionally attempts remote prepare once
+  - falls back to local TTS without blocking UI.
+
+### Verification Status
+- Static formatting/analyze commands were attempted from CLI but timed out in this environment.
+- Manual runtime verification is still required on device/emulator for:
+  - session start first-line auto-play
+  - repeated replay taps on first line
+  - replay of non-first AI messages
+  - back navigation and app background/foreground during playback.
+
+### Storage/Sync Performance Pass (In Progress)
+- Reduced repeated full-list reloads in `StudySetsNotifier`:
+  - switched `add/update/remove` and small edits (`pin`, `lastStudied`, `folder`) to local state patching instead of full `_load()` each time.
+  - added centralized local sorting helper to keep list order stable after local patch updates.
+- Reduced startup reconcile write amplification:
+  - `_ensureCardProgress` now accumulates missing progress rows and writes with one batch call.
+  - orphaned card progress cleanup now batches deletes.
+- Added LocalStorage batch APIs and used them in sync flow:
+  - batch save/delete/mark-synced methods for study sets/card progress/review logs.
+- Optimized sync push path:
+  - `_pushUnsynced()` now runs delete/upsert operations in bounded parallel batches instead of fully serial loops.
+  - synced-flag updates now use batch methods instead of per-item await loops.
+
+### Security Hardening (Gemini API Key Storage)
+- Migrated Gemini API key storage from plain Hive settings to `flutter_secure_storage`.
+- Added one-time migration path in provider:
+  - read secure storage first
+  - if empty, migrate legacy Hive key to secure storage and delete old Hive value.
+- Save path now writes to secure storage and cleans any legacy Hive slot.
+- Added dependency and refreshed lockfile:
+  - `pubspec.yaml`
+  - `pubspec.lock`
+
 ## 2026-02-17
 
 ### Conversation Practice Overhaul (Ongoing)

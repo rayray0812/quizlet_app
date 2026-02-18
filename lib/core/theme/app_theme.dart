@@ -46,6 +46,7 @@ class AppTheme {
   }
 
   static final ThemeData lightTheme = _buildLightTheme();
+  static final ThemeData darkTheme = _buildDarkTheme();
 
   static ThemeData _buildLightTheme() {
     final baseText = GoogleFonts.notoSansTcTextTheme();
@@ -245,6 +246,37 @@ class AppTheme {
                 : _textSubtle,
           );
         }),
+      ),
+    );
+  }
+
+  static ThemeData _buildDarkTheme() {
+    final baseText = GoogleFonts.notoSansTcTextTheme(
+      ThemeData(brightness: Brightness.dark).textTheme,
+    );
+    final scheme = ColorScheme.fromSeed(
+      seedColor: indigo,
+      brightness: Brightness.dark,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: _appFontFamily,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      textTheme: baseText,
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        backgroundColor: const Color(0xFF181818),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        titleTextStyle: GoogleFonts.notoSerifTc(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+          color: scheme.onSurface,
+        ),
       ),
     );
   }

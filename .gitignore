@@ -47,3 +47,11 @@ app.*.map.json
 
 # Local secrets / runtime defines
 dart_defines.local.json
+
+# Local Hive data files (runtime-generated)
+*.hive
+study_sets.lock
+card_progress.lock
+review_logs.lock
+settings.lock
+folders.lock
