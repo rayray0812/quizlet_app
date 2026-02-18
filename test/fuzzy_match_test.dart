@@ -47,10 +47,47 @@ void main() {
       expect(isFuzzyMatch('xotosintesiz', 'photosynthesis'), isFalse); // dist 4
     });
 
-    test('CJK characters', () {
+    test('CJK exact match', () {
       expect(isFuzzyMatch('\u4F60\u597D', '\u4F60\u597D'), isTrue);
-      // 2 chars: exact required
-      expect(isFuzzyMatch('\u4F60\u58DE', '\u4F60\u597D'), isFalse);
+    });
+
+    test('CJK 2-char allows 1 edit distance', () {
+      // 你好 vs 你壞 — 1 character different out of 2
+      expect(isFuzzyMatch('\u4F60\u58DE', '\u4F60\u597D'), isTrue);
+    });
+
+    test('CJK 2-char rejects 2 edits', () {
+      // 我壞 vs 你好 — 2 characters different
+      expect(isFuzzyMatch('\u6211\u58DE', '\u4F60\u597D'), isFalse);
+    });
+
+    test('CJK single char requires exact match', () {
+      expect(isFuzzyMatch('\u4F60', '\u4F60'), isTrue);
+      expect(isFuzzyMatch('\u6211', '\u4F60'), isFalse);
+    });
+
+    test('CJK 4-char allows 1 edit', () {
+      // 光合作用 vs 光合做用 — 1 char different, threshold ceil(4*0.33)=2
+      expect(
+        isFuzzyMatch(
+          '\u5149\u5408\u505A\u7528',
+          '\u5149\u5408\u4F5C\u7528',
+        ),
+        isTrue,
+      );
+    });
+
+    test('CJK 3-char allows 1 edit', () {
+      // 三角形 vs 三角型 — 1 char different, threshold ceil(3*0.33)=1
+      expect(
+        isFuzzyMatch('\u4E09\u89D2\u578B', '\u4E09\u89D2\u5F62'),
+        isTrue,
+      );
+    });
+
+    test('CJK does not apply ph→f normalization', () {
+      // Ensure Chinese text is not mangled by Latin normalization
+      expect(isFuzzyMatch('\u7269\u7406', '\u7269\u7406'), isTrue);
     });
   });
 }

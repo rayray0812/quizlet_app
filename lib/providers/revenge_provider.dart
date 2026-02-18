@@ -18,14 +18,22 @@ final revengeLookbackDaysProvider =
 class RevengeLookbackNotifier extends StateNotifier<int> {
   RevengeLookbackNotifier()
       : super(_defaultRevengeLookbackDays) {
-    final box = Hive.box(AppConstants.hiveSettingsBox);
-    state = box.get(_revengeLookbackKey,
-        defaultValue: _defaultRevengeLookbackDays) as int;
+    try {
+      final box = Hive.box(AppConstants.hiveSettingsBox);
+      state = box.get(_revengeLookbackKey,
+          defaultValue: _defaultRevengeLookbackDays) as int;
+    } catch (_) {
+      // Box not open yet (e.g. during tests); keep default.
+    }
   }
 
   void setDays(int days) {
     state = days;
-    Hive.box(AppConstants.hiveSettingsBox).put(_revengeLookbackKey, days);
+    try {
+      Hive.box(AppConstants.hiveSettingsBox).put(_revengeLookbackKey, days);
+    } catch (_) {
+      // Box not available; skip persistence.
+    }
   }
 }
 
@@ -62,7 +70,7 @@ final revengeCardCountProvider = Provider<int>((ref) {
 });
 
 /// Revenge cards grouped by study set ID.
-/// Returns Map<setId, List<cardId>>.
+/// Returns a map from setId to list of cardIds.
 final revengeCardsBySetProvider = Provider<Map<String, List<String>>>((ref) {
   final allLogs = ref.watch(allReviewLogsProvider);
   final lookbackDays = ref.watch(revengeLookbackDaysProvider);

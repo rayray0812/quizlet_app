@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -194,7 +194,7 @@ class _BreakdownChip extends StatelessWidget {
           const SizedBox(width: 7),
           Text(
             '$count $label',
-            style: GoogleFonts.notoSansTc(
+            style: GoogleFonts.notoSerifTc(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF3A3A38),
@@ -205,3 +205,5 @@ class _BreakdownChip extends StatelessWidget {
     );
   }
 }
+
+

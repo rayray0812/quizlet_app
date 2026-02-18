@@ -39,6 +39,12 @@ class _TextInputQuestionState extends State<TextInputQuestion> {
     widget.onAnswered(correct);
   }
 
+  void _markDontKnow() {
+    if (_isCorrect != null) return;
+    setState(() => _isCorrect = false);
+    widget.onAnswered(false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -74,9 +80,22 @@ class _TextInputQuestionState extends State<TextInputQuestion> {
         ),
         const SizedBox(height: 16),
         if (!answered)
-          FilledButton(
-            onPressed: _submit,
-            child: Text(l10n.submit),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _submit,
+                  child: Text(l10n.submit),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _markDontKnow,
+                  child: Text(l10n.dontKnow),
+                ),
+              ),
+            ],
           ),
         if (answered) ...[
           Container(

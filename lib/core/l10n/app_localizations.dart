@@ -91,6 +91,21 @@ class AppLocalizations {
   String percentCorrect(int percent) => '';
   String get tryAgain => '';
   String get done => '';
+  String get whatIsTermFor => '';
+
+  // -- Quiz Settings --
+  String get quizSettings => '';
+  String get questionTypes => '';
+  String get multipleChoice => '';
+  String get textInput => '';
+  String get trueFalseLabel => '';
+  String get direction => '';
+  String get termToDef => '';
+  String get defToTerm => '';
+  String get mixedDirection => '';
+  String get prioritizeWeak => '';
+  String get prioritizeWeakDesc => '';
+  String get selectAtLeastOneType => '';
 
   // -- Matching --
   String matched(int matched, int total) => '';
@@ -256,6 +271,36 @@ class AppLocalizations {
   String get revengeNeedMoreCards => '';
   String get revengeSelectSets => '';
 
+  // -- Dashboard --
+  String get guestMode => '';
+  String get personalSettings => '';
+  String get loginToSync => '';
+  String get quickToggle => '';
+  String get dailyReviewReminder => '';
+  String get biometricUnlock => '';
+  String get preferencesAndAppearance => '';
+  String get displayAndLanguage => '';
+  String get reminderAndAi => '';
+  String get accountAndData => '';
+  String get accountAndSecurity => '';
+  String get learningTools => '';
+  String get personalAccount => '';
+  String get adminConsole => '';
+  String get loginRequiredToEnable => '';
+  String get biometricOnResume => '';
+  String get securityCenter => '';
+  String get todayTasks => '';
+  String get hasReviewTasks => '';
+  String get allTasksCompleted => '';
+  String get pendingReview => '';
+  String get completedToday => '';
+  String get studySetsLabel => '';
+  String get startTodayReview => '';
+  String get createOrImportSet => '';
+  String get useCustomPractice => '';
+  String continueLastSet(String title) => '';
+  String get goTo => '';
+
   // -- Notifications --
   String get dailyReminder => '';
   String get dailyReminderDesc => '';
@@ -384,6 +429,46 @@ class AppLocalizations {
   String get almostCorrect => '';
   String wrongCount(int n) => '';
 
+  // -- Settings Redesign --
+  String get settingsAccount => '';
+  String get settingsLearning => '';
+  String get settingsPreferences => '';
+  String get accountSubtitle => '';
+  String get securitySubtitle => '';
+  String get achievementsSubtitle => '';
+  String get foldersSubtitle => '';
+  String get pomodoroSubtitle => '';
+  String get displaySubtitle => '';
+  String get notificationSettings => '';
+  String get notificationSubtitle => '';
+  String get aiSettings => '';
+  String get aiSettingsSubtitle => '';
+  String get madeWithLove => '';
+
+  // -- About --
+  String get aboutApp => '';
+  String get aboutTagline => '';
+  String get aboutSrsTitle => '';
+  String get aboutSrsP1 => '';
+  String get aboutSrsP2 => '';
+  String get aboutSrsHighlight => '';
+  String get aboutQuizTitle => '';
+  String get aboutQuizP1 => '';
+  String get aboutQuizP2 => '';
+  String get aboutQuizHighlight => '';
+  String get aboutMoreTitle => '';
+  String get aboutMoreP1 => '';
+  String get aboutChipSrs => '';
+  String get aboutChipQuiz => '';
+  String get aboutChipMatch => '';
+  String get aboutChipPhoto => '';
+  String get aboutChipDaily => '';
+  String get aboutChipSpeak => '';
+  String get aboutReferences => '';
+  String get aboutRef1 => '';
+  String get aboutRef2 => '';
+  String get aboutRef3 => '';
+
   // -- Editor Upgrade (B2) --
   String get selectMode => '';
   String get selectAll => '';
@@ -400,6 +485,19 @@ class AppLocalizations {
   String get goBackToFix => '';
   String cardNMissingField(int n, String field) => '';
   String cardsAreDuplicates(int a, int b) => '';
+  String get generateAiExamples => '';
+  String get conversationPractice => '';
+  String get conversationPracticeDesc => '';
+  String get turns => '';
+  String get difficulty => '';
+  String get startConversation => '';
+  String nTurns(int count) => '';
+  String get difficultyEasyDesc => '';
+  String get difficultyMediumDesc => '';
+  String get difficultyHardDesc => '';
+  String generatedExamplesCount(int count) => '';
+  String get practiceComplete => '';
+  String completedNTurns(int count) => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -542,6 +640,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tryAgain => '\u518D\u8A66\u4E00\u6B21';
   @override
   String get done => '\u5B8C\u6210';
+  @override
+  String get whatIsTermFor =>
+      '\u9019\u500B\u5B9A\u7FA9\u5C0D\u61C9\u7684\u8A5E\u5F59\u662F\uFF1A';
+
+  // -- Quiz Settings --
+  @override
+  String get quizSettings => '\u6E2C\u9A57\u8A2D\u5B9A';
+  @override
+  String get questionTypes => '\u984C\u578B';
+  @override
+  String get multipleChoice => '\u9078\u64C7\u984C';
+  @override
+  String get textInput => '\u586B\u7A7A\u984C';
+  @override
+  String get trueFalseLabel => '\u662F\u975E\u984C';
+  @override
+  String get direction => '\u51FA\u984C\u65B9\u5411';
+  @override
+  String get termToDef => '\u8A5E\u2192\u7FA9';
+  @override
+  String get defToTerm => '\u7FA9\u2192\u8A5E';
+  @override
+  String get mixedDirection => '\u6DF7\u5408';
+  @override
+  String get prioritizeWeak => '\u5F31\u9805\u512A\u5148';
+  @override
+  String get prioritizeWeakDesc =>
+      '\u512A\u5148\u51FA\u96E3\u5EA6\u9AD8\u3001\u932F\u8AA4\u591A\u7684\u5361\u7247';
+  @override
+  String get selectAtLeastOneType =>
+      '\u81F3\u5C11\u9078\u64C7\u4E00\u7A2E\u984C\u578B';
 
   // -- Matching --
   @override
@@ -605,7 +734,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get editCards => '\u7DE8\u8F2F\u5361\u7247';
   @override
-  String savedNCards(int count) => '\u5DF2\u5132\u5B58 $count \u5F35\u5361\u7247';
+  String savedNCards(int count) =>
+      '\u5DF2\u5132\u5B58 $count \u5F35\u5361\u7247';
   @override
   String get start => '\u958B\u59CB';
   @override
@@ -651,11 +781,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get srsReview => 'SRS \u8907\u7FD2';
   @override
-  String get srsReviewDesc => '\u9593\u9694\u91CD\u8907\u5B78\u7FD2\uFF0C\u66F4\u9AD8\u6548';
+  String get srsReviewDesc =>
+      '\u9593\u9694\u91CD\u8907\u5B78\u7FD2\uFF0C\u66F4\u9AD8\u6548';
   @override
   String get quickBrowse => '\u5FEB\u901F\u700F\u89BD';
   @override
-  String get quickBrowseDesc => '\u6ED1\u52D5\u700F\u89BD\u6240\u6709\u5361\u7247';
+  String get quickBrowseDesc =>
+      '\u6ED1\u52D5\u700F\u89BD\u6240\u6709\u5361\u7247';
   @override
   String get speakingPractice => '\u53E3\u8AAA\u7DF4\u7FD2';
   @override
@@ -682,13 +814,15 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String recognizedSpeech(String text) => '\u8FA8\u8B58\u7D50\u679C\uff1a$text';
   @override
-  String get speechRecognitionUnavailable => '\u6B64\u88DD\u7F6E\u7121\u6CD5\u4F7F\u7528\u8A9E\u97F3\u8FA8\u8B58';
+  String get speechRecognitionUnavailable =>
+      '\u6B64\u88DD\u7F6E\u7121\u6CD5\u4F7F\u7528\u8A9E\u97F3\u8FA8\u8B58';
   @override
   String get exampleLabel => '\u4F8B\u53E5';
   @override
   String get autoGeneratedLabel => '\u81EA\u52D5\u751F\u6210';
   @override
-  String get noExampleSentence => '\u6B64\u55AE\u5B57\u7121\u53EF\u7528\u4F8B\u53E5';
+  String get noExampleSentence =>
+      '\u6B64\u55AE\u5B57\u7121\u53EF\u7528\u4F8B\u53E5';
   @override
   String get rateSpeaking => '\u8ACB\u8A55\u5206\u4F60\u7684\u53E3\u8AAA';
   @override
@@ -696,11 +830,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String averageScore(double score) => '\u5E73\u5747\u5206\u6578 $score';
   @override
-  String get noDueCards => '\u4ECA\u5929\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247';
+  String get noDueCards =>
+      '\u4ECA\u5929\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247';
   @override
   String get reviewComplete => '\u8907\u7FD2\u5B8C\u6210\uFF01';
   @override
-  String reviewedNCards(int count) => '\u5DF2\u8907\u7FD2 $count \u5F35\u5361\u7247';
+  String reviewedNCards(int count) =>
+      '\u5DF2\u8907\u7FD2 $count \u5F35\u5361\u7247';
   @override
   String nDueCards(int count) => '$count \u5F35\u5F85\u8907\u7FD2';
   @override
@@ -740,7 +876,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get selectTags => '\u9078\u64C7\u6A19\u7C64';
   @override
-  String nMatchingCards(int count) => '$count \u5F35\u7B26\u5408\u689D\u4EF6\u7684\u5361\u7247';
+  String nMatchingCards(int count) =>
+      '$count \u5F35\u7B26\u5408\u689D\u4EF6\u7684\u5361\u7247';
   @override
   String get startReview => '\u958B\u59CB\u8907\u7FD2';
   @override
@@ -752,11 +889,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get vocabularyList => '\u55AE\u5B57\u8868';
   @override
-  String get vocabularyListDesc => '\u8FA8\u8B58\u5716\u7247\u4E2D\u7684\u55AE\u5B57\u8207\u91CB\u7FA9';
+  String get vocabularyListDesc =>
+      '\u8FA8\u8B58\u5716\u7247\u4E2D\u7684\u55AE\u5B57\u8207\u91CB\u7FA9';
   @override
   String get textbookPage => '\u8AB2\u672C\u9801\u9762';
   @override
-  String get textbookPageDesc => '\u64F7\u53D6\u8AB2\u672C\u5167\u5BB9\u7684\u91CD\u9EDE\u6982\u5FF5';
+  String get textbookPageDesc =>
+      '\u64F7\u53D6\u8AB2\u672C\u5167\u5BB9\u7684\u91CD\u9EDE\u6982\u5FF5';
   @override
   String get takePhoto => '\u62CD\u7167';
   @override
@@ -766,42 +905,52 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get geminiApiKeyHint => '\u8F38\u5165\u4F60\u7684 Gemini API Key';
   @override
-  String get geminiApiKeyNotSet => '\u8ACB\u5148\u5728\u8A2D\u5B9A\u9801\u8F38\u5165 Gemini API Key';
+  String get geminiApiKeyNotSet =>
+      '\u8ACB\u5148\u5728\u8A2D\u5B9A\u9801\u8F38\u5165 Gemini API Key';
   @override
   String get geminiApiKeySaved => 'API Key \u5DF2\u5132\u5B58';
   @override
   String get analyzing => 'AI \u5206\u6790\u4E2D\u2026';
   @override
-  String get noCardsExtracted => '\u7121\u6CD5\u64F7\u53D6\u5361\u7247\uFF0C\u8ACB\u63DB\u4E00\u5F35\u5716\u7247\u8A66\u8A66';
+  String get noCardsExtracted =>
+      '\u7121\u6CD5\u64F7\u53D6\u5361\u7247\uFF0C\u8ACB\u63DB\u4E00\u5F35\u5716\u7247\u8A66\u8A66';
   @override
-  String get photoScanFailed => '\u5206\u6790\u5931\u6557\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21';
+  String get photoScanFailed =>
+      '\u5206\u6790\u5931\u6557\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21';
   @override
   String get chooseMode => '\u9078\u64C7\u8FA8\u8B58\u6A21\u5F0F';
   @override
   String get chooseImageSource => '\u9078\u64C7\u5716\u7247\u4F86\u6E90';
   @override
-  String get retryOrChooseAnother => '\u91CD\u8A66\u6216\u9078\u64C7\u5176\u4ED6\u5716\u7247';
+  String get retryOrChooseAnother =>
+      '\u91CD\u8A66\u6216\u9078\u64C7\u5176\u4ED6\u5716\u7247';
 
   @override
-  String get scanTimeout => '\u8ACB\u6C42\u903E\u6642\uFF0C\u8ACB\u6AA2\u67E5\u7DB2\u8DEF\u5F8C\u91CD\u8A66';
+  String get scanTimeout =>
+      '\u8ACB\u6C42\u903E\u6642\uFF0C\u8ACB\u6AA2\u67E5\u7DB2\u8DEF\u5F8C\u91CD\u8A66';
   @override
-  String get scanQuotaExceeded => 'API \u984D\u5EA6\u5DF2\u7528\u5B8C\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66';
+  String get scanQuotaExceeded =>
+      'API \u984D\u5EA6\u5DF2\u7528\u5B8C\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66';
   @override
-  String get scanParseError => 'AI \u56DE\u61C9\u683C\u5F0F\u7570\u5E38\uFF0C\u8ACB\u91CD\u8A66';
+  String get scanParseError =>
+      'AI \u56DE\u61C9\u683C\u5F0F\u7570\u5E38\uFF0C\u8ACB\u91CD\u8A66';
   @override
-  String get scanNetworkError => '\u7DB2\u8DEF\u932F\u8AA4\uFF0C\u8ACB\u6AA2\u67E5\u9023\u7DDA';
+  String get scanNetworkError =>
+      '\u7DB2\u8DEF\u932F\u8AA4\uFF0C\u8ACB\u6AA2\u67E5\u9023\u7DDA';
   @override
   String get cancelAnalysis => '\u53D6\u6D88';
 
   // -- Multi-photo (F6+) --
   @override
-  String cardsFromPhotos(int cards, int photos) => '$cards \u5F35\u5361\u7247 / $photos \u5F35\u7167\u7247';
+  String cardsFromPhotos(int cards, int photos) =>
+      '$cards \u5F35\u5361\u7247 / $photos \u5F35\u7167\u7247';
   @override
   String get reviewAndSave => '\u9810\u89BD\u4E26\u5132\u5B58';
   @override
   String get addMorePhotos => '\u7E7C\u7E8C\u62CD\u7167';
   @override
-  String photoAdded(int count) => '\u5DF2\u65B0\u589E $count \u5F35\u5361\u7247';
+  String photoAdded(int count) =>
+      '\u5DF2\u65B0\u589E $count \u5F35\u5361\u7247';
 
   // -- Daily Challenge --
   @override
@@ -809,27 +958,34 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String challengeStreak(int count) => '\u9023\u7E8C $count \u5929';
   @override
-  String challengeTodayComplete(int target) => '\u4ECA\u65E5\u5B8C\u6210\uFF1A$target/$target';
+  String challengeTodayComplete(int target) =>
+      '\u4ECA\u65E5\u5B8C\u6210\uFF1A$target/$target';
   @override
-  String challengeProgress(int reviewed, int target) => '\u9032\u5EA6\uFF1A$reviewed/$target';
+  String challengeProgress(int reviewed, int target) =>
+      '\u9032\u5EA6\uFF1A$reviewed/$target';
   @override
-  String get challengeCompleteMsg => '\u505A\u5F97\u597D\uFF01\u660E\u5929\u518D\u4F86\u6311\u6230\u5427\u3002';
+  String get challengeCompleteMsg =>
+      '\u505A\u5F97\u597D\uFF01\u660E\u5929\u518D\u4F86\u6311\u6230\u5427\u3002';
   @override
-  String get challengeNoDueCards => '\u76EE\u524D\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247\uFF0C\u7A0D\u5F8C\u518D\u4F86\u3002';
+  String get challengeNoDueCards =>
+      '\u76EE\u524D\u6C92\u6709\u5F85\u8907\u7FD2\u5361\u7247\uFF0C\u7A0D\u5F8C\u518D\u4F86\u3002';
   @override
   String challengeNextRun(int count) => '\u4E0B\u4E00\u8F2A\uFF1A$count \u5F35';
   @override
   String get play => '\u958B\u59CB';
   @override
-  String get challengeCompletedToast => '\u592A\u68D2\u4E86\uFF01\u4ECA\u65E5\u6311\u6230\u5B8C\u6210 \uD83C\uDF89';
+  String get challengeCompletedToast =>
+      '\u592A\u68D2\u4E86\uFF01\u4ECA\u65E5\u6311\u6230\u5B8C\u6210 \uD83C\uDF89';
 
   // -- Revenge Mode --
   @override
   String get revengeMode => '\u932F\u984C\u8907\u7FD2';
   @override
-  String revengeCount(int count) => '$count \u5F35\u7B54\u932F\u7684\u5361\u7247\u7B49\u4F60\u6311\u6230';
+  String revengeCount(int count) =>
+      '$count \u5F35\u7B54\u932F\u7684\u5361\u7247\u7B49\u4F60\u6311\u6230';
   @override
-  String revengeClearedCount(int count) => '\u5DF2\u6E05\u9664 $count \u9053\u932F\u984C\uFF01';
+  String revengeClearedCount(int count) =>
+      '\u5DF2\u6E05\u9664 $count \u9053\u932F\u984C\uFF01';
   @override
   String get revengeDetail => '\u932F\u984C\u8907\u7FD2\u8A73\u60C5';
   @override
@@ -851,19 +1007,86 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get revengeStartQuiz => '\u6E2C\u9A57\u6A21\u5F0F';
   @override
-  String get revengeNeedMoreCards => '\u6E2C\u9A57\u81F3\u5C11\u9700\u8981 4 \u5F35\u932F\u984C\u5361';
+  String get revengeNeedMoreCards =>
+      '\u6E2C\u9A57\u81F3\u5C11\u9700\u8981 4 \u5F35\u932F\u984C\u5361';
   @override
   String get revengeSelectSets => '\u9078\u64C7\u5B78\u7FD2\u96C6';
+
+  // -- Dashboard --
+  @override
+  String get guestMode => '\u8A2A\u5BA2\u6A21\u5F0F';
+  @override
+  String get personalSettings => '\u500B\u4EBA\u8A2D\u5B9A';
+  @override
+  String get loginToSync =>
+      '\u767B\u5165\u5F8C\u53EF\u540C\u6B65\u8CC7\u6599\u8207\u555F\u7528\u66F4\u591A\u529F\u80FD';
+  @override
+  String get quickToggle => '\u5FEB\u901F\u5207\u63DB';
+  @override
+  String get dailyReviewReminder => '\u6BCF\u65E5\u8907\u7FD2\u63D0\u9192';
+  @override
+  String get biometricUnlock => '\u751F\u7269\u8FA8\u8B58\u89E3\u9396';
+  @override
+  String get preferencesAndAppearance => '\u504F\u597D\u8207\u5916\u89C0';
+  @override
+  String get displayAndLanguage => '\u5916\u89C0\u8207\u8A9E\u8A00';
+  @override
+  String get reminderAndAi => '\u63D0\u9192\u8207 AI';
+  @override
+  String get accountAndData => '\u5E33\u865F\u8207\u8CC7\u6599';
+  @override
+  String get accountAndSecurity => '\u5E33\u865F\u8207\u5B89\u5168';
+  @override
+  String get learningTools => '\u5B78\u7FD2\u5DE5\u5177';
+  @override
+  String get personalAccount => '\u500B\u4EBA\u5E33\u865F';
+  @override
+  String get adminConsole => '\u7BA1\u7406\u8005\u63A7\u5236\u53F0';
+  @override
+  String get loginRequiredToEnable =>
+      '\u8ACB\u5148\u767B\u5165\u624D\u80FD\u555F\u7528\u3002';
+  @override
+  String get biometricOnResume =>
+      '\u56DE\u5230 App \u6642\u9700\u8981\u751F\u7269\u8FA8\u8B58\u9A57\u8B49\u3002';
+  @override
+  String get securityCenter => '\u5B89\u5168\u4E2D\u5FC3';
+  @override
+  String get todayTasks => '\u4ECA\u65E5\u4EFB\u52D9';
+  @override
+  String get hasReviewTasks => '\u4ECA\u5929\u6709\u8907\u7FD2\u4EFB\u52D9';
+  @override
+  String get allTasksCompleted =>
+      '\u4ECA\u5929\u5DF2\u5B8C\u6210\u4E3B\u8981\u4EFB\u52D9';
+  @override
+  String get pendingReview => '\u5F85\u8907\u7FD2';
+  @override
+  String get completedToday => '\u4ECA\u65E5\u5B8C\u6210';
+  @override
+  String get studySetsLabel => '\u5B78\u7FD2\u96C6';
+  @override
+  String get startTodayReview => '\u958B\u59CB\u4ECA\u5929\u8907\u7FD2';
+  @override
+  String get createOrImportSet =>
+      '\u5EFA\u7ACB\u6216\u532F\u5165\u5B78\u7FD2\u96C6';
+  @override
+  String get useCustomPractice => '\u6539\u7528\u81EA\u8A02\u7DF4\u7FD2';
+  @override
+  String continueLastSet(String title) =>
+      '\u7E7C\u7E8C\u4E0A\u6B21\uFF1A$title';
+  @override
+  String get goTo => '\u524D\u5F80';
 
   // -- Notifications --
   @override
   String get dailyReminder => '\u6BCF\u65E5\u8907\u7FD2\u63D0\u9192';
   @override
-  String get dailyReminderDesc => '\u6BCF\u5929 20:00 \u63D0\u9192\u4F60\u8907\u7FD2';
+  String get dailyReminderDesc =>
+      '\u6BCF\u5929 20:00 \u63D0\u9192\u4F60\u8907\u7FD2';
   @override
   String get reminderTitle => '\u8A72\u4F86\u8907\u7FD2\u4E86\uFF01';
   @override
-  String get reminderBody => '\u4F60\u6709\u5F85\u8907\u7FD2\u7684\u5361\u7247\uFF0C\u6253\u958B\u62FE\u61B6\u770B\u770B\u5427';
+  String get reminderBody =>
+      '\u4F60\u6709\u5F85\u8907\u7FD2\u7684\u5361\u7247\uFF0C\u6253\u958B\u62FE\u61B6\u770B\u770B\u5427';
 
   // -- Folders (F7) --
   @override
@@ -879,7 +1102,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get deleteFolder => '\u522A\u9664\u8CC7\u6599\u593E\uFF1F';
   @override
-  String deleteFolderConfirm(String name) => '\u78BA\u5B9A\u8981\u522A\u9664\u300C$name\u300D\u55CE\uFF1F';
+  String deleteFolderConfirm(String name) =>
+      '\u78BA\u5B9A\u8981\u522A\u9664\u300C$name\u300D\u55CE\uFF1F';
   @override
   String get color => '\u984F\u8272';
   @override
@@ -909,15 +1133,18 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get onboardingWelcome => '\u6B61\u8FCE\u4F86\u5230\u62FE\u61B6';
   @override
-  String get onboardingWelcomeDesc => '\u667A\u6167\u8907\u7FD2\uFF0C\u9AD8\u6548\u8A18\u61B6';
+  String get onboardingWelcomeDesc =>
+      '\u667A\u6167\u8907\u7FD2\uFF0C\u9AD8\u6548\u8A18\u61B6';
   @override
   String get onboardingFeatures => '\u5F37\u5927\u529F\u80FD';
   @override
-  String get onboardingFeaturesDesc => '\u9593\u9694\u91CD\u8907\u3001\u6BCF\u65E5\u6311\u6230\u3001\u62CD\u7167\u5EFA\u5361\n\u8B93\u5B78\u7FD2\u66F4\u6709\u6548\u7387';
+  String get onboardingFeaturesDesc =>
+      '\u9593\u9694\u91CD\u8907\u3001\u6BCF\u65E5\u6311\u6230\u3001\u62CD\u7167\u5EFA\u5361\n\u8B93\u5B78\u7FD2\u66F4\u6709\u6548\u7387';
   @override
   String get onboardingStart => '\u958B\u59CB\u5427\uFF01';
   @override
-  String get onboardingStartDesc => '\u767B\u5165\u5E33\u865F\u540C\u6B65\u8CC7\u6599\uFF0C\u6216\u4EE5\u8A2A\u5BA2\u8EAB\u5206\u958B\u59CB';
+  String get onboardingStartDesc =>
+      '\u767B\u5165\u5E33\u865F\u540C\u6B65\u8CC7\u6599\uFF0C\u6216\u4EE5\u8A2A\u5BA2\u8EAB\u5206\u958B\u59CB';
   @override
   String get skip => '\u7565\u904E';
   @override
@@ -931,7 +1158,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get scanQr => '\u6383\u63CF QR Code';
   @override
-  String get scanToImport => '\u8ACB\u5C0D\u65B9\u6383\u63CF\u6B64 QR Code \u5373\u53EF\u532F\u5165';
+  String get scanToImport =>
+      '\u8ACB\u5C0D\u65B9\u6383\u63CF\u6B64 QR Code \u5373\u53EF\u532F\u5165';
   @override
   String get linkCopied => '\u9023\u7D50\u5DF2\u8907\u88FD';
   @override
@@ -951,7 +1179,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get badgeFirstReview => '\u521D\u6B21\u8907\u7FD2';
   @override
-  String get badgeFirstReviewDesc => '\u5B8C\u6210\u7B2C\u4E00\u6B21\u8907\u7FD2';
+  String get badgeFirstReviewDesc =>
+      '\u5B8C\u6210\u7B2C\u4E00\u6B21\u8907\u7FD2';
   @override
   String get badgeStreak7 => '\u9023\u7E8C 7 \u5929';
   @override
@@ -971,11 +1200,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get badgeMastered50 => '\u7CBE\u901A 50';
   @override
-  String get badgeMastered50Desc => '50 \u5F35\u5361\u7247\u9054\u5230\u7CBE\u901A';
+  String get badgeMastered50Desc =>
+      '50 \u5F35\u5361\u7247\u9054\u5230\u7CBE\u901A';
   @override
   String get badgeRevengeClear => '\u6383\u6E05\u932F\u984C';
   @override
-  String get badgeRevengeClearDesc => '\u6E05\u7A7A\u4E00\u6B21\u932F\u984C\u6C60';
+  String get badgeRevengeClearDesc =>
+      '\u6E05\u7A7A\u4E00\u6B21\u932F\u984C\u6C60';
   @override
   String get badgeSets10 => '\u5275\u5EFA\u5927\u5E2B';
   @override
@@ -987,15 +1218,18 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get badgeChallenge30 => '\u6311\u6230 30 \u5929';
   @override
-  String get badgeChallenge30Desc => '\u5B8C\u6210 30 \u6B21\u6BCF\u65E5\u6311\u6230';
+  String get badgeChallenge30Desc =>
+      '\u5B8C\u6210 30 \u6B21\u6BCF\u65E5\u6311\u6230';
   @override
   String get badgePhoto10 => '\u62CD\u7167\u9054\u4EBA';
   @override
-  String get badgePhoto10Desc => '\u7528\u62CD\u7167\u5EFA\u5361\u5EFA\u7ACB 10 \u6B21';
+  String get badgePhoto10Desc =>
+      '\u7528\u62CD\u7167\u5EFA\u5361\u5EFA\u7ACB 10 \u6B21';
   @override
   String get badgeSpeedrun => '\u6975\u901F\u914D\u5C0D';
   @override
-  String get badgeSpeedrunDesc => '\u914D\u5C0D\u904A\u6232 30 \u79D2\u5167\u5B8C\u6210';
+  String get badgeSpeedrunDesc =>
+      '\u914D\u5C0D\u904A\u6232 30 \u79D2\u5167\u5B8C\u6210';
   @override
   String get badgeUnlocked => '\u89E3\u9396\u65B0\u5FBD\u7AE0\uFF01';
 
@@ -1015,7 +1249,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get pomodoroStarted => '\u756A\u8304\u937E\u5DF2\u555F\u52D5';
   @override
-  String pomodoroSessions(int count) => '\u5DF2\u5B8C\u6210 $count \u500B\u756A\u8304';
+  String pomodoroSessions(int count) =>
+      '\u5DF2\u5B8C\u6210 $count \u500B\u756A\u8304';
 
   // -- Rating labels (SRS) --
   @override
@@ -1049,15 +1284,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   // -- Challenge detail (review summary) --
   @override
-  String challengeCompleteDetail(int target) => '\u6BCF\u65E5\u6311\u6230\u5B8C\u6210\uFF08$target \u5F35\u5361\u7247\uFF09';
+  String challengeCompleteDetail(int target) =>
+      '\u6BCF\u65E5\u6311\u6230\u5B8C\u6210\uFF08$target \u5F35\u5361\u7247\uFF09';
   @override
-  String challengeProgressDetail(int reviewed, int target) => '\u6BCF\u65E5\u6311\u6230\u9032\u5EA6\uFF1A$reviewed/$target';
+  String challengeProgressDetail(int reviewed, int target) =>
+      '\u6BCF\u65E5\u6311\u6230\u9032\u5EA6\uFF1A$reviewed/$target';
 
   // -- Auto-image --
   @override
-  String autoImageProgress(int done, int total) => '\u6293\u5716\u4E2D\u2026 $done/$total';
+  String autoImageProgress(int done, int total) =>
+      '\u6293\u5716\u4E2D\u2026 $done/$total';
   @override
-  String autoImageDone(int count) => '\u5DF2\u66F4\u65B0 $count \u5F35\u5716\u7247';
+  String autoImageDone(int count) =>
+      '\u5DF2\u66F4\u65B0 $count \u5F35\u5716\u7247';
   @override
   String get autoImageCancelled => '\u5DF2\u53D6\u6D88\u6293\u5716';
 
@@ -1071,15 +1310,18 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get falseLabel => '\u932F\u8AA4';
   @override
-  String get isThisCorrect => '\u9019\u500B\u5B9A\u7FA9\u6B63\u78BA\u55CE\uFF1F';
+  String get isThisCorrect =>
+      '\u9019\u500B\u5B9A\u7FA9\u6B63\u78BA\u55CE\uFF1F';
   @override
   String get correctAnswer => '\u6B63\u78BA\u7B54\u6848';
   @override
   String get reinforcementRound => '\u932F\u984C\u8907\u7FD2';
   @override
-  String get reinforcementDesc => '\u4F86\u8907\u7FD2\u7B54\u932F\u7684\u984C\u76EE\uFF01';
+  String get reinforcementDesc =>
+      '\u4F86\u8907\u7FD2\u7B54\u932F\u7684\u984C\u76EE\uFF01';
   @override
-  String get almostCorrect => '\u5DEE\u4E00\u9EDE\uFF01\u6B63\u78BA\u7B54\u6848\u662F\uFF1A';
+  String get almostCorrect =>
+      '\u5DEE\u4E00\u9EDE\uFF01\u6B63\u78BA\u7B54\u6848\u662F\uFF1A';
   @override
   String wrongCount(int n) => '$n \u984C\u7B54\u932F';
 
@@ -1102,6 +1344,97 @@ class AppLocalizationsZh extends AppLocalizations {
   String get undoAction => '\u5FA9\u539F';
   @override
   String get redoAction => '\u91CD\u505A';
+  // -- Settings Redesign --
+  @override
+  String get settingsAccount => '\u5E33\u865F';
+  @override
+  String get settingsLearning => '\u5B78\u7FD2';
+  @override
+  String get settingsPreferences => '\u504F\u597D';
+  @override
+  String get accountSubtitle =>
+      '\u767B\u5165\u72C0\u614B\u8207\u500B\u4EBA\u8CC7\u6599';
+  @override
+  String get securitySubtitle =>
+      '\u5BC6\u78BC\u3001\u751F\u7269\u8FA8\u8B58\u3001\u5B89\u5168\u4E2D\u5FC3';
+  @override
+  String get achievementsSubtitle =>
+      '\u67E5\u770B\u89E3\u9396\u7684\u6210\u5C31';
+  @override
+  String get foldersSubtitle => '\u6574\u7406\u5B78\u7FD2\u96C6\u5206\u985E';
+  @override
+  String get pomodoroSubtitle => '25 \u5206\u9418\u5C08\u6CE8\u8A08\u6642';
+  @override
+  String get displaySubtitle => '\u4E3B\u984C\u3001\u8A9E\u8A00\u5207\u63DB';
+  @override
+  String get notificationSettings => '\u63D0\u9192\u8207\u901A\u77E5';
+  @override
+  String get notificationSubtitle =>
+      '\u6BCF\u65E5\u8907\u7FD2\u63D0\u9192\u8A2D\u5B9A';
+  @override
+  String get aiSettings => 'AI \u8A2D\u5B9A';
+  @override
+  String get aiSettingsSubtitle => 'Gemini API Key \u7BA1\u7406';
+  @override
+  String get madeWithLove => '\u4EE5\u611B\u88FD\u4F5C';
+
+  // -- About --
+  @override
+  String get aboutApp => '\u95DC\u65BC\u62FE\u6186';
+  @override
+  String get aboutTagline =>
+      '\u4E00\u6B3E\u57FA\u65BC\u8A8D\u77E5\u79D1\u5B78\u7684\u667A\u6167\u5B78\u7FD2\u5DE5\u5177\uFF0C\u8B93\u8A18\u61B6\u66F4\u6709\u6548\u7387';
+  @override
+  String get aboutSrsTitle => '\u9593\u9694\u91CD\u8907 (SRS)';
+  @override
+  String get aboutSrsP1 =>
+      '\u62FE\u61B6\u63A1\u7528 FSRS-5 \u6F14\u7B97\u6CD5\uFF0C\u9019\u662F\u76EE\u524D\u6700\u5148\u9032\u7684\u9593\u9694\u91CD\u8907\u6F14\u7B97\u6CD5\u4E4B\u4E00\u3002\u5B83\u6703\u6839\u64DA\u4F60\u6BCF\u5F35\u5361\u7247\u7684\u8A18\u61B6\u72C0\u614B\uFF08\u7A69\u5B9A\u5EA6\u3001\u96E3\u5EA6\u3001\u9041\u671F\u6B21\u6578\uFF09\uFF0C\u81EA\u52D5\u8A08\u7B97\u6700\u4F73\u8907\u7FD2\u6642\u9593\u3002';
+  @override
+  String get aboutSrsP2 =>
+      '\u6838\u5FC3\u539F\u7406\u4F86\u81EA\u300C\u907A\u5FD8\u66F2\u7DDA\u300D\uFF1A\u8A18\u61B6\u6703\u96A8\u6642\u9593\u81EA\u7136\u8870\u9000\uFF0C\u4F46\u5728\u5373\u5C07\u5FD8\u8A18\u524D\u8907\u7FD2\uFF0C\u80FD\u5927\u5E45\u5EF6\u9577\u8A18\u61B6\u4FDD\u7559\u6642\u9593\u3002FSRS \u6BD4\u50B3\u7D71\u7684 SM-2 \u6F14\u7B97\u6CD5\u66F4\u7CBE\u6E96\uFF0C\u80FD\u6E1B\u5C11 30% \u4EE5\u4E0A\u7684\u7121\u6548\u8907\u7FD2\u3002';
+  @override
+  String get aboutSrsHighlight =>
+      '\u7814\u7A76\u8B49\u5BE6\uFF1A\u9593\u9694\u91CD\u8907\u6BD4\u96C6\u4E2D\u8907\u7FD2\u7684\u9577\u671F\u8A18\u61B6\u6548\u679C\u9AD8\u51FA 200% \u4EE5\u4E0A (Cepeda et al., 2006)';
+  @override
+  String get aboutQuizTitle => '\u79D1\u5B78\u5316\u6E2C\u9A57';
+  @override
+  String get aboutQuizP1 =>
+      '\u6E2C\u9A57\u6A21\u5F0F\u652F\u63F4\u4E09\u7A2E\u984C\u578B\uFF08\u9078\u64C7\u3001\u662F\u975E\u3001\u586B\u7A7A\uFF09\uFF0C\u4E26\u53EF\u81EA\u7531\u9078\u64C7\u51FA\u984C\u65B9\u5411\u3002\u958B\u555F\u300C\u5F31\u9805\u512A\u5148\u300D\u5F8C\uFF0C\u7CFB\u7D71\u6703\u6839\u64DA SRS \u8CC7\u6599\u52A0\u6B0A\u51FA\u984C\uFF0C\u512A\u5148\u6E2C\u9A57\u4F60\u8F03\u5F31\u7684\u5361\u7247\u3002';
+  @override
+  String get aboutQuizP2 =>
+      '\u9019\u80CC\u5F8C\u7684\u539F\u7406\u662F\u300C\u6AA2\u7D22\u7DF4\u7FD2\u300D(Retrieval Practice)\uFF1A\u4E3B\u52D5\u56DE\u60F3\u6BD4\u88AB\u52D5\u95B1\u8B80\u66F4\u80FD\u5F37\u5316\u8A18\u61B6\u3002\u7B54\u932F\u7684\u984C\u76EE\u6703\u81EA\u52D5\u9032\u5165\u300C\u5F37\u5316\u8907\u7FD2\u300D\u8F2A\uFF0C\u78BA\u4FDD\u4F60\u771F\u6B63\u638C\u63E1\u3002';
+  @override
+  String get aboutQuizHighlight =>
+      '\u7814\u7A76\u8B49\u5BE6\uFF1A\u6AA2\u7D22\u7DF4\u7FD2\u53EF\u63D0\u5347 50% \u7684\u9577\u671F\u8A18\u61B6\u4FDD\u7559\u7387 (Roediger & Karpicke, 2006)';
+  @override
+  String get aboutMoreTitle => '\u66F4\u591A\u529F\u80FD';
+  @override
+  String get aboutMoreP1 =>
+      '\u62FE\u61B6\u9084\u63D0\u4F9B\u914D\u5C0D\u904A\u6232\u3001\u62CD\u7167\u5EFA\u5361 (AI \u8FA8\u8B58)\u3001\u6BCF\u65E5\u6311\u6230\u3001\u53E3\u8AAA\u7DF4\u7FD2\u3001\u932F\u984C\u8907\u7FD2\u3001\u7D71\u8A08\u5100\u8868\u677F\u7B49\u529F\u80FD\uFF0C\u5168\u65B9\u4F4D\u5354\u52A9\u4F60\u7684\u5B78\u7FD2\u3002';
+  @override
+  String get aboutChipSrs => '\u9593\u9694\u91CD\u8907';
+  @override
+  String get aboutChipQuiz => '\u667A\u6167\u6E2C\u9A57';
+  @override
+  String get aboutChipMatch => '\u914D\u5C0D\u904A\u6232';
+  @override
+  String get aboutChipPhoto => '\u62CD\u7167\u5EFA\u5361';
+  @override
+  String get aboutChipDaily => '\u6BCF\u65E5\u6311\u6230';
+  @override
+  String get aboutChipSpeak => '\u53E3\u8AAA\u7DF4\u7FD2';
+  @override
+  String get aboutReferences => '\u53C3\u8003\u6587\u737B';
+  @override
+  String get aboutRef1 =>
+      'Ebbinghaus, H. (1885). \u00DCber das Ged\u00E4chtnis \u2014 \u907A\u5FD8\u66F2\u7DDA\u7684\u539F\u59CB\u7814\u7A76';
+  @override
+  String get aboutRef2 =>
+      'Cepeda, N. J. et al. (2006). Distributed practice in verbal recall tasks \u2014 \u9593\u9694\u91CD\u8907\u512A\u65BC\u96C6\u4E2D\u8907\u7FD2\u7684\u5BE6\u8B49';
+  @override
+  String get aboutRef3 =>
+      'Roediger, H. L. & Karpicke, J. D. (2006). Test-Enhanced Learning \u2014 \u6AA2\u7D22\u7DF4\u7FD2\u63D0\u5347\u8A18\u61B6\u7684\u5BE6\u8B49';
+
   @override
   String get duplicateWarning => '\u767C\u73FE\u91CD\u8907\u5361\u7247';
   @override
@@ -1111,9 +1444,42 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get goBackToFix => '\u8FD4\u56DE\u4FEE\u6539';
   @override
-  String cardNMissingField(int n, String field) => '\u5361\u7247 #$n\uFF1A\u7F3A\u5C11$field';
+  String cardNMissingField(int n, String field) =>
+      '\u5361\u7247 #$n\uFF1A\u7F3A\u5C11$field';
   @override
-  String cardsAreDuplicates(int a, int b) => '\u5361\u7247 #$a \u548C #$b \u91CD\u8907';
+  String cardsAreDuplicates(int a, int b) =>
+      '\u5361\u7247 #$a \u548C #$b \u91CD\u8907';
+  @override
+  String get generateAiExamples => 'AI 生成例句';
+
+  @override
+  String get conversationPractice => 'AI 情境對話';
+
+  @override
+  String get conversationPracticeDesc => '與 AI 語伴練習口說';
+
+  @override
+  String get turns => '回合數';
+
+  @override
+  String get difficulty => '難度';
+
+  @override
+  String get startConversation => '開始對話';
+  @override
+  String nTurns(int count) => '$count \u56DE\u5408';
+  @override
+  String get difficultyEasyDesc => '\u7C21\u55AE\u8A5E\u5F59\uFF0C\u8A9E\u901F\u8F03\u6162';
+  @override
+  String get difficultyMediumDesc => '\u65E5\u5E38\u5C0D\u8A71\uFF0C\u6A19\u6E96\u8A9E\u901F';
+  @override
+  String get difficultyHardDesc => '\u9032\u968E\u8A5E\u5F59\uFF0C\u9053\u5730\u7528\u8A9E';
+  @override
+  String generatedExamplesCount(int count) => '\u5DF2\u751F\u6210 $count \u500B\u4F8B\u53E5';
+  @override
+  String get practiceComplete => '\u7DF4\u7FD2\u5B8C\u6210\uFF01';
+  @override
+  String completedNTurns(int count) => '\u4F60\u5DF2\u5B8C\u6210 $count \u56DE\u5408\u7684\u5C0D\u8A71\u7DF4\u7FD2\u3002';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -1247,6 +1613,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tryAgain => 'Try Again';
   @override
   String get done => 'Done';
+  @override
+  String get whatIsTermFor => 'What is the term for:';
+
+  // -- Quiz Settings --
+  @override
+  String get quizSettings => 'Quiz Settings';
+  @override
+  String get questionTypes => 'Question Types';
+  @override
+  String get multipleChoice => 'Multiple Choice';
+  @override
+  String get textInput => 'Fill in the Blank';
+  @override
+  String get trueFalseLabel => 'True / False';
+  @override
+  String get direction => 'Direction';
+  @override
+  String get termToDef => 'Term\u2192Def';
+  @override
+  String get defToTerm => 'Def\u2192Term';
+  @override
+  String get mixedDirection => 'Mixed';
+  @override
+  String get prioritizeWeak => 'Prioritize Weak Cards';
+  @override
+  String get prioritizeWeakDesc =>
+      'Focus on cards with higher difficulty or more errors';
+  @override
+  String get selectAtLeastOneType => 'Select at least one question type';
 
   // -- Matching --
   @override
@@ -1382,13 +1777,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String recognizedSpeech(String text) => 'Recognized: $text';
   @override
-  String get speechRecognitionUnavailable => 'Speech recognition is unavailable';
+  String get speechRecognitionUnavailable =>
+      'Speech recognition is unavailable';
   @override
   String get exampleLabel => 'Example';
   @override
   String get autoGeneratedLabel => 'Auto';
   @override
-  String get noExampleSentence => 'No example sentence available for this card.';
+  String get noExampleSentence =>
+      'No example sentence available for this card.';
   @override
   String get rateSpeaking => 'Rate your speaking';
   @override
@@ -1452,7 +1849,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get vocabularyList => 'Vocabulary List';
   @override
-  String get vocabularyListDesc => 'Extract words and definitions from the image';
+  String get vocabularyListDesc =>
+      'Extract words and definitions from the image';
   @override
   String get textbookPage => 'Textbook Page';
   @override
@@ -1466,7 +1864,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get geminiApiKeyHint => 'Enter your Gemini API Key';
   @override
-  String get geminiApiKeyNotSet => 'Please set Gemini API Key in Settings first';
+  String get geminiApiKeyNotSet =>
+      'Please set Gemini API Key in Settings first';
   @override
   String get geminiApiKeySaved => 'API Key saved';
   @override
@@ -1483,7 +1882,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retryOrChooseAnother => 'Retry or choose another image';
 
   @override
-  String get scanTimeout => 'Request timed out. Check your connection and retry.';
+  String get scanTimeout =>
+      'Request timed out. Check your connection and retry.';
   @override
   String get scanQuotaExceeded => 'API quota exceeded. Please try again later.';
   @override
@@ -1495,7 +1895,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   // -- Multi-photo (F6+) --
   @override
-  String cardsFromPhotos(int cards, int photos) => '$cards cards / $photos photos';
+  String cardsFromPhotos(int cards, int photos) =>
+      '$cards cards / $photos photos';
   @override
   String get reviewAndSave => 'Review & Save';
   @override
@@ -1509,19 +1910,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String challengeStreak(int count) => '$count day streak';
   @override
-  String challengeTodayComplete(int target) => 'Today complete: $target/$target';
+  String challengeTodayComplete(int target) =>
+      'Today complete: $target/$target';
   @override
-  String challengeProgress(int reviewed, int target) => 'Progress: $reviewed/$target';
+  String challengeProgress(int reviewed, int target) =>
+      'Progress: $reviewed/$target';
   @override
-  String get challengeCompleteMsg => 'Great work. Come back tomorrow for a new run.';
+  String get challengeCompleteMsg =>
+      'Great work. Come back tomorrow for a new run.';
   @override
-  String get challengeNoDueCards => 'No due cards now. Review later to continue.';
+  String get challengeNoDueCards =>
+      'No due cards now. Review later to continue.';
   @override
   String challengeNextRun(int count) => 'Next run: $count cards';
   @override
   String get play => 'Play';
   @override
-  String get challengeCompletedToast => 'Awesome! Daily challenge completed \uD83C\uDF89';
+  String get challengeCompletedToast =>
+      'Awesome! Daily challenge completed \uD83C\uDF89';
 
   // -- Revenge Mode --
   @override
@@ -1546,7 +1952,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get revengeMostWrong => 'Most Wrong';
   @override
-  String revengeWrongTimes(int count) => '$count ${count == 1 ? "time" : "times"} wrong';
+  String revengeWrongTimes(int count) =>
+      '$count ${count == 1 ? "time" : "times"} wrong';
   @override
   String get revengeStartFlip => 'Flip Review';
   @override
@@ -1555,6 +1962,65 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revengeNeedMoreCards => 'Need at least 4 wrong cards for quiz';
   @override
   String get revengeSelectSets => 'Select Study Sets';
+
+  // -- Dashboard --
+  @override
+  String get guestMode => 'Guest Mode';
+  @override
+  String get personalSettings => 'Settings';
+  @override
+  String get loginToSync => 'Log in to sync data and unlock more features';
+  @override
+  String get quickToggle => 'Quick Toggle';
+  @override
+  String get dailyReviewReminder => 'Daily Review Reminder';
+  @override
+  String get biometricUnlock => 'Biometric Unlock';
+  @override
+  String get preferencesAndAppearance => 'Preferences & Appearance';
+  @override
+  String get displayAndLanguage => 'Display & Language';
+  @override
+  String get reminderAndAi => 'Reminders & AI';
+  @override
+  String get accountAndData => 'Account & Data';
+  @override
+  String get accountAndSecurity => 'Account & Security';
+  @override
+  String get learningTools => 'Learning Tools';
+  @override
+  String get personalAccount => 'Personal Account';
+  @override
+  String get adminConsole => 'Admin Console';
+  @override
+  String get loginRequiredToEnable => 'Please log in first.';
+  @override
+  String get biometricOnResume =>
+      'Require biometric verification when returning to the app.';
+  @override
+  String get securityCenter => 'Security Center';
+  @override
+  String get todayTasks => "Today's Tasks";
+  @override
+  String get hasReviewTasks => 'You have reviews today';
+  @override
+  String get allTasksCompleted => 'All tasks completed for today';
+  @override
+  String get pendingReview => 'Pending';
+  @override
+  String get completedToday => 'Done Today';
+  @override
+  String get studySetsLabel => 'Study Sets';
+  @override
+  String get startTodayReview => "Start Today's Review";
+  @override
+  String get createOrImportSet => 'Create or Import';
+  @override
+  String get useCustomPractice => 'Try Custom Practice';
+  @override
+  String continueLastSet(String title) => 'Continue: $title';
+  @override
+  String get goTo => 'Go';
 
   // -- Notifications --
   @override
@@ -1580,7 +2046,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get deleteFolder => 'Delete Folder?';
   @override
-  String deleteFolderConfirm(String name) => 'Are you sure you want to delete "$name"?';
+  String deleteFolderConfirm(String name) =>
+      'Are you sure you want to delete "$name"?';
   @override
   String get color => 'Color';
   @override
@@ -1614,11 +2081,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onboardingFeatures => 'Powerful Features';
   @override
-  String get onboardingFeaturesDesc => 'Spaced repetition, daily challenges, photo to flashcard\nLearn more efficiently';
+  String get onboardingFeaturesDesc =>
+      'Spaced repetition, daily challenges, photo to flashcard\nLearn more efficiently';
   @override
   String get onboardingStart => 'Let\'s Go!';
   @override
-  String get onboardingStartDesc => 'Sign in to sync your data, or start as a guest';
+  String get onboardingStartDesc =>
+      'Sign in to sync your data, or start as a guest';
   @override
   String get skip => 'Skip';
   @override
@@ -1750,13 +2219,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   // -- Challenge detail (review summary) --
   @override
-  String challengeCompleteDetail(int target) => 'Daily Challenge complete ($target cards).';
+  String challengeCompleteDetail(int target) =>
+      'Daily Challenge complete ($target cards).';
   @override
-  String challengeProgressDetail(int reviewed, int target) => 'Daily Challenge progress: $reviewed/$target';
+  String challengeProgressDetail(int reviewed, int target) =>
+      'Daily Challenge progress: $reviewed/$target';
 
   // -- Auto-image --
   @override
-  String autoImageProgress(int done, int total) => 'Fetching images... $done/$total';
+  String autoImageProgress(int done, int total) =>
+      'Fetching images... $done/$total';
   @override
   String autoImageDone(int count) => 'Updated $count images';
   @override
@@ -1803,6 +2275,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get undoAction => 'Undo';
   @override
   String get redoAction => 'Redo';
+  // -- Settings Redesign --
+  @override
+  String get settingsAccount => 'Account';
+  @override
+  String get settingsLearning => 'Learning';
+  @override
+  String get settingsPreferences => 'Preferences';
+  @override
+  String get accountSubtitle => 'Login status & profile';
+  @override
+  String get securitySubtitle => 'Password, biometrics, security';
+  @override
+  String get achievementsSubtitle => 'View unlocked achievements';
+  @override
+  String get foldersSubtitle => 'Organize study sets';
+  @override
+  String get pomodoroSubtitle => '25-min focus timer';
+  @override
+  String get displaySubtitle => 'Theme & language';
+  @override
+  String get notificationSettings => 'Reminders & Notifications';
+  @override
+  String get notificationSubtitle => 'Daily review reminder settings';
+  @override
+  String get aiSettings => 'AI Settings';
+  @override
+  String get aiSettingsSubtitle => 'Gemini API Key management';
+  @override
+  String get madeWithLove => 'Made with love';
+
+  // -- About --
+  @override
+  String get aboutApp => 'About Recall';
+  @override
+  String get aboutTagline =>
+      'A smart learning tool based on cognitive science, making memorization more efficient';
+  @override
+  String get aboutSrsTitle => 'Spaced Repetition (SRS)';
+  @override
+  String get aboutSrsP1 =>
+      'Recall uses the FSRS-5 algorithm, one of the most advanced spaced repetition algorithms available. It automatically calculates the optimal review time based on each card\'s memory state (stability, difficulty, lapse count).';
+  @override
+  String get aboutSrsP2 =>
+      'The core principle comes from the "forgetting curve": memories naturally decay over time, but reviewing just before forgetting significantly extends retention. FSRS is more accurate than the traditional SM-2 algorithm, reducing ineffective reviews by over 30%.';
+  @override
+  String get aboutSrsHighlight =>
+      'Research shows: spaced repetition improves long-term retention by over 200% compared to massed study (Cepeda et al., 2006)';
+  @override
+  String get aboutQuizTitle => 'Science-Based Quizzes';
+  @override
+  String get aboutQuizP1 =>
+      'Quiz mode supports three question types (multiple choice, true/false, fill-in-the-blank) with customizable directions. With "Prioritize Weak Cards" enabled, the system uses SRS data to weight question selection, focusing on your weakest cards.';
+  @override
+  String get aboutQuizP2 =>
+      'This is based on "Retrieval Practice": actively recalling information strengthens memory far more than passive reading. Wrong answers automatically enter a reinforcement round to ensure true mastery.';
+  @override
+  String get aboutQuizHighlight =>
+      'Research shows: retrieval practice improves long-term retention by 50% (Roediger & Karpicke, 2006)';
+  @override
+  String get aboutMoreTitle => 'More Features';
+  @override
+  String get aboutMoreP1 =>
+      'Recall also offers matching games, photo-to-flashcard (AI recognition), daily challenges, speaking practice, wrong answer review, statistics dashboard, and more to support your learning journey.';
+  @override
+  String get aboutChipSrs => 'Spaced Repetition';
+  @override
+  String get aboutChipQuiz => 'Smart Quiz';
+  @override
+  String get aboutChipMatch => 'Matching Game';
+  @override
+  String get aboutChipPhoto => 'Photo to Card';
+  @override
+  String get aboutChipDaily => 'Daily Challenge';
+  @override
+  String get aboutChipSpeak => 'Speaking Practice';
+  @override
+  String get aboutReferences => 'References';
+  @override
+  String get aboutRef1 =>
+      'Ebbinghaus, H. (1885). \u00DCber das Ged\u00E4chtnis \u2014 The original research on the forgetting curve';
+  @override
+  String get aboutRef2 =>
+      'Cepeda, N. J. et al. (2006). Distributed practice in verbal recall tasks \u2014 Evidence that spaced repetition outperforms massed study';
+  @override
+  String get aboutRef3 =>
+      'Roediger, H. L. & Karpicke, J. D. (2006). Test-Enhanced Learning \u2014 Evidence that retrieval practice improves memory';
+
   @override
   String get duplicateWarning => 'Duplicate cards found';
   @override
@@ -1815,6 +2374,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String cardNMissingField(int n, String field) => 'Card #$n: missing $field';
   @override
   String cardsAreDuplicates(int a, int b) => 'Cards #$a and #$b are duplicates';
+  @override
+  String get generateAiExamples => 'Generate AI Examples';
+
+  @override
+  String get conversationPractice => 'AI Conversation';
+
+  @override
+  String get conversationPracticeDesc => 'Practice speaking with AI tutor';
+
+  @override
+  String get turns => 'Turns';
+
+  @override
+  String get difficulty => 'Difficulty';
+
+  @override
+  String get startConversation => 'Start Conversation';
+  @override
+  String nTurns(int count) => '$count turns';
+  @override
+  String get difficultyEasyDesc => 'Simple vocabulary, slower pace';
+  @override
+  String get difficultyMediumDesc => 'Everyday conversation, normal pace';
+  @override
+  String get difficultyHardDesc => 'Advanced vocabulary, native expressions';
+  @override
+  String generatedExamplesCount(int count) => 'Generated $count examples';
+  @override
+  String get practiceComplete => 'Practice Complete!';
+  @override
+  String completedNTurns(int count) => 'You have completed $count turns of conversation practice.';
 }
 
 class _AppLocalizationsDelegate
@@ -1832,4 +2422,3 @@ class _AppLocalizationsDelegate
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
-

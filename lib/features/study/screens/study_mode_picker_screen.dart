@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +11,7 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/services/unsplash_service.dart';
-import 'package:recall_app/features/study/widgets/count_picker_dialog.dart';
+import 'package:recall_app/features/study/widgets/quiz_settings_dialog.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
@@ -298,9 +298,9 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
       });
       if (context.mounted) {
         if (wasCancelled) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.autoImageCancelled)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.autoImageCancelled)));
         } else if (firstError != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.importFailed('$firstError'))),
@@ -348,6 +348,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     }
 
     final hasEnoughCards = studySet.cards.length >= 4;
+    final dueCount = ref.watch(dueCountForSetProvider(widget.setId));
     _syncPreviewCards(studySet.cards);
 
     return Scaffold(
@@ -378,7 +379,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                       tooltip: l10n.cancel,
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                      constraints: const BoxConstraints.tightFor(
+                        width: 28,
+                        height: 28,
+                      ),
                     ),
                   ],
                 ),
@@ -444,64 +448,50 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 48),
+      body: Stack(
         children: [
-          // Card count
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Text(
-              l10n.nCards(studySet.cards.length),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // Horizontal card preview
-          if (studySet.cards.isNotEmpty)
-            SizedBox(
-              height: 144,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                itemCount: _previewCards.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final card = _previewCards[i];
-                  final flipped = _previewFlipped[card.id] ?? false;
-                  return SizedBox(
-                    width: 150,
-                    child: _PreviewFlipCard(
-                      term: card.term,
-                      definition: card.definition,
-                      imageUrl: card.imageUrl,
-                      flipped: flipped,
-                      onTap: () => _togglePreviewCard(card.id),
-                      onLongPress: () => _speakText(
-                        flipped ? card.definition : card.term,
-                        userInitiated: true,
-                      ),
+          const Positioned.fill(child: _StudyBackdropAccent()),
+          ListView(
+            padding: const EdgeInsets.only(top: 10, bottom: 48),
+            children: [
+              if (studySet.cards.isNotEmpty) ...[
+                SizedBox(
+                  height: 144,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
                     ),
-                  );
-                },
-              ),
-            ),
-
-          const SizedBox(height: 28),
-
-          // Study mode cards
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Consumer(
-                  builder: (context, ref, _) {
-                    final dueCount = ref.watch(
-                      dueCountForSetProvider(widget.setId),
-                    );
-                    return _StudyModeCard(
+                    itemCount: _previewCards.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, i) {
+                      final card = _previewCards[i];
+                      final flipped = _previewFlipped[card.id] ?? false;
+                      return SizedBox(
+                        width: 150,
+                        child: _PreviewFlipCard(
+                          term: card.term,
+                          definition: card.definition,
+                          imageUrl: card.imageUrl,
+                          flipped: flipped,
+                          onTap: () => _togglePreviewCard(card.id),
+                          onLongPress: () => _speakText(
+                            flipped ? card.definition : card.term,
+                            userInitiated: true,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    _StudyModeCard(
                       icon: Icons.psychology_rounded,
                       iconColor: AppTheme.purple,
                       title: l10n.srsReview,
@@ -512,164 +502,195 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                           ? null
                           : () => context.push('/study/${widget.setId}/srs'),
                       badge: dueCount > 0 ? '$dueCount' : null,
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                _StudyModeCard(
-                  icon: Icons.flip_rounded,
-                  iconColor: AppTheme.cyan,
-                  title: l10n.quickBrowse,
-                  description: l10n.quickBrowseDesc,
-                  onTap: studySet.cards.isEmpty
-                      ? null
-                      : () => context.push('/study/${widget.setId}/flashcards'),
-                ),
-                const SizedBox(height: 12),
-                _StudyModeCard(
-                  icon: Icons.record_voice_over_rounded,
-                  iconColor: AppTheme.green,
-                  title: l10n.speakingPractice,
-                  description: l10n.speakingPracticeDesc,
-                  onTap: studySet.cards.isEmpty
-                      ? null
-                      : () => context.push('/study/${widget.setId}/speaking'),
-                ),
-                const SizedBox(height: 12),
-                _StudyModeCard(
-                  icon: Icons.quiz_rounded,
-                  iconColor: AppTheme.orange,
-                  title: l10n.quiz,
-                  description: l10n.quizDesc,
-                  onTap: hasEnoughCards
-                      ? () async {
-                          final count = await showCountPickerDialog(
-                            context: context,
-                            maxCount: studySet.cards.length,
-                            minCount: 4,
-                          );
-                          if (count != null && context.mounted) {
-                            context.push(
-                              '/study/${widget.setId}/quiz',
-                              extra: {'questionCount': count},
-                            );
-                          }
-                        }
-                      : null,
-                  disabledReason: hasEnoughCards
-                      ? null
-                      : l10n.needAtLeast4Cards,
-                ),
-                const SizedBox(height: 12),
-                _StudyModeCard(
-                  icon: Icons.grid_view_rounded,
-                  iconColor: AppTheme.indigo,
-                  title: l10n.matchingGame,
-                  description: l10n.matchingGameDesc,
-                  onTap: studySet.cards.length >= 2
-                      ? () => context.push('/study/${widget.setId}/match')
-                      : null,
-                  disabledReason: studySet.cards.length >= 2
-                      ? null
-                      : l10n.needAtLeast2Cards,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => context.push('/edit/${widget.setId}'),
-                icon: const Icon(Icons.edit_note_rounded, size: 20),
-                label: Text(
-                  studySet.cards.isEmpty ? l10n.addCards : l10n.editCards,
-                ),
-              ),
-            ),
-          ),
-
-          // All terms list
-          if (studySet.cards.isNotEmpty) ...[
-            const SizedBox(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                l10n.allTerms,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...studySet.cards.asMap().entries.map((entry) {
-              final card = entry.value;
-              return AdaptiveGlassCard(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
-                ),
-                fillColor: Theme.of(context).cardColor,
-                borderRadius: 12,
-                elevation: 0.5,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: Text(
-                        card.term,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: SizedBox(
-                        height: 20,
-                        child: VerticalDivider(
-                          width: 1,
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.flip_rounded,
+                      iconColor: AppTheme.cyan,
+                      title: l10n.quickBrowse,
+                      description: l10n.quickBrowseDesc,
+                      onTap: studySet.cards.isEmpty
+                          ? null
+                          : () => context.push(
+                              '/study/${widget.setId}/flashcards',
+                            ),
                     ),
-                    Expanded(
-                      flex: 5,
-                      child: Text(
-                        card.definition,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.record_voice_over_rounded,
+                      iconColor: AppTheme.green,
+                      title: l10n.speakingPractice,
+                      description: l10n.speakingPracticeDesc,
+                      onTap: studySet.cards.isEmpty
+                          ? null
+                          : () =>
+                                context.push('/study/${widget.setId}/speaking'),
                     ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      onPressed: () =>
-                          _speakText(card.term, userInitiated: true),
-                      tooltip: l10n.listen,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 32,
-                        height: 32,
-                      ),
-                      padding: EdgeInsets.zero,
-                      icon: Icon(
-                        Icons.volume_up_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      iconColor: AppTheme.cyan,
+                      title: l10n.conversationPractice,
+                      description: l10n.conversationPracticeDesc,
+                      onTap: studySet.cards.isEmpty
+                          ? null
+                          : () => context.push(
+                              '/study/${widget.setId}/conversation',
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.school_rounded,
+                      iconColor: AppTheme.green,
+                      title: 'Learn',
+                      description: '自適應練習（選擇題 + 填空），錯題會重複加強',
+                      onTap: studySet.cards.length >= 2
+                          ? () => context.push('/study/${widget.setId}/learn')
+                          : null,
+                      disabledReason: studySet.cards.length >= 2
+                          ? null
+                          : l10n.needAtLeast2Cards,
+                    ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.quiz_rounded,
+                      iconColor: AppTheme.orange,
+                      title: l10n.quiz,
+                      description: l10n.quizDesc,
+                      onTap: hasEnoughCards
+                          ? () async {
+                              final settings = await showQuizSettingsDialog(
+                                context: context,
+                                maxCount: studySet.cards.length,
+                                minCount: 4,
+                              );
+                              if (settings != null && context.mounted) {
+                                context.push(
+                                  '/study/${widget.setId}/quiz',
+                                  extra: {'settings': settings},
+                                );
+                              }
+                            }
+                          : null,
+                      disabledReason: hasEnoughCards
+                          ? null
+                          : l10n.needAtLeast4Cards,
+                    ),
+                    const SizedBox(height: 12),
+                    _StudyModeCard(
+                      icon: Icons.grid_view_rounded,
+                      iconColor: AppTheme.indigo,
+                      title: l10n.matchingGame,
+                      description: l10n.matchingGameDesc,
+                      onTap: studySet.cards.length >= 2
+                          ? () => context.push('/study/${widget.setId}/match')
+                          : null,
+                      disabledReason: studySet.cards.length >= 2
+                          ? null
+                          : l10n.needAtLeast2Cards,
                     ),
                   ],
                 ),
-              );
-            }),
-          ],
+              ),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.push('/edit/${widget.setId}'),
+                    icon: const Icon(Icons.edit_note_rounded, size: 20),
+                    label: Text(
+                      studySet.cards.isEmpty ? l10n.addCards : l10n.editCards,
+                    ),
+                  ),
+                ),
+              ),
+              if (studySet.cards.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    l10n.allTerms,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...studySet.cards.asMap().entries.map((entry) {
+                  final card = entry.value;
+                  return AdaptiveGlassCard(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 16,
+                    ),
+                    fillColor: Colors.white.withValues(alpha: 0.8),
+                    borderColor: Colors.white.withValues(alpha: 0.4),
+                    borderRadius: 12,
+                    elevation: 1.0,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: Text(
+                            card.term,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: SizedBox(
+                            height: 20,
+                            child: VerticalDivider(
+                              width: 1,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: Text(
+                            card.definition,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          onPressed: () =>
+                              _speakText(card.term, userInitiated: true),
+                          tooltip: l10n.listen,
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 32,
+                            height: 32,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            Icons.volume_up_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -715,7 +736,8 @@ class _PreviewFlipCard extends StatelessWidget {
               ..rotateY(isBack ? pi : 0),
             child: Container(
               decoration: AppTheme.softCardDecoration(
-                fillColor: Theme.of(context).cardColor,
+                fillColor: Colors.white.withValues(alpha: 0.82),
+                borderColor: Colors.white.withValues(alpha: 0.42),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -732,16 +754,15 @@ class _PreviewFlipCard extends StatelessWidget {
                             width: double.infinity,
                             height: 40,
                             fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                            errorWidget: (_, __, ___) =>
+                                const SizedBox.shrink(),
                           ),
                         ),
                       ),
                     Expanded(
                       child: Text(
                         text,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                         maxLines: showImage ? 2 : 3,
@@ -761,6 +782,58 @@ class _PreviewFlipCard extends StatelessWidget {
             child: surface,
           );
         },
+      ),
+    );
+  }
+}
+
+class _StudyBackdropAccent extends StatelessWidget {
+  const _StudyBackdropAccent();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -86,
+            right: -60,
+            child: _StudyGlowOrb(
+              size: 260,
+              color: Colors.white.withValues(alpha: 0.26),
+            ),
+          ),
+          Positioned(
+            top: 140,
+            left: -78,
+            child: _StudyGlowOrb(
+              size: 220,
+              color: AppTheme.cyan.withValues(alpha: 0.16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudyGlowOrb extends StatelessWidget {
+  const _StudyGlowOrb({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [color, color.withValues(alpha: 0.03), Colors.transparent],
+          stops: const [0, 0.62, 1],
+        ),
       ),
     );
   }
@@ -814,7 +887,8 @@ class _StudyModeCardState extends State<_StudyModeCard> {
           child: Opacity(
             opacity: isDisabled ? 0.5 : 1.0,
             child: AdaptiveGlassCard(
-              fillColor: Theme.of(context).cardColor,
+              fillColor: Colors.white.withValues(alpha: 0.82),
+              borderColor: Colors.white.withValues(alpha: 0.4),
               borderRadius: 16,
               padding: const EdgeInsets.all(20),
               child: Row(

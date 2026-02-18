@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
 
@@ -62,7 +63,7 @@ class _AuthFormState extends State<AuthForm> {
 
     final email = _emailController.text.trim();
     if (!email.contains('@')) {
-      setState(() => _error = 'Enter a valid email first.');
+      setState(() => _error = '請先輸入有效的電子信箱。');
       return;
     }
 
@@ -82,6 +83,7 @@ class _AuthFormState extends State<AuthForm> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -89,24 +91,24 @@ class _AuthFormState extends State<AuthForm> {
         children: [
           TextFormField(
             controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
+            decoration: InputDecoration(
+              labelText: l10n.email,
+              prefixIcon: const Icon(Icons.email_outlined),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (v) =>
-                v == null || !v.contains('@') ? 'Enter a valid email' : null,
+                v == null || !v.contains('@') ? l10n.enterValidEmail : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _passwordController,
-            decoration: const InputDecoration(
-              labelText: 'Password',
-              prefixIcon: Icon(Icons.lock_outlined),
+            decoration: InputDecoration(
+              labelText: l10n.password,
+              prefixIcon: const Icon(Icons.lock_outlined),
             ),
             obscureText: true,
             validator: (v) => v == null || v.length < 6
-                ? 'Password must be at least 6 characters'
+                ? l10n.passwordMinLength
                 : null,
           ),
           if (_error != null) ...[
@@ -163,3 +165,4 @@ class _AuthFormState extends State<AuthForm> {
     );
   }
 }
+

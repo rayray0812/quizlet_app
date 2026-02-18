@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
+import 'package:recall_app/features/study/utils/encouragement_lines.dart';
 
 class ReviewSummaryScreen extends StatefulWidget {
   final int totalReviewed;
@@ -40,6 +41,14 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late final String _encouragement;
+
+  int get _percent {
+    final correctCount = widget.goodCount + widget.easyCount;
+    return widget.totalReviewed > 0
+        ? (correctCount / widget.totalReviewed * 100).round()
+        : 0;
+  }
 
   @override
   void initState() {
@@ -63,6 +72,7 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
             curve: const Interval(0.15, 1.0, curve: Curves.easeOutCubic),
           ),
         );
+    _encouragement = EncouragementLines.pick(_percent);
     _animController.forward();
   }
 
@@ -75,10 +85,7 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final correctCount = widget.goodCount + widget.easyCount;
-    final percent = widget.totalReviewed > 0
-        ? (correctCount / widget.totalReviewed * 100).round()
-        : 0;
+    final percent = _percent;
     final challengeTarget = widget.challengeTarget;
     final accentColor = percent >= 80 ? AppTheme.green : AppTheme.indigo;
     final needsMorePractice = widget.againCount + widget.hardCount > 0;
@@ -168,6 +175,15 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                             ),
                           ),
                           const SizedBox(height: 22),
+                          Text(
+                            _encouragement,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.outline,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 18),
                           Wrap(
                             spacing: 10,
                             runSpacing: 10,

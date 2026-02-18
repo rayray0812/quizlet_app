@@ -20,9 +20,9 @@ String buildOAuthRetryMessage({
   final canceled =
       canceledByResult ||
       (rawError != null && rawError.isNotEmpty && isOAuthCancelError(rawError));
-  if (canceled) return '$providerName sign-in was canceled.';
+  if (canceled) return '$providerName 登入已取消。';
   if (rawError == null || rawError.isEmpty) {
-    return '$providerName sign-in failed. Please try again.';
+    return '$providerName 登入失敗，請再試一次。';
   }
   return mapAuthErrorMessage(rawError);
 }
@@ -64,7 +64,7 @@ class _SocialAuthButtonsState extends State<SocialAuthButtons> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        action: SnackBarAction(label: 'Retry', onPressed: () => onRetry()),
+        action: SnackBarAction(label: '重試', onPressed: () => onRetry()),
       ),
     );
   }
@@ -165,7 +165,7 @@ class _SocialAuthButtonsState extends State<SocialAuthButtons> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.g_mobiledata_rounded, size: 28),
-          label: const Text('Continue with Google'),
+          label: const Text('使用 Google 登入'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
@@ -181,7 +181,7 @@ class _SocialAuthButtonsState extends State<SocialAuthButtons> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.apple_rounded),
-            label: const Text('Continue with Apple'),
+            label: const Text('使用 Apple 登入'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),

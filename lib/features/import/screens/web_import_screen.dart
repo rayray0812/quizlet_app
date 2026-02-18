@@ -23,6 +23,7 @@ class _WebImportScreenState extends State<WebImportScreen> {
   late final TextEditingController _urlController;
   String _currentUrl = '';
   bool _isLoading = true;
+  bool _isImporting = false;
 
   bool get _isOnSupportedPage =>
       Uri.tryParse(_currentUrl)?.pathSegments.isNotEmpty ?? false;
@@ -167,8 +168,11 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
   Future<void> _scrapeAndImport() async {
     if (_controller == null) return;
+    if (_isImporting) return;
 
+    setState(() => _isImporting = true);
     try {
+      await _expandMoreCardsBeforeScrape();
       final result = await _controller.runJavaScriptReturningResult(
         JsScraper.scrapeScript,
       );
@@ -219,6 +223,66 @@ class _WebImportScreenState extends State<WebImportScreen> {
           SnackBar(content: Text(AppLocalizations.of(context).importFailed('$e'))),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isImporting = false);
+      }
+    }
+  }
+
+  Future<void> _expandMoreCardsBeforeScrape() async {
+    if (_controller == null) return;
+
+    int previousVisible = -1;
+    int stableRounds = 0;
+
+    // Try multiple rounds: click "show more" + scroll, then wait for lazy-load.
+    for (var i = 0; i < 14 && stableRounds < 3; i++) {
+      final raw = await _controller.runJavaScriptReturningResult('''
+        (function() {
+          var clicked = 0;
+          var nodes = document.querySelectorAll('button, a, [role="button"]');
+          var patterns = ['顯示更多', '更多', 'show more', 'see more', 'load more', 'more'];
+
+          nodes.forEach(function(node) {
+            var text = (node.innerText || node.textContent || '').trim().toLowerCase();
+            if (!text) return;
+            var match = patterns.some(function(p) { return text.indexOf(p) !== -1; });
+            if (match) {
+              try {
+                node.click();
+                clicked++;
+              } catch (e) {}
+            }
+          });
+
+          var visible = document.querySelectorAll('.TermText, [data-testid="TextContent"]').length;
+          var maxY = Math.max(
+            document.body ? document.body.scrollHeight : 0,
+            document.documentElement ? document.documentElement.scrollHeight : 0
+          );
+          window.scrollTo(0, maxY);
+          return String(clicked) + '|' + String(visible);
+        })();
+      ''');
+
+      final parts = raw
+          .toString()
+          .replaceAll('"', '')
+          .split('|')
+          .map((s) => int.tryParse(s.trim()) ?? 0)
+          .toList();
+      final clicked = parts.isNotEmpty ? parts[0] : 0;
+      final visible = parts.length > 1 ? parts[1] : 0;
+
+      if (visible == previousVisible && clicked == 0) {
+        stableRounds++;
+      } else {
+        stableRounds = 0;
+      }
+      previousVisible = visible;
+
+      await Future.delayed(const Duration(milliseconds: 450));
     }
   }
 
@@ -282,66 +346,113 @@ class _WebImportScreenState extends State<WebImportScreen> {
         leading: const AppBackButton(),
         title: Text(l10n.importFromRecall),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _urlController,
-                    decoration: InputDecoration(
-                      hintText: l10n.enterRecallUrl,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _urlController,
+                        enabled: !_isImporting,
+                        decoration: InputDecoration(
+                          hintText: l10n.enterRecallUrl,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
+                        ),
+                        keyboardType: TextInputType.url,
+                        textInputAction: TextInputAction.go,
+                        onSubmitted: (_) {
+                          if (_isImporting) return;
+                          _navigateToUrl();
+                        },
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
-                    keyboardType: TextInputType.url,
-                    textInputAction: TextInputAction.go,
-                    onSubmitted: (_) => _navigateToUrl(),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: _isImporting ? null : _navigateToUrl,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.indigo,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoading)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      minHeight: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: _navigateToUrl,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.indigo,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+              Expanded(
+                child: WebViewWidget(controller: _controller!),
+              ),
+            ],
           ),
-          if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  minHeight: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
+          if (_isImporting)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.22),
+                child: Center(
+                  child: Container(
+                    width: 200,
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          '${l10n.importSet}...',
+                          style: Theme.of(context).textTheme.titleSmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          Expanded(
-            child: WebViewWidget(controller: _controller!),
-          ),
         ],
       ),
       floatingActionButton: _isOnSupportedPage
           ? GestureDetector(
               onLongPress: kDebugMode ? _debugScrape : null,
               child: FloatingActionButton.extended(
-                onPressed: _scrapeAndImport,
+                onPressed: _isImporting ? null : _scrapeAndImport,
                 icon: const Icon(Icons.download_rounded),
                 label: Text(l10n.importSet),
               ),

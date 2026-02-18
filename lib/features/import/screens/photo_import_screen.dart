@@ -157,6 +157,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     return switch (reason) {
       ScanFailureReason.timeout => l10n.scanTimeout,
       ScanFailureReason.quotaExceeded => l10n.scanQuotaExceeded,
+      ScanFailureReason.authError => 'API authentication failed. Please check your Gemini API key.',
+      ScanFailureReason.invalidRequest => 'Image request was invalid. Try another image or mode.',
+      ScanFailureReason.serverError => 'AI service is temporarily unavailable. Please retry shortly.',
       ScanFailureReason.parseError => l10n.scanParseError,
       ScanFailureReason.networkError => l10n.scanNetworkError,
       ScanFailureReason.unknown => l10n.photoScanFailed,

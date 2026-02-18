@@ -12,6 +12,8 @@ import 'package:recall_app/features/home/utils/editor_history.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/services/unsplash_service.dart';
+import 'package:recall_app/services/gemini_service.dart';
+import 'package:recall_app/providers/gemini_key_provider.dart';
 
 class CardEditorScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -43,8 +45,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
+    final studySet = ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet != null) {
       for (final card in studySet.cards) {
         _addCardControllers(
@@ -119,14 +120,17 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   }
 
   List<CardSnapshot> _currentSnapshot() {
-    return List.generate(_termControllers.length, (i) => CardSnapshot(
-      id: _cardIds[i],
-      term: _termControllers[i].text,
-      definition: _defControllers[i].text,
-      example: _exampleControllers[i].text,
-      imageUrl: _imageUrls[i],
-      tags: List<String>.from(_tags[i]),
-    ));
+    return List.generate(
+      _termControllers.length,
+      (i) => CardSnapshot(
+        id: _cardIds[i],
+        term: _termControllers[i].text,
+        definition: _defControllers[i].text,
+        example: _exampleControllers[i].text,
+        imageUrl: _imageUrls[i],
+        tags: List<String>.from(_tags[i]),
+      ),
+    );
   }
 
   void _restoreSnapshot(List<CardSnapshot> snapshot) {
@@ -211,12 +215,136 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     });
   }
 
+  Future<bool> _confirmDeleteOneCard() async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteCard),
+        content: const Text('確定要刪除這張卡片嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  Future<bool> _confirmDeleteSelectedCards(int count) async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteSelected),
+        content: Text('確定要刪除 $count 張卡片嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _autoImage(int index) async {
     final term = _termControllers[index].text.trim();
     if (term.isEmpty) return;
     final url = await UnsplashService().searchPhoto(term);
     if (url.isNotEmpty && mounted) {
       setState(() => _imageUrls[index] = url);
+    }
+  }
+
+  Future<void> _generateAiExamples() async {
+    final l10n = AppLocalizations.of(context);
+    final apiKey = ref.read(geminiKeyProvider);
+
+    if (apiKey.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.geminiApiKeyNotSet)));
+      return;
+    }
+
+    // Filter selected cards that have a term
+    final toProcess = <Map<String, String>>[];
+    final indicesToUpdate = <int>[];
+
+    for (final i in _selectedIndices) {
+      final term = _termControllers[i].text.trim();
+      final def = _defControllers[i].text.trim();
+      final existingExample = _exampleControllers[i].text.trim();
+      if (term.isNotEmpty && existingExample.isEmpty) {
+        toProcess.add({'term': term, 'definition': def});
+        indicesToUpdate.add(i);
+      }
+    }
+
+    if (toProcess.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noCardsAvailable)));
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final results = await GeminiService.generateExampleSentencesBatch(
+        apiKey: apiKey,
+        terms: toProcess,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Dismiss loading
+
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.scanParseError)));
+        return;
+      }
+
+      _history.pushState(_currentSnapshot());
+      setState(() {
+        for (final i in indicesToUpdate) {
+          final term = _termControllers[i].text.trim();
+          if (results.containsKey(term)) {
+            _exampleControllers[i].text = results[term]!;
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.generatedExamplesCount(results.length)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Dismiss loading
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.scanParseError)));
     }
   }
 
@@ -235,13 +363,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         _selectedIndices.clear();
       } else {
         _selectedIndices.addAll(
-            List.generate(_termControllers.length, (i) => i));
+          List.generate(_termControllers.length, (i) => i),
+        );
       }
     });
   }
 
-  void _deleteSelected() {
+  void _deleteSelected() async {
     if (_selectedIndices.isEmpty) return;
+    final confirmed = await _confirmDeleteSelectedCards(
+      _selectedIndices.length,
+    );
+    if (!confirmed) return;
     _history.pushState(_currentSnapshot());
     final sorted = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
     setState(() {
@@ -261,6 +394,12 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       }
       _selectedIndices.clear();
     });
+  }
+
+  void _deleteOneCardWithConfirm(int index) async {
+    final confirmed = await _confirmDeleteOneCard();
+    if (!mounted || !confirmed) return;
+    _removeCard(index);
   }
 
   void _addTagToSelected() {
@@ -320,18 +459,22 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(l10n.removeTagFromSelected),
-        children: allTags.map((tag) => SimpleDialogOption(
-          onPressed: () {
-            _history.pushState(_currentSnapshot());
-            setState(() {
-              for (final i in _selectedIndices) {
-                _tags[i].remove(tag);
-              }
-            });
-            Navigator.pop(ctx);
-          },
-          child: Text(tag),
-        )).toList(),
+        children: allTags
+            .map(
+              (tag) => SimpleDialogOption(
+                onPressed: () {
+                  _history.pushState(_currentSnapshot());
+                  setState(() {
+                    for (final i in _selectedIndices) {
+                      _tags[i].remove(tag);
+                    }
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: Text(tag),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -339,8 +482,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   // -- Save with validation --
 
   Future<void> _save() async {
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
+    final studySet = ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet == null) return;
 
     final l10n = AppLocalizations.of(context);
@@ -387,14 +529,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       final def = _defControllers[i].text.trim();
       final example = _exampleControllers[i].text.trim();
       if (term.isNotEmpty || def.isNotEmpty) {
-        cards.add(Flashcard(
-          id: _cardIds[i],
-          term: term,
-          definition: def,
-          exampleSentence: example,
-          imageUrl: _imageUrls[i],
-          tags: _tags[i],
-        ));
+        cards.add(
+          Flashcard(
+            id: _cardIds[i],
+            term: term,
+            definition: def,
+            exampleSentence: example,
+            imageUrl: _imageUrls[i],
+            tags: _tags[i],
+          ),
+        );
       }
     }
 
@@ -403,9 +547,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         .update(studySet.copyWith(cards: cards));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.savedNCards(cards.length))),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.savedNCards(cards.length))));
     context.pop();
   }
 
@@ -431,9 +575,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
             ),
           IconButton(
             onPressed: _toggleSelectMode,
-            icon: Icon(_selectMode
-                ? Icons.close
-                : Icons.checklist_rounded),
+            icon: Icon(_selectMode ? Icons.close : Icons.checklist_rounded),
             tooltip: l10n.selectMode,
           ),
           if (_selectMode)
@@ -470,7 +612,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                   exampleSentenceController: _exampleControllers[index],
                   imageUrl: _imageUrls[index],
                   tags: _tags[index],
-                  onDelete: () => _removeCard(index),
+                  onDelete: () => _deleteOneCardWithConfirm(index),
                   onAutoImage: () => _autoImage(index),
                   onAddTag: (tag) {
                     setState(() {
@@ -504,6 +646,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               onDelete: _deleteSelected,
               onAddTag: _addTagToSelected,
               onRemoveTag: _removeTagFromSelected,
+              onAiGenerate: _generateAiExamples,
             ),
         ],
       ),

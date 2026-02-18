@@ -34,7 +34,26 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
     super.dispose();
   }
 
-  void _removeCard(int index) {
+  Future<void> _removeCard(int index) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('刪除卡片'),
+        content: const Text('確定要刪除這張卡片嗎？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed != true) return;
     setState(() => _cards.removeAt(index));
   }
 
@@ -115,7 +134,9 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
                 return ImportPreviewCard(
                   flashcard: _cards[index],
                   index: index,
-                  onDelete: () => _removeCard(index),
+                  onDelete: () {
+                    _removeCard(index);
+                  },
                 );
               },
             ),

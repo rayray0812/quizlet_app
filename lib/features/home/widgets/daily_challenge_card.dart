@@ -180,3 +180,5 @@ class _DailyChallengeCardState extends ConsumerState<DailyChallengeCard> {
     );
   }
 }
+
+

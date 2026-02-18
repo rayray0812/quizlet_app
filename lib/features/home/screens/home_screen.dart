@@ -7,7 +7,6 @@ import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
 import 'package:recall_app/providers/locale_provider.dart';
-import 'package:recall_app/providers/theme_provider.dart';
 import 'package:recall_app/core/icons/material_icon_mapper.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
@@ -133,7 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                     Text(
-                      '${now.month}/${now.day} ¡P ${l10n.todayReview}',
+                      '${now.month}/${now.day} ï¿½P ${l10n.todayReview}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.outline,
                             fontWeight: FontWeight.w600,
@@ -279,8 +278,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final supabase = ref.read(supabaseServiceProvider);
     final user = supabase.currentUser;
     final locale = ref.watch(localeProvider);
-    final themeMode = ref.watch(themeModeProvider);
-    final themeNotifier = ref.read(themeModeProvider.notifier);
     final biometricQuickUnlockEnabled = ref.watch(biometricQuickUnlockProvider);
     final isAdmin = ref
         .watch(adminAccessProvider)
@@ -304,39 +301,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               Divider(
                 height: 1,
                 color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              ListTile(
-                leading: const Icon(Icons.palette_outlined),
-                title: Text(l10n.theme),
-                subtitle: Text(switch (themeMode) {
-                  ThemeMode.light => l10n.lightMode,
-                  ThemeMode.dark => l10n.darkMode,
-                  ThemeMode.system => l10n.systemMode,
-                }),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: SegmentedButton<ThemeMode>(
-                  segments: [
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.system,
-                      label: Text(l10n.systemMode),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.light,
-                      label: Text(l10n.lightMode),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.dark,
-                      label: Text(l10n.darkMode),
-                    ),
-                  ],
-                  selected: {themeMode},
-                  onSelectionChanged: (selection) {
-                    themeNotifier.setThemeMode(selection.first);
-                  },
-                  showSelectedIcon: false,
-                ),
               ),
             ],
           ),
@@ -993,38 +957,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         const FolderChips(),
         const SortSelector(),
-        ...List<Widget>.generate(sorted.length, (index) {
-          final set = sorted[index];
-          return _StaggeredFadeItem(
-            index: index + 1,
-            child: Dismissible(
-              key: ValueKey('dismiss-${set.id}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.red.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(Icons.delete_rounded, color: AppTheme.red),
-              ),
-              confirmDismiss: (_) async => true,
-              onDismissed: (_) {
-                ref.read(studySetsProvider.notifier).remove(set.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.deleteStudySetConfirm(set.title)),
-                    action: SnackBarAction(
-                      label: l10n.undo,
-                      onPressed: () {
-                        ref.read(studySetsProvider.notifier).add(set);
-                      },
-                    ),
-                  ),
-                );
-              },
+          ...List<Widget>.generate(sorted.length, (index) {
+            final set = sorted[index];
+            return _StaggeredFadeItem(
+              index: index + 1,
               child: GestureDetector(
                 onLongPress: () => _showSetContextMenu(context, ref, set),
                 child: StudySetCard(
@@ -1034,9 +970,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   onEdit: () => context.push('/edit/${set.id}'),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }

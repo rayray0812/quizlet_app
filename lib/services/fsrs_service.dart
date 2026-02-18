@@ -18,6 +18,9 @@ class FsrsService {
     CardProgress progress,
     int rating,
   ) {
+    if (rating < 1 || rating > 4) {
+      throw ArgumentError.value(rating, 'rating', 'rating must be 1..4');
+    }
     final now = DateTime.now().toUtc();
     final fsrsCard = _toFsrsCard(progress, now);
     final fsrsRating = fsrs.Rating.fromValue(rating);
@@ -113,15 +116,29 @@ class FsrsService {
       );
     }
 
+    final estimatedStep = _estimateLearningStep(progress, now);
     return fsrs.Card(
       cardId: fsrsCardId,
       state: fsrs.State.fromValue(progress.state),
-      step: progress.state == 2 ? null : 0, // review state has no step
+      step: progress.state == 2 ? null : estimatedStep, // review state has no step
       stability: progress.stability,
       difficulty: progress.difficulty,
       due: progress.due ?? now,
       lastReview: progress.lastReview,
     );
+  }
+
+  /// Estimate learning/relearning step using existing progress fields.
+  /// This avoids resetting every non-review card to step 0 on app restarts.
+  int _estimateLearningStep(CardProgress progress, DateTime now) {
+    if (progress.state == 2) return 0;
+    if (progress.reps <= 0) return 0;
+    if (progress.due == null) return 0;
+    if (progress.scheduledDays > 0) return 1;
+
+    final minutesToDue = progress.due!.difference(now).inMinutes;
+    if (minutesToDue <= 3) return 0;
+    return 1;
   }
 
   /// Format a Duration into a human-readable string like "1m", "10m", "1d", "4d".

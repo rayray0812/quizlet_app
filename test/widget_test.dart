@@ -193,5 +193,17 @@ void main() {
       final b = FsrsService.toFsrsCardId('card-b');
       expect(a, isNot(b));
     });
+
+    test('reviewCard throws for invalid rating', () {
+      const progress = CardProgress(cardId: 'c1', setId: 's1');
+      expect(
+        () => service.reviewCard(progress, 0),
+        throwsArgumentError,
+      );
+      expect(
+        () => service.reviewCard(progress, 5),
+        throwsArgumentError,
+      );
+    });
   });
 }

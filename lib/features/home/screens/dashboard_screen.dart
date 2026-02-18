@@ -1,13 +1,14 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
 import 'package:recall_app/providers/locale_provider.dart';
-import 'package:recall_app/providers/theme_provider.dart';
 import 'package:recall_app/core/icons/material_icon_mapper.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
@@ -18,9 +19,6 @@ import 'package:recall_app/core/widgets/liquid_glass.dart';
 import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/widgets/study_set_card.dart';
-import 'package:recall_app/features/home/widgets/today_review_card.dart';
-import 'package:recall_app/features/home/widgets/daily_challenge_card.dart';
-import 'package:recall_app/features/home/widgets/revenge_card.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/services/local_storage_service.dart';
 import 'package:recall_app/providers/folder_provider.dart';
@@ -35,6 +33,8 @@ import 'package:recall_app/providers/biometric_provider.dart';
 import 'package:recall_app/providers/auth_analytics_provider.dart';
 import 'package:recall_app/providers/admin_provider.dart';
 import 'package:recall_app/models/sync_conflict.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/providers/stats_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -79,7 +79,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final studySets = ref.watch(studySetsProvider);
     final user = ref.watch(currentUserProvider);
     final l10n = AppLocalizations.of(context);
-    final now = DateTime.now();
     final pageTitle = switch (_currentTab) {
       1 => l10n.search,
       2 => l10n.statistics,
@@ -90,19 +89,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(
+          context,
+        ).colorScheme.surface.withValues(alpha: 0.96),
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-                width: 0.8,
-              ),
-            ),
-          ),
-        ),
         title: AnimatedSwitcher(
           duration: const Duration(milliseconds: 260),
           switchInCurve: Curves.easeOutCubic,
@@ -119,37 +110,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ),
             );
           },
-          child: _currentTab == 0
-              ? Column(
-                  key: const ValueKey('home-title'),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      pageTitle,
-                      style: TextStyle(
-                        color: AppTheme.indigo,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 24,
-                      ),
-                    ),
-                    Text(
-                      '${now.month}/${now.day} · ${l10n.todayReview}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ],
-                )
-              : Text(
-                  pageTitle,
-                  key: ValueKey(pageTitle),
-                  style: TextStyle(
-                    color: AppTheme.indigo,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
-                  ),
-                ),
+          child: Text(
+            pageTitle,
+            key: ValueKey(pageTitle),
+            style: TextStyle(
+              color: AppTheme.indigo,
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+            ),
+          ),
         ),
         actions: [
           if (_currentTab == 0)
@@ -166,11 +135,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
         ],
       ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-        ),
-        child: _buildAnimatedTabBody(context, ref, studySets, l10n),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Theme.of(context).colorScheme.surface,
+                    Theme.of(context).colorScheme.surfaceContainerLowest,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Positioned.fill(child: _BackdropAccents()),
+          if (_currentTab == 0) const _HomeAmbientGlow(),
+          const Positioned.fill(child: GrainOverlay()),
+          Positioned.fill(
+            child: _buildAnimatedTabBody(context, ref, studySets, l10n),
+          ),
+        ],
       ),
       floatingActionButton: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
@@ -188,11 +175,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 onPressed: () => _showCreateOrImportSheet(context, ref),
                 backgroundColor: AppTheme.indigo,
                 foregroundColor: Colors.white,
-                elevation: 8,
+                elevation: 2,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.add_rounded, size: 28),
+                child: const Icon(CupertinoIcons.plus, size: 24),
               )
             : const SizedBox.shrink(key: ValueKey('empty-fab')),
       ),
@@ -203,8 +190,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           decoration: AppTheme.softCardDecoration(
             fillColor: Colors.white.withValues(alpha: 0.9),
             borderRadius: 22,
-            borderColor: Theme.of(context).colorScheme.outlineVariant,
-            elevation: 1,
+            borderColor: Colors.white.withValues(alpha: 0.42),
+            elevation: 1.4,
           ),
           child: NavigationBar(
             backgroundColor: Colors.transparent,
@@ -221,28 +208,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             },
             destinations: [
               NavigationDestination(
-                icon: const Icon(Icons.home_outlined),
-                selectedIcon: const Icon(Icons.home_rounded),
+                icon: const Icon(CupertinoIcons.house),
+                selectedIcon: const Icon(CupertinoIcons.house_fill),
                 label: l10n.home,
               ),
               NavigationDestination(
-                icon: const Icon(Icons.search_outlined),
-                selectedIcon: const Icon(Icons.search_rounded),
+                icon: const Icon(CupertinoIcons.search),
+                selectedIcon: const Icon(CupertinoIcons.search),
                 label: l10n.search,
               ),
               NavigationDestination(
-                icon: const Icon(Icons.bar_chart_outlined),
-                selectedIcon: const Icon(Icons.bar_chart_rounded),
+                icon: const Icon(CupertinoIcons.chart_bar),
+                selectedIcon: const Icon(CupertinoIcons.chart_bar_fill),
                 label: l10n.statistics,
               ),
               NavigationDestination(
                 icon: Icon(
                   user != null
-                      ? Icons.person_outline_rounded
-                      : Icons.no_accounts_outlined,
+                      ? CupertinoIcons.person
+                      : CupertinoIcons.person_badge_minus,
                 ),
                 selectedIcon: Icon(
-                  user != null ? Icons.person_rounded : Icons.no_accounts_rounded,
+                  user != null ? CupertinoIcons.person_fill : CupertinoIcons.person_badge_minus,
                 ),
                 label: l10n.settings,
               ),
@@ -265,7 +252,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           : _buildList(context, studySets),
       const SearchScreen(embedded: true),
       const StatsScreen(embedded: true),
-      _buildSettingsTab(context, ref),
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: _buildSettingsTab(context, ref),
+      ),
     ];
 
     return IndexedStack(
@@ -278,102 +268,163 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final l10n = AppLocalizations.of(context);
     final supabase = ref.read(supabaseServiceProvider);
     final user = supabase.currentUser;
-    final locale = ref.watch(localeProvider);
-    final themeMode = ref.watch(themeModeProvider);
-    final themeNotifier = ref.read(themeModeProvider.notifier);
+    final reminderEnabled = ref.watch(notificationProvider);
     final biometricQuickUnlockEnabled = ref.watch(biometricQuickUnlockProvider);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final isAdmin = ref
         .watch(adminAccessProvider)
         .maybeWhen(data: (value) => value, orElse: () => false);
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 28 + bottomInset),
       children: [
+        // -- User card --
+        _AdaptiveSettingsCard(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.52),
+                  AppTheme.indigo.withValues(alpha: 0.1),
+                  AppTheme.cyan.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.24),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+                  ),
+                  child: Icon(
+                    user == null ? CupertinoIcons.person : CupertinoIcons.person_fill,
+                    color: AppTheme.indigo,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user == null ? l10n.guestMode : l10n.personalSettings,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user?.email ?? l10n.loginToSync,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (user == null)
+                  FilledButton(
+                    onPressed: () => context.push('/login'),
+                    child: Text(l10n.logIn),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // -- General --
+        const SizedBox(height: 18),
+        _SettingsGroupTitle(l10n.settingsPreferences),
         _AdaptiveSettingsCard(
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.language_rounded),
-                title: Text(l10n.language),
-                subtitle: Text(
-                  locale.languageCode == 'zh' ? l10n.chinese : l10n.english,
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _showLanguageMenu(context, ref),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.paintbrush),
+                title: _serifSettingTitle(context, l10n.displayAndLanguage),
+                subtitle: Text(l10n.displaySubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
+                onTap: () => _showDisplaySettingsSheet(context: context, ref: ref),
               ),
-              Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outlineVariant,
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                secondary: const Icon(CupertinoIcons.bell),
+                title: _serifSettingTitle(context, l10n.dailyReviewReminder),
+                value: reminderEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(notificationProvider.notifier)
+                      .toggle(
+                        value,
+                        title: l10n.reminderTitle,
+                        body: l10n.reminderBody,
+                      );
+                },
               ),
-              ListTile(
-                leading: const Icon(Icons.palette_outlined),
-                title: Text(l10n.theme),
-                subtitle: Text(switch (themeMode) {
-                  ThemeMode.light => l10n.lightMode,
-                  ThemeMode.dark => l10n.darkMode,
-                  ThemeMode.system => l10n.systemMode,
-                }),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                child: SegmentedButton<ThemeMode>(
-                  segments: [
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.system,
-                      label: Text(l10n.systemMode),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.light,
-                      label: Text(l10n.lightMode),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.dark,
-                      label: Text(l10n.darkMode),
-                    ),
-                  ],
-                  selected: {themeMode},
-                  onSelectionChanged: (selection) {
-                    themeNotifier.setThemeMode(selection.first);
-                  },
-                  showSelectedIcon: false,
-                ),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                secondary: const Icon(CupertinoIcons.lock_shield),
+                title: _serifSettingTitle(context, l10n.biometricUnlock),
+                value: biometricQuickUnlockEnabled,
+                onChanged: user == null
+                    ? null
+                    : (enabled) => _toggleBiometricQuickUnlock(
+                          context: context,
+                          ref: ref,
+                          enabled: enabled,
+                        ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        const _GeminiApiKeyCard(),
-        const SizedBox(height: 14),
-        const _NotificationCard(),
-        const SizedBox(height: 14),
+
+        // -- Learning tools --
+        const SizedBox(height: 18),
+        _SettingsGroupTitle(l10n.settingsLearning),
         _AdaptiveSettingsCard(
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.emoji_events_rounded),
-                title: Text(l10n.achievements),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.star),
+                title: _serifSettingTitle(context, l10n.achievements),
+                subtitle: Text(l10n.achievementsSubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () => context.push('/achievements'),
               ),
-              Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
               ListTile(
-                leading: const Icon(Icons.folder_rounded),
-                title: Text(l10n.folders),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.folder),
+                title: _serifSettingTitle(context, l10n.folders),
+                subtitle: Text(l10n.foldersSubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () => context.push('/folders'),
               ),
-              Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
               ListTile(
-                leading: const Icon(Icons.timer_rounded),
-                title: Text(l10n.pomodoro),
-                subtitle: Text(l10n.pomodoroDesc),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.timer),
+                title: _serifSettingTitle(context, l10n.pomodoro),
+                subtitle: Text(l10n.pomodoroSubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () {
                   ref.read(pomodoroProvider.notifier).start();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -381,92 +432,292 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   );
                 },
               ),
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.sparkles),
+                title: _serifSettingTitle(context, l10n.aiSettings),
+                subtitle: Text(l10n.aiSettingsSubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
+                onTap: () => _showGeminiKeyDialog(context: context, ref: ref),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
+
+        // -- Account & Security --
+        const SizedBox(height: 18),
+        _SettingsGroupTitle(l10n.settingsAccount),
         _AdaptiveSettingsCard(
-          child: SwitchListTile(
-            secondary: const Icon(Icons.fingerprint_rounded),
-            title: const Text('Biometric Quick Unlock'),
-            subtitle: Text(
-              user == null
-                  ? 'Sign in first to enable biometric unlock.'
-                  : 'Require biometric unlock when returning to app.',
-            ),
-            value: biometricQuickUnlockEnabled,
-            onChanged: user == null
-                ? null
-                : (enabled) => _toggleBiometricQuickUnlock(
-                    context: context,
-                    ref: ref,
-                    enabled: enabled,
+          child: Column(
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minLeadingWidth: 24,
+                leading: const Icon(CupertinoIcons.shield),
+                title: _serifSettingTitle(context, l10n.accountAndSecurity),
+                subtitle: Text(l10n.securitySubtitle),
+                trailing: const Icon(CupertinoIcons.chevron_right),
+                onTap: () => _showSecuritySettingsSheet(
+                  context: context,
+                  ref: ref,
+                  isAdmin: isAdmin,
+                ),
+              ),
+              if (user != null) ...[
+                Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  minLeadingWidth: 24,
+                  leading: Icon(Icons.logout_rounded, color: Colors.red.shade400),
+                  title: Text(
+                    l10n.signOut,
+                    style: GoogleFonts.notoSerifTc(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade400,
+                    ),
                   ),
+                  onTap: () async {
+                    await ref.read(authAnalyticsServiceProvider).logAuthEvent(
+                          action: 'sign_out',
+                          provider: 'session',
+                          result: 'local',
+                        );
+                    await supabase.signOut();
+                    if (context.mounted) {
+                      setState(() => _currentTab = 0);
+                    }
+                  },
+                ),
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 14),
-        _AdaptiveSettingsCard(
-          child: user == null
-              ? ListTile(
-                  leading: const Icon(Icons.login_rounded),
-                  title: Text(l10n.logIn),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => context.push('/login'),
-                )
-              : Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.person_rounded),
-                      title: Text(l10n.profile),
-                      subtitle: Text(user.email ?? 'Unknown'),
-                    ),
-                    if (isAdmin)
-                      ListTile(
-                        leading: const Icon(Icons.admin_panel_settings_rounded),
-                        title: const Text('Admin Console'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => context.push('/admin'),
-                      ),
-                    ListTile(
-                      leading: const Icon(Icons.security_rounded),
-                      title: const Text('Security Center'),
-                      subtitle: const Text(
-                        'Manage sessions and account security actions.',
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showSecurityCenterDialog(
-                        context: context,
-                        ref: ref,
-                        email: user.email ?? 'Unknown',
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            await ref
-                                .read(authAnalyticsServiceProvider)
-                                .logAuthEvent(
-                                  action: 'sign_out',
-                                  provider: 'session',
-                                  result: 'local',
-                                );
-                            await supabase.signOut();
-                            if (mounted) {
-                              setState(() => _currentTab = 0);
-                            }
-                          },
-                          icon: const Icon(Icons.logout_rounded),
-                          label: Text(l10n.signOut),
-                        ),
-                      ),
-                    ),
-                  ],
+
+        // -- Version footer --
+        const SizedBox(height: 28),
+        Center(
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: () => context.push('/about'),
+                child: Text(
+                  '${AppConstants.appName} Recall \u00B7 v${AppConstants.appVersion}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    decoration: TextDecoration.underline,
+                    decorationColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  ),
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '\u2764\uFE0F ${l10n.madeWithLove}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Future<void> _showDisplaySettingsSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _buildSettingsSheetContainer(
+          context: sheetContext,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.language_rounded),
+                title: _serifSettingTitle(context, l10n.language),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _showLanguageMenu(context, ref),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showGeminiKeyDialog({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final currentKey = ref.read(geminiKeyProvider);
+    final controller = TextEditingController(text: currentKey);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(l10n.geminiApiKey),
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            decoration: InputDecoration(
+              hintText: l10n.geminiApiKeyHint,
+              isDense: true,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final key = controller.text.trim();
+                ref.read(geminiKeyProvider.notifier).setApiKey(key);
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.geminiApiKeySaved)),
+                );
+              },
+              child: Text(l10n.save),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+  }
+
+  Widget _buildSettingsSheetContainer({
+    required BuildContext context,
+    required Widget child,
+  }) {
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: child,
+    );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        child: isLiquidGlassSupported
+            ? LiquidGlass(
+                borderRadius: 24,
+                blurSigma: 22,
+                tintColor: Colors.white.withValues(alpha: 0.26),
+                child: content,
+              )
+            : Container(
+                decoration: AppTheme.softCardDecoration(
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  borderRadius: 24,
+                  elevation: 1.2,
+                ),
+                child: content,
+              ),
+      ),
+    );
+  }
+
+
+  Future<void> _showSecuritySettingsSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool isAdmin,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final supabase = ref.read(supabaseServiceProvider);
+    final user = supabase.currentUser;
+    final biometricQuickUnlockEnabled = ref.read(biometricQuickUnlockProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _buildSettingsSheetContainer(
+          context: sheetContext,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.fingerprint_rounded),
+                title: _serifSettingTitle(context, l10n.biometricUnlock),
+                subtitle: Text(
+                  user == null ? l10n.loginRequiredToEnable : l10n.biometricOnResume,
+                ),
+                value: biometricQuickUnlockEnabled,
+                onChanged: user == null
+                    ? null
+                    : (enabled) async {
+                        await _toggleBiometricQuickUnlock(
+                          context: context,
+                          ref: ref,
+                          enabled: enabled,
+                        );
+                        if (context.mounted) Navigator.pop(sheetContext);
+                      },
+              ),
+              if (user != null)
+                ListTile(
+                  leading: const Icon(Icons.security_rounded),
+                  title: _serifSettingTitle(context, l10n.securityCenter),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _showSecurityCenterDialog(
+                      context: context,
+                      ref: ref,
+                      email: user.email ?? 'Unknown',
+                    );
+                  },
+                ),
+              if (isAdmin && user != null)
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings_rounded),
+                  title: _serifSettingTitle(context, l10n.adminConsole),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    context.push('/admin');
+                  },
+                ),
+              if (user != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await ref.read(authAnalyticsServiceProvider).logAuthEvent(
+                              action: 'sign_out',
+                              provider: 'session',
+                              result: 'local',
+                            );
+                        await supabase.signOut();
+                        if (context.mounted) {
+                          Navigator.pop(sheetContext);
+                          setState(() => _currentTab = 0);
+                        }
+                      },
+                      icon: const Icon(Icons.logout_rounded),
+                      label: Text(l10n.signOut),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -660,14 +911,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     required LocalStorageService localStorage,
     required ImportExportService importExportService,
   }) async {
-    final passphraseController = TextEditingController();
+    var passphrase = '';
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Encrypted Backup'),
         content: TextField(
-          controller: passphraseController,
           obscureText: true,
+          onChanged: (value) => passphrase = value,
           decoration: const InputDecoration(
             labelText: 'Passphrase',
             hintText: 'At least 8 characters',
@@ -680,7 +931,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
           TextButton(
             onPressed: () async {
-              final passphrase = passphraseController.text;
               if (passphrase.length < 8) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Passphrase must be at least 8 characters.')),
@@ -709,7 +959,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              final passphrase = passphraseController.text;
               try {
                 final result = await importExportService.importEncryptedBackup(
                   localStorage: localStorage,
@@ -738,14 +987,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ],
       ),
     );
-    passphraseController.dispose();
   }
 
   Future<void> _showDeleteAccountDialog({
     required BuildContext context,
     required WidgetRef ref,
   }) async {
-    final passwordController = TextEditingController();
+    var passwordForReauth = '';
     final supabase = ref.read(supabaseServiceProvider);
     final analytics = ref.read(authAnalyticsServiceProvider);
     final localStorage = ref.read(localStorageServiceProvider);
@@ -762,8 +1010,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: passwordController,
               obscureText: true,
+              onChanged: (value) => passwordForReauth = value,
               decoration: const InputDecoration(
                 labelText: 'Password (optional for OAuth users)',
               ),
@@ -779,7 +1027,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             onPressed: () async {
               try {
                 final fullDeleted = await supabase.deleteCurrentAccount(
-                  passwordForReauth: passwordController.text,
+                  passwordForReauth: passwordForReauth,
                 );
                 await localStorage.clearAllStudyData();
                 await analytics.logAuthEvent(
@@ -812,66 +1060,74 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ],
       ),
     );
-    passwordController.dispose();
   }
 
   Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: AppTheme.indigo.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 120),
+        children: [
+          AdaptiveGlassCard(
+            borderRadius: 20,
+            fillColor: Colors.white.withValues(alpha: 0.84),
+            borderColor: Colors.white.withValues(alpha: 0.4),
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppTheme.indigo.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.auto_stories_rounded,
+                    size: 34,
+                    color: AppTheme.indigo.withValues(alpha: 0.9),
+                  ),
                 ),
-                child: Icon(
-                  Icons.library_books_rounded,
-                  size: 48,
-                  color: AppTheme.indigo.withValues(alpha: 0.6),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.noStudySetsYet,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                l10n.noStudySetsYet,
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                l10n.importOrCreate,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+                const SizedBox(height: 8),
+                Text(
+                  l10n.importOrCreate,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 36),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showCreateDialog(context, ref),
-                  icon: const Icon(Icons.add_rounded, size: 20),
-                  label: Text(l10n.createBtn),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _showCreateDialog(context, ref),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: Text(l10n.createBtn),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/import'),
+                        icon: const Icon(Icons.download_rounded, size: 18),
+                        label: Text(l10n.importBtn),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push('/import'),
-                  icon: const Icon(Icons.download_rounded, size: 20),
-                  label: Text(l10n.importBtn),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -908,19 +1164,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Widget _buildList(BuildContext context, List<StudySet> studySets) {
     ref.watch(selectedFolderIdProvider);
     ref.watch(sortOptionProvider);
+    final dueCount = ref.watch(dueCountProvider);
+    final todayReviewed = ref.watch(todayReviewCountProvider);
     final sorted = _sortAndFilter(studySets);
     final l10n = AppLocalizations.of(context);
+    final recentSets = studySets.where((s) => s.lastStudiedAt != null).toList()
+      ..sort((a, b) => b.lastStudiedAt!.compareTo(a.lastStudiedAt!));
+    final continueSet =
+        recentSets.isNotEmpty ? recentSets.first : (studySets.isNotEmpty ? studySets.first : null);
+    final target = dueCount + todayReviewed;
+    final focusProgress = target <= 0 ? 1.0 : (todayReviewed / target).clamp(0.0, 1.0);
 
     return ListView(
       padding: const EdgeInsets.only(top: 12, bottom: 110),
       children: [
-        TodayReviewCard(animating: _currentTab == 0),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
           child: _HomeSectionHeader(
-            title: 'Study Modes',
+            title: l10n.todayTasks,
             trailing: Text(
-              'Quick Access',
+              l10n.nCards(studySets.fold<int>(0, (sum, s) => sum + s.cards.length)),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     letterSpacing: 0.8,
                   ),
@@ -928,50 +1191,212 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-          child: GridView.count(
-            crossAxisCount: 2,
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.24,
-            children: [
-              _HomeQuickActionTile(
-                icon: Icons.play_circle_outline_rounded,
-                title: l10n.todayReview,
-                subtitle: l10n.startReview,
-                tint: AppTheme.indigo,
-                onTap: () => context.push('/review'),
-              ),
-              _HomeQuickActionTile(
-                icon: Icons.edit_note_rounded,
-                title: l10n.customStudy,
-                subtitle: 'Pick a mode',
-                tint: AppTheme.cyan,
-                onTap: () => context.push('/study/custom'),
-              ),
-              _HomeQuickActionTile(
-                icon: Icons.search_rounded,
-                title: l10n.search,
-                subtitle: 'Find cards',
-                tint: AppTheme.purple,
-                onTap: () => setState(() => _currentTab = 1),
-              ),
-              _HomeQuickActionTile(
-                icon: Icons.add_box_rounded,
-                title: l10n.createBtn,
-                subtitle: l10n.importBtn,
-                tint: AppTheme.orange,
-                onTap: () => _showCreateOrImportSheet(context, ref),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: AdaptiveGlassCard(
+            borderRadius: 20,
+            fillColor: Colors.white.withValues(alpha: 0.82),
+            borderColor: Colors.white.withValues(alpha: 0.44),
+            elevation: 1.8,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -36,
+                  right: -26,
+                  child: Container(
+                    width: 132,
+                    height: 132,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.34),
+                          Colors.white.withValues(alpha: 0.08),
+                          Colors.transparent,
+                        ],
+                        stops: const [0, 0.58, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(18),
+                        ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.28),
+                            Colors.white.withValues(alpha: 0.06),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppTheme.indigo.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.28),
+                              ),
+                            ),
+                              child: Icon(
+                                dueCount > 0
+                                    ? Icons.play_lesson_rounded
+                                    : Icons.check_circle_rounded,
+                                color: AppTheme.indigo,
+                                size: 20,
+                              ),
+                            ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              dueCount > 0 ? l10n.hasReviewTasks : l10n.allTasksCompleted,
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: focusProgress,
+                          minHeight: 7,
+                          backgroundColor: AppTheme.indigo.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.indigo),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _TaskMetric(
+                              label: l10n.pendingReview,
+                              value: '$dueCount',
+                              tint: AppTheme.indigo,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _TaskMetric(
+                              label: l10n.completedToday,
+                              value: '$todayReviewed',
+                              tint: AppTheme.green,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _TaskMetric(
+                              label: l10n.studySetsLabel,
+                              value: '${sorted.length}',
+                              tint: AppTheme.cyan,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: dueCount > 0
+                              ? () => context.push('/review')
+                              : () => _showCreateOrImportSheet(context, ref),
+                          icon: Icon(
+                            dueCount > 0
+                                ? Icons.play_circle_rounded
+                                : Icons.add_circle_rounded,
+                          ),
+                          label: Text(dueCount > 0 ? l10n.startTodayReview : l10n.createOrImportSet),
+                        ),
+                      ),
+                      if (dueCount <= 0) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => context.push('/study/custom'),
+                            icon: const Icon(Icons.tune_rounded, size: 16),
+                            label: Text(l10n.useCustomPractice),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const DailyChallengeCard(),
-        const RevengeCard(),
+        if (continueSet != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+            child: AdaptiveGlassCard(
+              borderRadius: 14,
+              fillColor: Colors.white.withValues(alpha: 0.78),
+              borderColor: Colors.white.withValues(alpha: 0.38),
+              elevation: 1.2,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppTheme.indigo.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: const Icon(
+                      Icons.history_rounded,
+                      size: 16,
+                      color: AppTheme.indigo,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      l10n.continueLastSet(continueSet.title),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/study/${continueSet.id}'),
+                    child: Text(l10n.goTo),
+                  ),
+                ],
+              ),
+            ),
+          ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: _HomeSectionHeader(
             title: l10n.myStudySets,
             trailing: Container(
@@ -992,39 +1417,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
         ),
         const FolderChips(),
+        const SizedBox(height: 10),
         const SortSelector(),
-        ...List<Widget>.generate(sorted.length, (index) {
-          final set = sorted[index];
-          return _StaggeredFadeItem(
-            index: index + 1,
-            child: Dismissible(
-              key: ValueKey('dismiss-${set.id}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.red.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(Icons.delete_rounded, color: AppTheme.red),
-              ),
-              confirmDismiss: (_) async => true,
-              onDismissed: (_) {
-                ref.read(studySetsProvider.notifier).remove(set.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.deleteStudySetConfirm(set.title)),
-                    action: SnackBarAction(
-                      label: l10n.undo,
-                      onPressed: () {
-                        ref.read(studySetsProvider.notifier).add(set);
-                      },
-                    ),
-                  ),
-                );
-              },
+        const SizedBox(height: 8),
+          ...List<Widget>.generate(sorted.length, (index) {
+            final set = sorted[index];
+            return _StaggeredFadeItem(
+              index: index + 1,
               child: GestureDetector(
                 onLongPress: () => _showSetContextMenu(context, ref, set),
                 child: StudySetCard(
@@ -1034,9 +1433,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   onEdit: () => context.push('/edit/${set.id}'),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }
@@ -1196,16 +1594,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
             const SizedBox(height: 12),
             _SheetItem(
-              icon: Icons.add_rounded,
+              icon: CupertinoIcons.plus,
               iconColor: AppTheme.indigo,
               title: l10n.createNewSet,
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(sheetContext);
+                await Future<void>.delayed(const Duration(milliseconds: 120));
+                if (!screenContext.mounted) return;
                 _showCreateDialog(screenContext, ref);
               },
             ),
             _SheetItem(
-              icon: Icons.language_rounded,
+              icon: CupertinoIcons.globe,
               iconColor: AppTheme.purple,
               title: l10n.importFromRecall,
               onTap: () {
@@ -1214,7 +1614,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               },
             ),
             _SheetItem(
-              icon: Icons.file_open_rounded,
+              icon: CupertinoIcons.doc,
               iconColor: AppTheme.green,
               title: l10n.importFromFile,
               onTap: () {
@@ -1223,7 +1623,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               },
             ),
             _SheetItem(
-              icon: Icons.qr_code_scanner_rounded,
+              icon: CupertinoIcons.qrcode,
               iconColor: AppTheme.cyan,
               title: l10n.scanQr,
               onTap: () {
@@ -1232,7 +1632,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               },
             ),
             _SheetItem(
-              icon: Icons.camera_alt_rounded,
+              icon: CupertinoIcons.camera,
               iconColor: AppTheme.orange,
               title: l10n.photoToFlashcard,
               onTap: () {
@@ -1290,8 +1690,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     WidgetRef ref,
   ) async {
     final l10n = AppLocalizations.of(screenContext);
-    final titleController = TextEditingController();
-    final descController = TextEditingController();
+    var draftTitle = '';
+    var draftDescription = '';
 
     final result = await showDialog<Map<String, String>>(
       context: screenContext,
@@ -1302,16 +1702,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: titleController,
                 decoration: InputDecoration(labelText: l10n.title),
                 autofocus: true,
+                onChanged: (value) => draftTitle = value,
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: descController,
                 decoration: InputDecoration(
                   labelText: l10n.descriptionOptional,
                 ),
+                onChanged: (value) => draftDescription = value,
               ),
             ],
           ),
@@ -1323,11 +1723,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              final trimmedTitle = titleController.text.trim();
+              final trimmedTitle = draftTitle.trim();
               if (trimmedTitle.isEmpty) return;
               Navigator.pop(dialogContext, <String, String>{
                 'title': trimmedTitle,
-                'description': descController.text.trim(),
+                'description': draftDescription.trim(),
               });
             },
             child: Text(l10n.create),
@@ -1335,8 +1735,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ],
       ),
     );
-    titleController.dispose();
-    descController.dispose();
 
     if (result == null || !mounted) return;
     final newSet = StudySet(
@@ -1380,29 +1778,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
 class _HomeSectionHeader extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Widget? trailing;
 
-  const _HomeSectionHeader({required this.title, this.trailing});
+  const _HomeSectionHeader({
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 4,
-          height: 18,
+          width: 2.5,
+          height: subtitle == null ? 20 : 34,
           decoration: BoxDecoration(
-            color: AppTheme.indigo,
+            color: AppTheme.indigo.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(999),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 17,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 1),
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                 ),
+              ],
+            ],
           ),
         ),
         if (trailing != null) trailing!,
@@ -1492,6 +1911,223 @@ class _HomeQuickActionTileState extends State<_HomeQuickActionTile> {
       ),
     );
   }
+
+}
+
+class _TaskMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color tint;
+
+  const _TaskMetric({
+    required this.label,
+    required this.value,
+    required this.tint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tint.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: tint,
+              fontWeight: FontWeight.w800,
+              fontSize: 19,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+              fontWeight: FontWeight.w700,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+Widget _serifSettingTitle(BuildContext context, String text) {
+  return Text(
+    text,
+    style: GoogleFonts.notoSerifTc(
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+      color: Theme.of(context).colorScheme.onSurface,
+    ),
+  );
+}
+
+class _HomeAmbientGlow extends StatelessWidget {
+  const _HomeAmbientGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: 8,
+            left: 24,
+            child: _GlowOrb(
+              size: 160,
+              color: Colors.white.withValues(alpha: 0.15),
+            ),
+          ),
+          Positioned(
+            top: 28,
+            right: -18,
+            child: _GlowOrb(
+              size: 220,
+              color: AppTheme.cyan.withValues(alpha: 0.12),
+            ),
+          ),
+          Positioned(
+            top: 148,
+            left: -44,
+            child: _GlowOrb(
+              size: 180,
+              color: AppTheme.indigo.withValues(alpha: 0.10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BackdropAccents extends StatelessWidget {
+  const _BackdropAccents();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          const Positioned.fill(child: _DiagonalLightVeil()),
+          Positioned(
+            top: -68,
+            right: -56,
+            child: _GlowOrb(
+              size: 280,
+              color: Colors.white.withValues(alpha: 0.24),
+            ),
+          ),
+          Positioned(
+            top: 120,
+            left: -72,
+            child: _GlowOrb(
+              size: 240,
+              color: AppTheme.cyan.withValues(alpha: 0.13),
+            ),
+          ),
+          Positioned(
+            bottom: -80,
+            right: 10,
+            child: _GlowOrb(
+              size: 220,
+              color: AppTheme.indigo.withValues(alpha: 0.12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiagonalLightVeil extends StatelessWidget {
+  const _DiagonalLightVeil();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned(
+          top: -120,
+          left: -60,
+          child: Transform.rotate(
+            angle: -0.32,
+            child: Container(
+              width: 360,
+              height: 180,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.16),
+                    Colors.white.withValues(alpha: 0.02),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -140,
+          right: -80,
+          child: Transform.rotate(
+            angle: -0.28,
+            child: Container(
+              width: 340,
+              height: 170,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.cyan.withValues(alpha: 0.08),
+                    Colors.white.withValues(alpha: 0.03),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color,
+            color.withValues(alpha: 0.02),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.62, 1.0],
+        ),
+      ),
+    );
+  }
 }
 
 class _SheetItem extends StatelessWidget {
@@ -1524,8 +2160,9 @@ class _SheetItem extends StatelessWidget {
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         trailing: Icon(
-          Icons.chevron_right_rounded,
+          CupertinoIcons.chevron_right,
           color: Colors.grey.shade400,
+          size: 18,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         onTap: onTap,
@@ -1589,102 +2226,6 @@ class _ConflictRow extends StatelessWidget {
   }
 }
 
-class _GeminiApiKeyCard extends ConsumerStatefulWidget {
-  const _GeminiApiKeyCard();
-
-  @override
-  ConsumerState<_GeminiApiKeyCard> createState() => _GeminiApiKeyCardState();
-}
-
-class _GeminiApiKeyCardState extends ConsumerState<_GeminiApiKeyCard> {
-  late TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    final currentKey = ref.read(geminiKeyProvider);
-    _controller = TextEditingController(text: currentKey);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return _AdaptiveSettingsCard(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.auto_awesome),
-            title: Text(l10n.geminiApiKey),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: l10n.geminiApiKeyHint,
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    final key = _controller.text.trim();
-                    ref.read(geminiKeyProvider.notifier).setApiKey(key);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.geminiApiKeySaved)),
-                    );
-                  },
-                  icon: const Icon(Icons.save_rounded),
-                  style: IconButton.styleFrom(foregroundColor: AppTheme.indigo),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationCard extends ConsumerWidget {
-  const _NotificationCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final enabled = ref.watch(notificationProvider);
-
-    return _AdaptiveSettingsCard(
-      child: SwitchListTile(
-        secondary: const Icon(Icons.notifications_rounded),
-        title: Text(l10n.dailyReminder),
-        subtitle: Text(l10n.dailyReminderDesc),
-        value: enabled,
-        onChanged: (value) {
-          ref
-              .read(notificationProvider.notifier)
-              .toggle(
-                value,
-                title: l10n.reminderTitle,
-                body: l10n.reminderBody,
-              );
-        },
-      ),
-    );
-  }
-}
-
 class _AdaptiveSettingsCard extends StatelessWidget {
   final Widget child;
 
@@ -1693,10 +2234,32 @@ class _AdaptiveSettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AdaptiveGlassCard(
-      borderRadius: 20,
-      fillColor: Theme.of(context).cardColor,
-      elevation: 1.2,
+      borderRadius: 22,
+      fillColor: Colors.white.withValues(alpha: 0.82),
+      borderColor: Colors.white.withValues(alpha: 0.38),
+      elevation: 2.0,
       child: child,
+    );
+  }
+}
+
+class _SettingsGroupTitle extends StatelessWidget {
+  final String title;
+
+  const _SettingsGroupTitle(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.9),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+      ),
     );
   }
 }
@@ -1722,14 +2285,14 @@ class _StaggeredFadeItemState extends State<_StaggeredFadeItem>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 550),
       vsync: this,
     );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
     _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.04),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
 
     final delay = Duration(milliseconds: 80 * (widget.index.clamp(0, 8)));
     Future.delayed(delay, () {

@@ -13,7 +13,7 @@ class AppConstants {
   static const String settingSyncConflictsKey = 'sync_conflicts';
   static const String settingDeletedStudySetIdsKey = 'deleted_study_set_ids';
 
-  static const int maxCardsPerSet = 500;
+  static const int maxCardsPerSet = 2000;
   static const int defaultNewCardsPerDay = 20;
   static const String notificationChannelId = 'recall_daily_review';
   static const int defaultNotificationHour = 20;
@@ -27,4 +27,6 @@ class AppConstants {
   static const String widgetIosPressureBar = 'PressureBarWidget';
   static const String deepLinkScheme = 'recall';
   static const int defaultDailyTarget = 20;
+
+  static const String appVersion = '1.0.0';
 }

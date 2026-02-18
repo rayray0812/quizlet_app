@@ -9,6 +9,7 @@ void main() {
     VoidCallback? onDelete,
     VoidCallback? onAddTag,
     VoidCallback? onRemoveTag,
+    VoidCallback? onAiGenerate,
   }) {
     return MaterialApp(
       localizationsDelegates: const [AppLocalizations.delegate],
@@ -20,6 +21,7 @@ void main() {
           onDelete: onDelete ?? () {},
           onAddTag: onAddTag ?? () {},
           onRemoveTag: onRemoveTag ?? () {},
+          onAiGenerate: onAiGenerate ?? () {},
         ),
       ),
     );
@@ -52,6 +54,14 @@ void main() {
     await tester.pumpWidget(buildBar(onRemoveTag: () => called = true));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.label_off_outlined));
+    expect(called, isTrue);
+  });
+
+  testWidgets('ai generate button calls callback', (tester) async {
+    bool called = false;
+    await tester.pumpWidget(buildBar(onAiGenerate: () => called = true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
     expect(called, isTrue);
   });
 }

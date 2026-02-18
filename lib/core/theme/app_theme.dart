@@ -1,7 +1,10 @@
+﻿import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
+  static final String _appFontFamily = GoogleFonts.notoSansTc().fontFamily!;
   // Stitch-aligned palette
   static const indigo = Color(0xFF8F9876); // primary sage
   static const cyan = Color(0xFFA4B5BC); // morandi blue
@@ -17,7 +20,6 @@ class AppTheme {
   static const breakdownReview = Color(0xFFA7B388);
 
   static const _bgLight = Color(0xFFFDFBF7);
-  static const _bgDark = Color(0xFF1A1A18);
   static const _textMain = Color(0xFF151514);
   static const _textSubtle = Color(0xFF777972);
   static const _borderSoft = Color(0xFFE5E1D8);
@@ -25,26 +27,25 @@ class AppTheme {
   /// Shared card decoration matching stitch style.
   static BoxDecoration softCardDecoration({
     Color? fillColor,
-    double borderRadius = 12,
+    double borderRadius = 14,
     Color? borderColor,
     double elevation = 1,
   }) {
     return BoxDecoration(
       color: fillColor ?? Colors.white,
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(color: borderColor ?? _borderSoft, width: 1),
+      border: Border.all(color: borderColor ?? _borderSoft, width: 0.5),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04 * elevation),
-          blurRadius: 10 * elevation,
-          offset: Offset(0, 3 * elevation),
+          color: Colors.black.withValues(alpha: 0.03 * elevation),
+          blurRadius: 20 * elevation,
+          offset: Offset(0, 2 * elevation),
         ),
       ],
     );
   }
 
   static final ThemeData lightTheme = _buildLightTheme();
-  static final ThemeData darkTheme = _buildDarkTheme();
 
   static ThemeData _buildLightTheme() {
     final baseText = GoogleFonts.notoSansTcTextTheme();
@@ -65,47 +66,61 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamily: _appFontFamily,
       colorScheme: scheme,
       scaffoldBackgroundColor: _bgLight,
       textTheme: baseText.copyWith(
         headlineLarge: GoogleFonts.notoSerifTc(
           fontSize: 32,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          height: 1.35,
           color: _textMain,
         ),
         headlineMedium: GoogleFonts.notoSerifTc(
           fontSize: 28,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          height: 1.35,
           color: _textMain,
         ),
         headlineSmall: GoogleFonts.notoSerifTc(
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          height: 1.35,
           color: _textMain,
         ),
         titleLarge: GoogleFonts.notoSerifTc(
           fontSize: 20,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          height: 1.35,
           color: _textMain,
         ),
         titleMedium: GoogleFonts.notoSerifTc(
           fontSize: 18,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          height: 1.35,
           color: _textMain,
         ),
         bodyLarge: GoogleFonts.notoSansTc(
           fontSize: 16,
           fontWeight: FontWeight.w500,
+          height: 1.55,
           color: _textMain,
         ),
         bodyMedium: GoogleFonts.notoSansTc(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
+          height: 1.55,
           color: _textSubtle,
         ),
         labelLarge: GoogleFonts.notoSansTc(
           fontSize: 14,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
           color: _textMain,
         ),
       ),
@@ -118,7 +133,8 @@ class AppTheme {
         iconTheme: const IconThemeData(color: _textMain),
         titleTextStyle: GoogleFonts.notoSerifTc(
           fontSize: 20,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
           color: _textMain,
         ),
       ),
@@ -126,7 +142,7 @@ class AppTheme {
         color: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -134,10 +150,10 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           textStyle: GoogleFonts.notoSansTc(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -148,9 +164,9 @@ class AppTheme {
           backgroundColor: indigo,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.notoSansTc(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.notoSansTc(fontWeight: FontWeight.w600),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
@@ -158,9 +174,9 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: indigo.withValues(alpha: 0.35)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.notoSansTc(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.notoSansTc(fontWeight: FontWeight.w600),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
@@ -211,7 +227,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white.withValues(alpha: 0.88),
         shadowColor: Colors.black.withValues(alpha: 0.05),
-        indicatorColor: indigo.withValues(alpha: 0.14),
+        indicatorColor: indigo.withValues(alpha: 0.10),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: indigo);
@@ -222,8 +238,8 @@ class AppTheme {
           return GoogleFonts.notoSansTc(
             fontSize: 11,
             fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w600,
+                ? FontWeight.w600
+                : FontWeight.w500,
             color: states.contains(WidgetState.selected)
                 ? indigo
                 : _textSubtle,
@@ -233,53 +249,38 @@ class AppTheme {
     );
   }
 
-  static ThemeData _buildDarkTheme() {
-    final base = _buildLightTheme();
-    final darkScheme = base.colorScheme.copyWith(
-      brightness: Brightness.dark,
-      surface: _bgDark,
-      onSurface: Colors.white,
-      outline: const Color(0xFFA7A79E),
-      outlineVariant: const Color(0xFF3A3A38),
-    );
+}
 
-    return base.copyWith(
-      colorScheme: darkScheme,
-      scaffoldBackgroundColor: _bgDark,
-      appBarTheme: base.appBarTheme.copyWith(
-        backgroundColor: _bgDark.withValues(alpha: 0.92),
-        iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: GoogleFonts.notoSerifTc(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
+/// Paper-like grain noise overlay for artsy texture.
+class GrainOverlay extends StatelessWidget {
+  const GrainOverlay({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _GrainTexturePainter(),
+          size: Size.infinite,
         ),
-      ),
-      cardTheme: base.cardTheme.copyWith(
-        color: const Color(0xFF252523),
-      ),
-      inputDecorationTheme: base.inputDecorationTheme.copyWith(
-        fillColor: const Color(0xFF252523),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3A3A38)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: indigo.withValues(alpha: 0.9), width: 1.5),
-        ),
-      ),
-      bottomNavigationBarTheme: base.bottomNavigationBarTheme.copyWith(
-        backgroundColor: const Color(0xFF252523).withValues(alpha: 0.88),
-        unselectedItemColor: const Color(0xFFA7A79E),
-      ),
-      navigationBarTheme: base.navigationBarTheme.copyWith(
-        backgroundColor: const Color(0xFF252523).withValues(alpha: 0.9),
-        indicatorColor: indigo.withValues(alpha: 0.24),
-      ),
-      dialogTheme: base.dialogTheme.copyWith(
-        backgroundColor: const Color(0xFF252523),
       ),
     );
   }
+}
+
+class _GrainTexturePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rng = math.Random(42);
+    final paint = Paint()..color = const Color(0x06000000);
+    final count = (size.width * size.height / 120).clamp(0, 8000).toInt();
+    for (var i = 0; i < count; i++) {
+      final x = rng.nextDouble() * size.width;
+      final y = rng.nextDouble() * size.height;
+      canvas.drawCircle(Offset(x, y), 0.45, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

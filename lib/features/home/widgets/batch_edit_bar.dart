@@ -6,6 +6,7 @@ class BatchEditBar extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onAddTag;
   final VoidCallback onRemoveTag;
+  final VoidCallback onAiGenerate;
 
   const BatchEditBar({
     super.key,
@@ -13,6 +14,7 @@ class BatchEditBar extends StatelessWidget {
     required this.onDelete,
     required this.onAddTag,
     required this.onRemoveTag,
+    required this.onAiGenerate,
   });
 
   @override
@@ -48,6 +50,14 @@ class BatchEditBar extends StatelessWidget {
               onPressed: onRemoveTag,
               icon: const Icon(Icons.label_off_outlined),
               tooltip: l10n.removeTagFromSelected,
+            ),
+            IconButton(
+              onPressed: onAiGenerate,
+              icon: Icon(
+                Icons.auto_awesome_rounded,
+                color: theme.colorScheme.primary,
+              ),
+              tooltip: l10n.generateAiExamples,
             ),
             IconButton(
               onPressed: onDelete,

@@ -765,7 +765,7 @@ class _AdminManagementScreenState extends ConsumerState<AdminManagementScreen> {
                   'signature=${archive.signature}\n'
                   'sha256=${archive.checksumSha256}\n\n'
                   '$contentText',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
             ),

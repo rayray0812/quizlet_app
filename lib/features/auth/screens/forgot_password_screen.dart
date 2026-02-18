@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:recall_app/features/auth/utils/auth_error_mapper.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Password reset email sent. Please check your inbox.'),
+          content: Text('Reset email sent. Check your inbox.'),
         ),
       );
       final from = GoRouterState.of(context).uri.queryParameters['from'];
@@ -55,6 +56,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
@@ -69,20 +71,20 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                const Text(
-                  'Enter your account email and we\'ll send a reset link.',
-                  style: TextStyle(fontSize: 15),
+                Text(
+                  'Enter your email and we will send a reset link.',
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 18),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: l10n.email,
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   validator: (v) => v == null || !v.contains('@')
-                      ? 'Enter a valid email'
+                      ? l10n.enterValidEmail
                       : null,
                 ),
                 const SizedBox(height: 22),
@@ -94,7 +96,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Send Reset Email'),
+                      : const Text('Send Reset Link'),
                 ),
               ],
             ),

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
@@ -47,7 +48,6 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
-  bool _showFront = true;
   bool _isFlipped = false;
   bool _isSubmittingRating = false;
   int? _lastRating;
@@ -76,19 +76,12 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   void initState() {
     super.initState();
     _flipController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 520),
       vsync: this,
     );
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _flipController, curve: Curves.easeInOutCubic),
     );
-    _flipAnimation.addListener(() {
-      if (_flipAnimation.value >= 0.5 && _showFront) {
-        setState(() => _showFront = false);
-      } else if (_flipAnimation.value < 0.5 && !_showFront) {
-        setState(() => _showFront = true);
-      }
-    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _buildQueue());
     _initTts();
@@ -107,6 +100,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       final studySets = ref.read(studySetsProvider);
       final now = DateTime.now().toUtc();
       final List<_ReviewItem> items = [];
+      final allProgress = localStorage.getAllCardProgress();
+      final progressByCardId = <String, CardProgress>{
+        for (final p in allProgress) p.cardId: p,
+      };
 
       if (widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty) {
         final cardsById = <String, Flashcard>{};
@@ -118,15 +115,19 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         for (final cardId in widget.revengeCardIds!) {
           final card = cardsById[cardId];
           if (card == null) continue;
-          final progress = localStorage.getCardProgress(cardId);
+          final progress = progressByCardId[cardId];
           if (progress == null) continue;
           items.add(_ReviewItem(card: card, progress: progress));
         }
       } else if (widget.setId != null) {
         final studySet = localStorage.getStudySet(widget.setId!);
+        final setProgress = localStorage.getCardProgressForSet(widget.setId!);
+        final setProgressByCardId = <String, CardProgress>{
+          for (final p in setProgress) p.cardId: p,
+        };
         if (studySet != null) {
           for (final card in studySet.cards) {
-            final progress = localStorage.getCardProgress(card.id);
+            final progress = setProgressByCardId[card.id];
             if (progress == null) continue;
             final isDue = progress.due == null || !progress.due!.isAfter(now);
             if (isDue) {
@@ -450,12 +451,16 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     switch (rating) {
       case 1:
         _againCount++;
+        break;
       case 2:
         _hardCount++;
+        break;
       case 3:
         _goodCount++;
+        break;
       case 4:
         _easyCount++;
+        break;
     }
 
     if (_currentIndex + 1 >= _queue.length) {
@@ -489,7 +494,6 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       setState(() {
         _currentIndex++;
         _isFlipped = false;
-        _showFront = true;
         _isSubmittingRating = false;
         _lastRating = null;
       });
@@ -656,11 +660,12 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
               children: [
                 Text(
                   'Reviewing',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.indigo.withValues(alpha: 0.72),
-                      ),
+                  style: GoogleFonts.notoSerifTc(
+                    textStyle: Theme.of(context).textTheme.bodySmall,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.indigo.withValues(alpha: 0.72),
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -690,12 +695,16 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                           animation: _flipAnimation,
                           builder: (context, child) {
                             final angle = _flipAnimation.value * pi;
+                            final isFront = _flipAnimation.value < 0.5;
+                            final flipDepth = sin(_flipAnimation.value * pi).abs();
+                            final depthScale = 1 - (flipDepth * 0.015);
                             return Transform(
                               alignment: Alignment.center,
                               transform: Matrix4.identity()
                                 ..setEntry(3, 2, 0.001)
+                                ..scale(depthScale)
                                 ..rotateY(angle),
-                              child: _showFront
+                              child: isFront
                                   ? _buildCardSide(
                                       text: item.card.term,
                                       label: l10n.tapToFlip,
@@ -711,6 +720,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                                         context,
                                       ).colorScheme.onSurface,
                                       imageUrl: item.card.imageUrl,
+                                      shadowBoost: flipDepth,
                                     )
                                   : Transform(
                                       alignment: Alignment.center,
@@ -730,6 +740,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                                         textColor: Theme.of(
                                           context,
                                         ).colorScheme.onSurface,
+                                        shadowBoost: flipDepth,
                                       ),
                                     ),
                             );
@@ -766,21 +777,27 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
             ),
           ),
           if (_isFlipped)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: RatingButtons(
-                intervals: intervals,
-                onRating: _onRate,
-                enabled: !_isSubmittingRating,
+            Transform.translate(
+              offset: const Offset(0, -14),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: RatingButtons(
+                  intervals: intervals,
+                  onRating: _onRate,
+                  enabled: !_isSubmittingRating,
+                ),
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 30),
-              child: Text(
-                l10n.tapToFlip,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+            Transform.translate(
+              offset: const Offset(0, -10),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  l10n.tapToFlip,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
               ),
             ),
@@ -812,6 +829,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     required Color textColor,
     VoidCallback? onSpeak,
     String imageUrl = '',
+    double shadowBoost = 0,
   }) {
     final hasImage = imageUrl.isNotEmpty;
     final cardWidth = MediaQuery.of(context).size.width - 44;
@@ -823,75 +841,106 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       decoration: AppTheme.softCardDecoration(
         fillColor: bgColor,
         borderRadius: 18,
-        borderColor: AppTheme.indigo.withValues(alpha: 0.22),
-        elevation: 1.2,
+        borderColor: AppTheme.indigo.withValues(alpha: 0.22 + (shadowBoost * 0.08)),
+        elevation: 1.2 + (shadowBoost * 1.4),
       ),
-      child: Column(
+      child: Stack(
         children: [
-          if (hasImage)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
-              ),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                height: cardHeight * 0.32,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                const SizedBox(width: 32),
-                Expanded(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: textColor.withValues(alpha: 0.5),
-                      letterSpacing: 1.2,
+          Column(
+            children: [
+              if (hasImage)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      color: Colors.grey.shade100,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        height: cardHeight * 0.22,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    onPressed: onSpeak,
-                    tooltip: AppLocalizations.of(context).listen,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.volume_up_rounded,
-                      color: textColor.withValues(alpha: 0.72),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.notoSerifTc(
+                          textStyle: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: textColor.withValues(alpha: 0.5),
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        onPressed: onSpeak,
+                        tooltip: AppLocalizations.of(context).listen,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.volume_up_rounded,
+                          color: textColor.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 20,
+                    ),
+                    child: Text(
+                      text,
+                      style: GoogleFonts.notoSerifTc(
+                        textStyle: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                          height: 1.3,
+                        ),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 20,
-                ),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    height: 1.3,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.16 + (shadowBoost * 0.1)),
+                      Colors.white.withValues(alpha: 0.03),
+                      Colors.transparent,
+                    ],
+                    stops: const [0, 0.28, 1],
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ),

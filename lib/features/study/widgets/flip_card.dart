@@ -1,8 +1,10 @@
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 
@@ -10,12 +12,16 @@ class FlipCardWidget extends StatefulWidget {
   final String frontText;
   final String backText;
   final String imageUrl;
+  final VoidCallback? onAdvance;
+  final ValueChanged<bool>? onFlipStateChanged;
 
   const FlipCardWidget({
     super.key,
     required this.frontText,
     required this.backText,
     this.imageUrl = '',
+    this.onAdvance,
+    this.onFlipStateChanged,
   });
 
   @override
@@ -27,6 +33,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
   late AnimationController _controller;
   late Animation<double> _animation;
   late final FlutterTts _tts;
+  bool _isFlipAnimating = false;
   bool _isTtsReady = false;
   bool _suppressFlipOnce = false;
   Set<String>? _supportedLanguages;
@@ -40,14 +47,32 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 520),
+      reverseDuration: const Duration(milliseconds: 520),
       vsync: this,
-    );
+    )..addStatusListener((status) {
+      final animating =
+          status == AnimationStatus.forward ||
+          status == AnimationStatus.reverse;
+      if (animating != _isFlipAnimating) {
+        _isFlipAnimating = animating;
+        widget.onFlipStateChanged?.call(animating);
+      }
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        widget.onFlipStateChanged?.call(false);
+      }
+    });
     _animation = Tween<double>(
       begin: 0,
       end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _initTts();
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOutCubic,
+        reverseCurve: Curves.easeInOutCubic,
+      ),
+    );
   }
 
   @override
@@ -56,12 +81,12 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     if (oldWidget.frontText != widget.frontText) {
       _controller.reset();
       _stopSpeaking();
-      _speakTerm();
     }
   }
 
   @override
   void dispose() {
+    widget.onFlipStateChanged?.call(false);
     _stopSpeaking();
     _controller.dispose();
     super.dispose();
@@ -75,7 +100,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
       await _tts.setPitch(1.0);
       await _tts.setVolume(1.0);
       _isTtsReady = true;
-      _speakTerm();
     } catch (_) {
       _isTtsReady = false;
     }
@@ -255,7 +279,11 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     }
     if (_controller.isAnimating) return;
     if (_controller.isCompleted) {
-      _controller.reverse();
+      if (widget.onAdvance != null) {
+        widget.onAdvance!.call();
+      } else {
+        _controller.reverse();
+      }
     } else {
       _controller.forward();
     }
@@ -269,31 +297,42 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
         animation: _animation,
         builder: (context, child) {
           final angle = _animation.value * pi;
-          final isFront = _animation.value < 0.5;
-          return Transform(
+          final frontVisible = cos(angle) > 0;
+          final perspective = Matrix4.identity()..setEntry(3, 2, 0.0008);
+
+          final front = Transform(
             alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateY(angle),
-            child: RepaintBoundary(
-              child: isFront
-                  ? _buildSide(
-                      widget.frontText,
-                      Theme.of(context).colorScheme.primaryContainer,
-                      Theme.of(context).colorScheme.onPrimaryContainer,
-                      AppLocalizations.of(context).tapToFlip,
-                      showImage: true,
-                    )
-                  : Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()..rotateY(pi),
-                      child: _buildSide(
-                        widget.backText,
-                        Theme.of(context).colorScheme.secondaryContainer,
-                        Theme.of(context).colorScheme.onSecondaryContainer,
-                        AppLocalizations.of(context).definitionLabel,
-                      ),
-                    ),
+            transform: perspective.clone()..rotateY(angle),
+            child: _buildSide(
+              widget.frontText,
+              const Color(0xFFF9F3E6),
+              const Color(0xFF1A221A),
+              AppLocalizations.of(context).tapToFlip,
+              showImage: true,
+              bgColorEnd: const Color(0xFFB9CCB2),
+            ),
+          );
+
+          final back = Transform(
+            alignment: Alignment.center,
+            transform: perspective.clone()..rotateY(angle + pi),
+            child: _buildSide(
+              widget.backText,
+              const Color(0xFFF6ECD9),
+              const Color(0xFF1A221A),
+              AppLocalizations.of(context).definitionLabel,
+              bgColorEnd: const Color(0xFFB3C8AD),
+            ),
+          );
+
+          return RepaintBoundary(
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                if (frontVisible) front,
+                if (!frontVisible) back,
+              ],
             ),
           );
         },
@@ -307,113 +346,216 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     Color textColor,
     String label, {
     bool showImage = false,
+    Color? bgColorEnd,
   }) {
     final hasImage = showImage && widget.imageUrl.isNotEmpty;
     final screenHeight = MediaQuery.of(context).size.height;
     final cardHeight = screenHeight * 0.55;
-    final imageHeight = screenHeight * 0.22;
+    final imageHeight = (screenHeight * 0.16).clamp(92.0, 138.0);
 
     return Container(
       width: double.infinity,
       height: cardHeight,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: bgColor.withValues(alpha: 0.95),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomRight,
+          colors: [
+            bgColor,
+            Color.lerp(bgColor, bgColorEnd ?? bgColor, 0.18) ?? bgColor,
+            bgColorEnd ?? bgColor,
+          ],
+          stops: const [0.0, 0.74, 1.0],
+        ),
         borderRadius: BorderRadius.circular(DS.r24),
         border: Border.all(
-          color: DS.primary.withValues(alpha: 0.2),
+          color: const Color(0xFFFEFAF0).withValues(alpha: 0.55),
+          width: 0.6,
         ),
-        boxShadow: DS.cardShadow,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2C4235).withValues(alpha: 0.09),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.38),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
-      child: Column(
+      child: Stack(
         children: [
-          if (hasImage)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(DS.r24),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _PaperTexturePainter(
+                  tone: const Color(0xFFFFF8EC),
+                  shadowTone: const Color(0xFF496454),
+                ),
               ),
-              child: CachedNetworkImage(
-                imageUrl: widget.imageUrl,
-                height: imageHeight,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 120),
-                fadeOutDuration: Duration.zero,
-                memCacheHeight: 600,
-                memCacheWidth: 800,
-                placeholder: (_, __) => Container(
-                  height: imageHeight,
-                  color: textColor.withValues(alpha: 0.05),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                const SizedBox(width: 32),
-                Expanded(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: textColor.withValues(alpha: 0.45),
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    onPressed: () {
-                      _suppressFlipOnce = true;
-                      _speakTerm(userInitiated: true);
-                    },
-                    tooltip: AppLocalizations.of(context).listen,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.volume_up_rounded,
-                      color: textColor.withValues(alpha: 0.72),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
-          Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 20,
-                ),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                    height: 1.3,
+          Column(
+            children: [
+              if (hasImage)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      color: Colors.white.withValues(alpha: 0.34),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.imageUrl,
+                        height: imageHeight,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        fadeInDuration: const Duration(milliseconds: 120),
+                        fadeOutDuration: Duration.zero,
+                        memCacheHeight: 420,
+                        memCacheWidth: 620,
+                        placeholder: (_, __) => Container(
+                          height: imageHeight,
+                          color: textColor.withValues(alpha: 0.05),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.notoSerifTc(
+                          textStyle: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: textColor.withValues(alpha: 0.58),
+                            letterSpacing: 1.8,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        onPressed: () {
+                          _suppressFlipOnce = true;
+                          _speakTerm(userInitiated: true);
+                        },
+                        tooltip: AppLocalizations.of(context).listen,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          CupertinoIcons.speaker_2,
+                          color: textColor.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 20,
+                    ),
+                    child: Text(
+                      text,
+                      style: GoogleFonts.notoSerifTc(
+                        textStyle: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          height: 1.45,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+}
+
+class _PaperTexturePainter extends CustomPainter {
+  final Color tone;
+  final Color shadowTone;
+
+  const _PaperTexturePainter({
+    required this.tone,
+    required this.shadowTone,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = tone.withValues(alpha: 0.12)
+      ..strokeWidth = 0.9;
+    final fiberPaint = Paint()
+      ..color = shadowTone.withValues(alpha: 0.065)
+      ..style = PaintingStyle.fill;
+    final glowPaint = Paint()
+      ..color = tone.withValues(alpha: 0.16)
+      ..style = PaintingStyle.fill;
+    final diagonalPaint = Paint()
+      ..color = shadowTone.withValues(alpha: 0.03)
+      ..strokeWidth = 0.55;
+
+    for (var i = 0; i < 34; i++) {
+      final y = (size.height / 34) * i + ((i % 2) * 1.2);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y + 1.4),
+        linePaint,
+      );
+    }
+
+    for (var i = 0; i < 210; i++) {
+      final x = (i * 31 % 100) / 100 * size.width;
+      final y = (i * 17 % 100) / 100 * size.height;
+      final r = 0.45 + (i % 4) * 0.22;
+      canvas.drawCircle(Offset(x, y), r, i % 5 == 0 ? glowPaint : fiberPaint);
+    }
+
+    for (var i = 0; i < 18; i++) {
+      final startX = (i * 23 % 100) / 100 * size.width;
+      final startY = (i * 41 % 100) / 100 * size.height;
+      canvas.drawLine(
+        Offset(startX, startY),
+        Offset(startX + 24, startY + 8),
+        diagonalPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaperTexturePainter oldDelegate) {
+    return oldDelegate.tone != tone || oldDelegate.shadowTone != shadowTone;
   }
 }

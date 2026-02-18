@@ -1,5 +1,68 @@
 # Development Log
 
+## 2026-02-17
+
+### Conversation Practice Overhaul (Ongoing)
+- Reworked conversation practice into scenario-based roleplay with bilingual context (EN/ZH), role labels, and staged progress guidance.
+- Expanded local daily-life scenario pool for more practical, varied sessions.
+- Tightened AI prompt style to reduce filler greeting/small-talk and keep questions specific and answerable.
+- Added reply-support UX:
+  - `Help me reply` button
+  - suggestion panel with short usable responses + zh hints
+  - reply hint parsing/rendering
+
+### API Guardrails, Quota/429 Handling, and Cost Controls
+- Added API fallback and protection logic in conversation screen:
+  - rate-limit cooldown
+  - per-session chat API cap
+  - suggestion API cap + cache
+  - local coach fallback when API unstable
+- Improved error classification and handling:
+  - separate hard quota vs rate limit vs auth-style failures
+  - avoid misreporting all failures as quota exhaustion
+- Reduced token pressure by shortening chat/suggestion outputs and keeping responses compact.
+- Added debug usage logs for rough token/cost visibility (`[AI_USAGE] ...`).
+
+### Layout/Runtime Stability Fixes
+- Fixed multiple keyboard overflow issues by constraining bottom composer area and hiding top info panels when keyboard is open.
+- Added mounted/disposed guards around async callbacks (`postFrame`, snackbars, STT callbacks, scroll callbacks).
+- Fixed end-of-session navigation instability:
+  - removed fragile double-pop pattern
+  - made summary flow safer to reduce framework assert on back/navigation transitions.
+- Added safer input controller usage wrappers to reduce disposed-controller crash risk.
+
+### AI Voice (First-Line) Integration Attempts
+- Added new service: `lib/services/ai_tts_service.dart`.
+- Added `audioplayers` dependency and implemented Gemini TTS request + audio parsing + playback.
+- Implemented multiple fallback paths:
+  - AI first-line voice attempt
+  - fallback to Flutter TTS when AI voice fails
+  - cache-based replay path for first line
+- Added playback lock/debounce attempts to reduce TTS/AI player race conditions.
+
+### Current Status (End of Day)
+- Text conversation features are significantly improved and usable.
+- API fallback/rate-limit handling is much better than before.
+- Keyboard overflow is improved but should still be regression-tested on more device sizes.
+- **Main unresolved blocker:** first-line AI voice behavior is still inconsistent across session start/replay (sometimes fallback TTS first, sometimes AI replay fails, sometimes no sound after mixed playback attempts).
+
+### Next Session First Actions (Priority)
+- Refactor voice pipeline to a single deterministic state machine:
+  - one active audio engine at a time
+  - explicit states: `idle -> preparing -> playing -> completed/error`
+  - no mixed implicit fallback in parallel paths
+- Add visible runtime diagnostics in UI for voice path:
+  - `AI cache hit`, `AI fetch fail`, `Fallback TTS`, error code preview
+- Lock down replay contract:
+  - first message replay should never trigger remote generation
+  - replay uses cached audio only; if missing, immediate TTS without waiting
+- After stabilizing voice path, run focused test passes on:
+  - start session
+  - first auto-play
+  - repeated replay taps
+  - background/foreground transitions
+  - back navigation during playback
+
 ## 2026-02-15
 
 ### UI Refactor (Stitch-style, layout-level)

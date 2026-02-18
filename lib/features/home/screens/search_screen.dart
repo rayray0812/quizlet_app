@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
@@ -36,41 +38,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final l10n = AppLocalizations.of(context);
     final studySets = ref.watch(studySetsProvider);
     final results = _buildResults(studySets, _query);
+    final totalMatches = results.fold<int>(0, (sum, item) => sum + item.cards.length);
 
     final body = Stack(
       children: [
-        Positioned(
-          top: -60,
-          right: -40,
-          child: Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  AppTheme.indigo.withValues(alpha: 0.22),
-                  AppTheme.indigo.withValues(alpha: 0),
-                ],
-              ),
-            ),
-          ),
-        ),
+        const Positioned.fill(child: _SearchBackdropAccent()),
         ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, widget.embedded ? 22 : 16, 16, 24),
           children: [
-            if (widget.embedded) ...[
+            if (!widget.embedded) ...[
               Text(
                 l10n.search,
                 style: GoogleFonts.notoSerifTc(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF2A2A28),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Find terms, definitions, and tags',
+                '快速搜尋詞彙、定義與標籤',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                       letterSpacing: 0.3,
@@ -78,17 +65,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 14),
             ],
-            Container(
-              decoration: AppTheme.softCardDecoration(
-                fillColor: Colors.white,
-                borderRadius: 14,
-                borderColor: AppTheme.indigo.withValues(alpha: 0.15),
-              ),
+            AdaptiveGlassCard(
+              borderRadius: 16,
+              fillColor: Colors.white.withValues(alpha: 0.86),
+              borderColor: Colors.white.withValues(alpha: 0.45),
+              elevation: 1.6,
               child: TextField(
                 controller: _controller,
                 autofocus: !widget.embedded,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                 decoration: InputDecoration(
-                  hintText: l10n.search,
+                  hintText: '搜尋單字、定義或標籤',
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _query.isEmpty
                       ? null
@@ -97,13 +86,39 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           onPressed: () => _applyQuery(''),
                         ),
                   border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
                 onChanged: (v) => setState(() => _query = v.trim()),
               ),
             ),
+            if (_query.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.76),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+                    ),
+                    child: Text(
+                      '共 $totalMatches 筆結果',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppTheme.indigo,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 18),
             if (_query.isEmpty)
-              _buildDiscovery(context, l10n, studySets)
+              _buildDiscovery(context, studySets)
             else
               _buildResultsView(context, l10n, results),
           ],
@@ -120,7 +135,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildDiscovery(
     BuildContext context,
-    AppLocalizations l10n,
     List<StudySet> sets,
   ) {
     final tags = _topTags(sets);
@@ -129,35 +143,47 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionTitle(
-          title: 'Recent Search',
+          title: '快速探索',
           trailing: TextButton(
             onPressed: () => _applyQuery(''),
-            child: const Text('Clear'),
+            child: const Text('清除'),
           ),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: tags
-              .map(
-                (tag) => ActionChip(
-                  label: Text(tag),
-                  onPressed: () => _applyQuery(tag),
-                  backgroundColor: AppTheme.indigo.withValues(alpha: 0.1),
-                  labelStyle: TextStyle(
-                    color: AppTheme.indigo,
-                    fontWeight: FontWeight.w600,
+        AdaptiveGlassCard(
+          borderRadius: 16,
+          fillColor: Colors.white.withValues(alpha: 0.8),
+          borderColor: Colors.white.withValues(alpha: 0.4),
+          elevation: 1.2,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: tags
+                .map(
+                  (tag) => ActionChip(
+                    label: Text(tag),
+                    onPressed: () => _applyQuery(tag),
+                    backgroundColor: Colors.white.withValues(alpha: 0.76),
+                    labelStyle: TextStyle(
+                      color: AppTheme.indigo,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    side: BorderSide(color: AppTheme.indigo.withValues(alpha: 0.22)),
                   ),
-                  side: BorderSide(color: AppTheme.indigo.withValues(alpha: 0.16)),
-                ),
-              )
-              .toList(),
+                )
+                .toList(),
+          ),
         ),
         const SizedBox(height: 22),
-        _SectionTitle(title: 'Collections'),
+        const _SectionTitle(title: '學習集'),
         const SizedBox(height: 8),
-        ...sets.take(8).map((set) => _CollectionRow(set: set, onTap: () => _applyQuery(set.title))),
+        ...sets.take(8).map(
+              (set) => _CollectionRow(
+                set: set,
+                onTap: () => context.push('/study/${set.id}'),
+              ),
+            ),
       ],
     );
   }
@@ -165,14 +191,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildResultsView(
     BuildContext context,
     AppLocalizations l10n,
-    List<({String setTitle, List<Flashcard> cards})> results,
+    List<({String setId, String setTitle, List<Flashcard> cards})> results,
   ) {
     if (results.isEmpty) {
-      return Container(
-        decoration: AppTheme.softCardDecoration(
-          fillColor: Colors.white,
-          borderRadius: 14,
-        ),
+      return AdaptiveGlassCard(
+        borderRadius: 14,
+        fillColor: Colors.white.withValues(alpha: 0.8),
+        borderColor: Colors.white.withValues(alpha: 0.42),
+        elevation: 1.2,
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
@@ -187,45 +213,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: results.map((entry) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(2, 8, 2, 8),
-              child: _SectionTitle(title: entry.setTitle),
-            ),
-            ...entry.cards.take(8).map(
-                  (card) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: AppTheme.softCardDecoration(
-                      fillColor: Colors.white,
-                      borderRadius: 12,
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
-                      title: Text(
-                        card.term,
-                        style: GoogleFonts.notoSerifTc(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          card.definition,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      trailing: Icon(
-                        Icons.chevron_right_rounded,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: AdaptiveGlassCard(
+            borderRadius: 16,
+            fillColor: Colors.white.withValues(alpha: 0.8),
+            borderColor: Colors.white.withValues(alpha: 0.42),
+            elevation: 1.3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                  child: _SectionTitle(title: entry.setTitle),
                 ),
-          ],
+                ...entry.cards.take(8).map(
+                      (card) => ListTile(
+                        onTap: () => context.push('/study/${entry.setId}'),
+                        contentPadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
+                        title: Text(
+                          card.term,
+                          style: GoogleFonts.notoSerifTc(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            card.definition,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
         );
       }).toList(),
     );
@@ -248,16 +278,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     final tags = sorted.take(6).map((e) => e.key).toList();
     if (tags.isEmpty) {
-      tags.addAll(['TOEIC', 'English', 'Biology', 'History']);
+      tags.addAll(['英文', '多益', '生物', '歷史']);
     }
     return tags;
   }
 
-  List<({String setTitle, List<Flashcard> cards})> _buildResults(
+  List<({String setId, String setTitle, List<Flashcard> cards})> _buildResults(
     List<StudySet> studySets,
     String query,
   ) {
-    final results = <({String setTitle, List<Flashcard> cards})>[];
+    final results = <({String setId, String setTitle, List<Flashcard> cards})>[];
     if (query.isEmpty) return results;
 
     final q = query.toLowerCase();
@@ -268,10 +298,66 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             c.tags.any((t) => t.toLowerCase().contains(q));
       }).toList();
       if (matched.isNotEmpty) {
-        results.add((setTitle: set.title, cards: matched));
+        results.add((setId: set.id, setTitle: set.title, cards: matched));
       }
     }
     return results;
+  }
+}
+
+class _SearchBackdropAccent extends StatelessWidget {
+  const _SearchBackdropAccent();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -70,
+            right: -50,
+            child: _SearchOrb(
+              size: 220,
+              color: Colors.white.withValues(alpha: 0.22),
+            ),
+          ),
+          Positioned(
+            top: 120,
+            left: -62,
+            child: _SearchOrb(
+              size: 190,
+              color: AppTheme.cyan.withValues(alpha: 0.14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _SearchOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color,
+            color.withValues(alpha: 0.02),
+            Colors.transparent,
+          ],
+          stops: const [0, 0.6, 1],
+        ),
+      ),
+    );
   }
 }
 
@@ -300,7 +386,7 @@ class _SectionTitle extends StatelessWidget {
             style: GoogleFonts.notoSerifTc(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF2A2A28),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -318,49 +404,58 @@ class _CollectionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.indigo.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.folder_rounded, color: AppTheme.indigo),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    set.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.notoSerifTc(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: AdaptiveGlassCard(
+        borderRadius: 14,
+        fillColor: Colors.white.withValues(alpha: 0.78),
+        borderColor: Colors.white.withValues(alpha: 0.4),
+        elevation: 1,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.indigo.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${set.cards.length} cards',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  child: Icon(Icons.folder_rounded, color: AppTheme.indigo),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        set.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.notoSerifTc(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${set.cards.length} 張卡片',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ],
+          ),
         ),
       ),
     );

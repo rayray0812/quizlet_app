@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
@@ -46,25 +47,27 @@ class StatsScreen extends ConsumerWidget {
           ),
         ),
         ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          padding: EdgeInsets.fromLTRB(16, embedded ? 22 : 16, 16, 28),
           children: [
-            Text(
-              l10n.statistics,
-              style: GoogleFonts.notoSerifTc(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
+            if (!embedded) ...[
+              Text(
+                l10n.statistics,
+                style: GoogleFonts.notoSerifTc(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Every review builds your memory map',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                    letterSpacing: 0.4,
-                  ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 4),
+              Text(
+                'Every review builds your memory map',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                      letterSpacing: 0.4,
+                    ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Container(
               decoration: AppTheme.softCardDecoration(
                 fillColor: Colors.white,
@@ -107,6 +110,18 @@ class StatsScreen extends ConsumerWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/achievements'),
+              icon: const Icon(Icons.emoji_events_rounded, size: 18),
+              label: Text(l10n.achievements),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 44),
+                side: BorderSide(
+                  color: AppTheme.indigo.withValues(alpha: 0.32),
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -338,3 +353,5 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 }
+
+

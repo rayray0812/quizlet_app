@@ -98,7 +98,6 @@ class PomodoroPanel extends ConsumerWidget {
                 IconButton.filledTonal(
                   onPressed: () => notifier.reset(),
                   icon: const Icon(Icons.stop_rounded),
-                  tooltip: l10n.pomodoroReset,
                 ),
               const SizedBox(width: 16),
               FloatingActionButton(

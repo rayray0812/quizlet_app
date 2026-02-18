@@ -1,11 +1,13 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/features/study/widgets/swipe_card_stack.dart';
-import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
+import 'package:recall_app/features/study/utils/encouragement_lines.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
@@ -88,17 +90,20 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
       );
     }
 
-    final progress = _currentCards.isEmpty
-        ? 0.0
-        : _swipedCount / _currentCards.length;
-
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: Text('$_swipedCount / ${_currentCards.length}'),
+        title: Text(
+          '$_swipedCount / ${_currentCards.length}',
+          style: GoogleFonts.notoSerifTc(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.home_rounded),
+            icon: const Icon(CupertinoIcons.house, size: 22),
             onPressed: _goHomeSmooth,
             tooltip: l10n.home,
           ),
@@ -106,7 +111,6 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
       ),
       body: Column(
         children: [
-          RoundedProgressBar(value: progress),
           const SizedBox(height: 4),
           // Score row
           Padding(
@@ -120,26 +124,20 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.red.withValues(alpha: 0.1),
+                    color: AppTheme.red.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.red.withValues(alpha: 0.18),
+                      width: 0.5,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.close_rounded,
-                        color: AppTheme.red,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_unknownCards.length}',
-                        style: const TextStyle(
-                          color: AppTheme.red,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    '${_unknownCards.length}',
+                    style: GoogleFonts.notoSerifTc(
+                      color: AppTheme.red,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
                 Text(
@@ -154,26 +152,20 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.green.withValues(alpha: 0.1),
+                    color: AppTheme.green.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.green.withValues(alpha: 0.18),
+                      width: 0.5,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${_knownCards.length}',
-                        style: const TextStyle(
-                          color: AppTheme.green,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.check_rounded,
-                        color: AppTheme.green,
-                        size: 16,
-                      ),
-                    ],
+                  child: Text(
+                    '${_knownCards.length}',
+                    style: GoogleFonts.notoSerifTc(
+                      color: AppTheme.green,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ],
@@ -200,7 +192,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
         .toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 46),
       child: SwipeCardStack(
         key: ValueKey(_currentCards.hashCode),
         cards: swipeCards,
@@ -248,6 +240,15 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 14),
+              Text(
+                EncouragementLines.pick(percent),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
               const SizedBox(height: 22),
               if (_unknownCards.isNotEmpty)
                 SizedBox(
@@ -255,7 +256,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _startRound(_unknownCards),
                     icon: const Icon(Icons.replay_rounded),
-                    label: Text(l10n.reviewNUnknownCards(_unknownCards.length)),
+                    label: Text(
+                      l10n.reviewNUnknownCards(_unknownCards.length),
+                      style: GoogleFonts.notoSerifTc(
+                        textStyle: Theme.of(context).textTheme.labelLarge,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               if (_unknownCards.isNotEmpty) const SizedBox(height: 10),
@@ -266,7 +273,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(l10n.done),
+                  child: Text(
+                    l10n.done,
+                    style: GoogleFonts.notoSerifTc(
+                      textStyle: Theme.of(context).textTheme.titleSmall,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -298,4 +311,6 @@ class _StatBox extends StatelessWidget {
     );
   }
 }
+
+
 

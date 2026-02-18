@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/models/study_set.dart';
@@ -33,7 +34,7 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
     final l10n = AppLocalizations.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _pressed = true),
         onTap: () {
@@ -45,22 +46,20 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
           scale: _pressed ? 0.98 : 1,
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
-          child: Container(
-            decoration: AppTheme.softCardDecoration(
-              fillColor: Colors.white,
-              borderRadius: 14,
-              borderColor: dueCount > 0
-                  ? AppTheme.indigo.withValues(alpha: 0.28)
-                  : Theme.of(context).colorScheme.outlineVariant,
-              elevation: _pressed ? 0.8 : 1,
-            ),
+          child: AdaptiveGlassCard(
+            borderRadius: 16,
+            fillColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.56),
+            borderColor: dueCount > 0
+                ? AppTheme.indigo.withValues(alpha: 0.35)
+                : Colors.white.withValues(alpha: 0.2),
+            elevation: _pressed ? 0.8 : 1,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
               child: Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 54,
+                    height: 54,
                     decoration: BoxDecoration(
                       color: AppTheme.indigo.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
@@ -69,14 +68,14 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
                       child: Text(
                         '${widget.studySet.cards.length}',
                         style: GoogleFonts.notoSerifTc(
-                          fontSize: 22,
+                          fontSize: 24,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.green,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,7 +86,7 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
                               child: Text(
                                 widget.studySet.title,
                                 style: GoogleFonts.notoSerifTc(
-                                  fontSize: 18,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.w700,
                                   color: Theme.of(context).colorScheme.onSurface,
                                 ),
@@ -112,13 +111,13 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 5),
                         Wrap(
                           spacing: 8,
                           runSpacing: 6,
                           children: [
                             Text(
-                              '${widget.studySet.cards.length} cards',
+                              l10n.nCards(widget.studySet.cards.length),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             if (dueCount > 0)
@@ -151,7 +150,6 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
                       color: Theme.of(context).colorScheme.outline,
                       onPressed: widget.onEdit,
                       visualDensity: VisualDensity.compact,
-                      tooltip: 'Edit cards',
                     ),
                   if (widget.onDelete != null)
                     IconButton(
@@ -174,3 +172,5 @@ class _StudySetCardState extends ConsumerState<StudySetCard> {
     );
   }
 }
+
+
