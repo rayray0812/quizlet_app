@@ -1,9 +1,10 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:recall_app/features/study/models/conversation_transcript.dart';
 import 'package:recall_app/features/study/models/conversation_turn_record.dart';
 import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/turn_feedback_chip.dart';
@@ -28,6 +29,29 @@ class ConversationPracticeScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<ConversationPracticeScreen> createState() =>
       _ConversationPracticeScreenState();
+
+  static ConversationTranscript? selectSummaryTranscript({
+    required List<ConversationTranscript> transcripts,
+    required String setId,
+    required String difficulty,
+    required String scenarioTitle,
+    required int totalTurns,
+  }) {
+    for (final transcript in transcripts) {
+      if (transcript.setId == setId &&
+          transcript.difficulty.toLowerCase() == difficulty.toLowerCase() &&
+          transcript.scenarioTitle == scenarioTitle &&
+          transcript.totalTurns == totalTurns) {
+        return transcript;
+      }
+    }
+    for (final transcript in transcripts) {
+      if (transcript.setId == setId) {
+        return transcript;
+      }
+    }
+    return transcripts.isEmpty ? null : transcripts.first;
+  }
 }
 
 class _ConversationPracticeScreenState
@@ -49,10 +73,10 @@ class _ConversationPracticeScreenState
   final ScrollController _scrollController = ScrollController();
 
   ConversationSessionParams get _params => ConversationSessionParams(
-        setId: widget.setId,
-        turns: widget.turns,
-        difficulty: widget.difficulty,
-      );
+    setId: widget.setId,
+    turns: widget.turns,
+    difficulty: widget.difficulty,
+  );
 
   ConversationSessionNotifier get _notifier =>
       ref.read(conversationSessionProvider(_params).notifier);
@@ -63,16 +87,18 @@ class _ConversationPracticeScreenState
     _voice = VoicePlaybackService();
     _voice.init();
     _initStt();
-    _geminiKeySubscription = ref.listenManual<String>(
-      geminiKeyProvider,
-      (previous, next) {
-        if (!mounted || _isDisposed) return;
-        if (next.trim().isEmpty) return;
-        final session = ref.read(conversationSessionProvider(_params)).valueOrNull;
-        if (_isStartingSession || (session?.messages.isNotEmpty ?? false)) return;
-        _startSession();
-      },
-    );
+    _geminiKeySubscription = ref.listenManual<String>(geminiKeyProvider, (
+      previous,
+      next,
+    ) {
+      if (!mounted || _isDisposed) return;
+      if (next.trim().isEmpty) return;
+      final session = ref
+          .read(conversationSessionProvider(_params))
+          .valueOrNull;
+      if (_isStartingSession || (session?.messages.isNotEmpty ?? false)) return;
+      _startSession();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _sessionStarted) return;
       _sessionStarted = true;
@@ -112,27 +138,31 @@ class _ConversationPracticeScreenState
       final apiKey = await _waitForGeminiKey();
       if (!mounted || _isDisposed) return;
       if (apiKey.isEmpty) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(l10n.geminiApiKeyNotSet)),
-        );
+        ScaffoldMessenger.maybeOf(
+          context,
+        )?.showSnackBar(SnackBar(content: Text(l10n.geminiApiKeyNotSet)));
         return;
       }
 
       await _notifier.startSession();
       // Pre-generate first AI audio
-      final sessionState = ref.read(conversationSessionProvider(_params)).valueOrNull;
+      final sessionState = ref
+          .read(conversationSessionProvider(_params))
+          .valueOrNull;
       if (sessionState != null && sessionState.messages.isNotEmpty) {
         final lastMsg = sessionState.messages.last;
         if (lastMsg.isAi && lastMsg.text.isNotEmpty) {
           _firstAiQuestionText = lastMsg.text;
           final apiKey = ref.read(geminiKeyProvider);
-          if (apiKey.isNotEmpty &&
-              !(sessionState.useLocalCoachOnly)) {
+          if (apiKey.isNotEmpty && !(sessionState.useLocalCoachOnly)) {
             try {
               await AiTtsService.prepareFirstLineAudio(
                 apiKey: apiKey,
                 text: lastMsg.text,
-              ).timeout(const Duration(milliseconds: 1200), onTimeout: () async => false);
+              ).timeout(
+                const Duration(milliseconds: 1200),
+                onTimeout: () async => false,
+              );
             } catch (e) {
               if (kDebugMode) {
                 debugPrint('prepareFirstLineAudio failed: $e');
@@ -164,8 +194,9 @@ class _ConversationPracticeScreenState
 
   void _speakLatestAiQuestionOnce() {
     if (!mounted || _didPlayFirstAiLine) return;
-    final sessionState =
-        ref.read(conversationSessionProvider(_params)).valueOrNull;
+    final sessionState = ref
+        .read(conversationSessionProvider(_params))
+        .valueOrNull;
     if (sessionState == null || sessionState.messages.isEmpty) return;
     final last = sessionState.messages.last;
     if (!last.isAi || last.text.trim().isEmpty) return;
@@ -177,10 +208,14 @@ class _ConversationPracticeScreenState
     });
   }
 
-  void _playAiMessage(String text,
-      {required bool isReplay, required bool allowRemote}) {
-    final sessionState =
-        ref.read(conversationSessionProvider(_params)).valueOrNull;
+  void _playAiMessage(
+    String text, {
+    required bool isReplay,
+    required bool allowRemote,
+  }) {
+    final sessionState = ref
+        .read(conversationSessionProvider(_params))
+        .valueOrNull;
     _voice.playAiMessage(
       text,
       firstAiQuestionText: _firstAiQuestionText,
@@ -196,8 +231,9 @@ class _ConversationPracticeScreenState
   }
 
   void _handleUserSubmit() {
-    final sessionState =
-        ref.read(conversationSessionProvider(_params)).valueOrNull;
+    final sessionState = ref
+        .read(conversationSessionProvider(_params))
+        .valueOrNull;
     if (sessionState == null ||
         sessionState.isAiTyping ||
         sessionState.isSessionEnded) {
@@ -210,8 +246,9 @@ class _ConversationPracticeScreenState
     _textController.clear();
     _notifier.sendMessage(text).then((_) {
       // After AI responds, speak the new AI message
-      final updated =
-          ref.read(conversationSessionProvider(_params)).valueOrNull;
+      final updated = ref
+          .read(conversationSessionProvider(_params))
+          .valueOrNull;
       if (updated != null && updated.messages.isNotEmpty) {
         final last = updated.messages.last;
         if (last.isAi && last.text.isNotEmpty) {
@@ -237,7 +274,8 @@ class _ConversationPracticeScreenState
           _textController.value = TextEditingValue(
             text: result.recognizedWords,
             selection: TextSelection.collapsed(
-                offset: result.recognizedWords.length),
+              offset: result.recognizedWords.length,
+            ),
           );
           if (result.finalResult) {
             if (!mounted || _isDisposed) return;
@@ -262,13 +300,21 @@ class _ConversationPracticeScreenState
   }
 
   void _navigateToSummary(BuildContext context) {
-    final localStorage =
-        ref.read(localStorageServiceProvider);
+    final localStorage = ref.read(localStorageServiceProvider);
     final transcripts = localStorage.getAllConversationTranscripts();
-    if (transcripts.isNotEmpty) {
+    final session = ref.read(conversationSessionProvider(_params)).valueOrNull;
+    if (transcripts.isNotEmpty && session != null) {
+      final transcript = ConversationPracticeScreen.selectSummaryTranscript(
+        transcripts: transcripts,
+        setId: widget.setId,
+        difficulty: widget.difficulty,
+        scenarioTitle: session.scenarioTitle,
+        totalTurns: session.turnRecords.length,
+      );
+      if (transcript == null) return;
       context.push(
         '/study/${widget.setId}/conversation/practice/summary',
-        extra: transcripts.first,
+        extra: transcript,
       );
     }
   }
@@ -328,7 +374,8 @@ class _ConversationPracticeScreenState
           appBar: AppBar(
             leading: const AppBackButton(),
             title: Text(
-                '${l10n.conversationPractice} (${session.currentTurn}/${widget.turns})'),
+              '${l10n.conversationPractice} (${session.currentTurn}/${widget.turns})',
+            ),
           ),
           body: Column(
             children: [
@@ -351,8 +398,8 @@ class _ConversationPracticeScreenState
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: session.messages.length +
-                      (session.isAiTyping ? 1 : 0),
+                  itemCount:
+                      session.messages.length + (session.isAiTyping ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == session.messages.length) {
                       return const Padding(
@@ -395,17 +442,24 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildInputArea(ThemeData theme, AppLocalizations l10n,
-      bool isKeyboardOpen, ConversationSessionState session) {
+  Widget _buildInputArea(
+    ThemeData theme,
+    AppLocalizations l10n,
+    bool isKeyboardOpen,
+    ConversationSessionState session,
+  ) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, isKeyboardOpen ? 8 : 16, 16, isKeyboardOpen ? 8 : 16),
+        16,
+        isKeyboardOpen ? 8 : 16,
+        16,
+        isKeyboardOpen ? 8 : 16,
+      ),
       color: theme.colorScheme.surface,
       child: SafeArea(
         top: false,
         child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxHeight: isKeyboardOpen ? 120 : 340),
+          constraints: BoxConstraints(maxHeight: isKeyboardOpen ? 120 : 340),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -417,7 +471,8 @@ class _ConversationPracticeScreenState
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: session.isAiTyping ||
+                      onPressed:
+                          session.isAiTyping ||
                               session.isSessionEnded ||
                               session.isGeneratingSuggestions
                           ? null
@@ -426,10 +481,9 @@ class _ConversationPracticeScreenState
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
-                          : const Icon(Icons.auto_awesome_rounded,
-                              size: 18),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.auto_awesome_rounded, size: 18),
                       label: Text(l10n.helpMeReply),
                     ),
                   ),
@@ -444,8 +498,11 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildTextInputRow(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildTextInputRow(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     return Row(
       children: [
         if (_sttAvailable)
@@ -461,9 +518,12 @@ class _ConversationPracticeScreenState
             decoration: InputDecoration(
               hintText: l10n.typeYourAnswer,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24)),
+                borderRadius: BorderRadius.circular(24),
+              ),
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             onSubmitted: (_) => _handleUserSubmit(),
           ),
@@ -472,7 +532,8 @@ class _ConversationPracticeScreenState
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _textController,
           builder: (context, value, _) {
-            final canSend = !session.isAiTyping &&
+            final canSend =
+                !session.isAiTyping &&
                 !session.isSessionEnded &&
                 value.text.trim().isNotEmpty;
             return IconButton.filled(
@@ -487,7 +548,9 @@ class _ConversationPracticeScreenState
 
   /// Find the turn record matching a user message by text.
   ConversationTurnRecord? _findTurnRecord(
-      String userText, ConversationSessionState session) {
+    String userText,
+    ConversationSessionState session,
+  ) {
     for (final record in session.turnRecords) {
       if (record.userResponse == userText) return record;
     }
@@ -495,7 +558,10 @@ class _ConversationPracticeScreenState
   }
 
   Widget _buildMessageBubble(
-      ChatMessageData msg, ThemeData theme, ConversationSessionState session) {
+    ChatMessageData msg,
+    ThemeData theme,
+    ConversationSessionState session,
+  ) {
     final isAi = msg.isAi;
     final turnRecord = isAi ? null : _findTurnRecord(msg.text, session);
     return Align(
@@ -519,10 +585,12 @@ class _ConversationPracticeScreenState
               isAi ? session.aiRole : 'You',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: isAi
-                    ? theme.colorScheme.onSecondaryContainer
-                        .withValues(alpha: 0.7)
-                    : theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.7),
+                    ? theme.colorScheme.onSecondaryContainer.withValues(
+                        alpha: 0.7,
+                      )
+                    : theme.colorScheme.onPrimaryContainer.withValues(
+                        alpha: 0.7,
+                      ),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -537,15 +605,19 @@ class _ConversationPracticeScreenState
             ),
             if (isAi)
               GestureDetector(
-                onTap: () => _playAiMessage(msg.text,
-                    isReplay: true, allowRemote: false),
+                onTap: () => _playAiMessage(
+                  msg.text,
+                  isReplay: true,
+                  allowRemote: false,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Icon(
                     Icons.volume_up_rounded,
                     size: 16,
-                    color: theme.colorScheme.onSecondaryContainer
-                        .withValues(alpha: 0.5),
+                    color: theme.colorScheme.onSecondaryContainer.withValues(
+                      alpha: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -560,29 +632,51 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildScenarioPanel(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildScenarioPanel(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     final hasStages = session.stages.isNotEmpty;
-    final stageIndex = hasStages ? (session.currentTurn % session.stages.length) : 0;
-    final currentObjective = hasStages ? session.stages[stageIndex] : session.currentStage;
+    final stageIndex = hasStages
+        ? (session.currentTurn % session.stages.length)
+        : 0;
+    final currentObjective = hasStages
+        ? session.stages[stageIndex]
+        : session.currentStage;
     final currentObjectiveZh =
         session.stagesZh.isNotEmpty && stageIndex < session.stagesZh.length
-            ? session.stagesZh[stageIndex]
-            : session.currentStageZh;
-    final nextIndex = hasStages ? ((stageIndex + 1) % session.stages.length) : 0;
+        ? session.stagesZh[stageIndex]
+        : session.currentStageZh;
+    final nextIndex = hasStages
+        ? ((stageIndex + 1) % session.stages.length)
+        : 0;
     final nextObjective = hasStages ? session.stages[nextIndex] : '';
     final nextObjectiveZh =
         session.stagesZh.isNotEmpty && nextIndex < session.stagesZh.length
-            ? session.stagesZh[nextIndex]
-            : '';
-    final showTitleZh = _hasDistinctChinese(session.scenarioTitleZh, session.scenarioTitle);
+        ? session.stagesZh[nextIndex]
+        : '';
+    final showTitleZh = _hasDistinctChinese(
+      session.scenarioTitleZh,
+      session.scenarioTitle,
+    );
     final showAiRoleZh = _hasDistinctChinese(session.aiRoleZh, session.aiRole);
-    final showUserRoleZh = _hasDistinctChinese(session.userRoleZh, session.userRole);
-    final showSettingZh = _hasDistinctChinese(session.scenarioSettingZh, session.scenarioSetting);
-    final showCurrentObjectiveZh =
-        _hasDistinctChinese(currentObjectiveZh, currentObjective);
-    final showNextObjectiveZh =
-        _hasDistinctChinese(nextObjectiveZh, nextObjective);
+    final showUserRoleZh = _hasDistinctChinese(
+      session.userRoleZh,
+      session.userRole,
+    );
+    final showSettingZh = _hasDistinctChinese(
+      session.scenarioSettingZh,
+      session.scenarioSetting,
+    );
+    final showCurrentObjectiveZh = _hasDistinctChinese(
+      currentObjectiveZh,
+      currentObjective,
+    );
+    final showNextObjectiveZh = _hasDistinctChinese(
+      nextObjectiveZh,
+      nextObjective,
+    );
 
     return Container(
       width: double.infinity,
@@ -629,15 +723,15 @@ class _ConversationPracticeScreenState
           ),
           if (_showScenarioChinese && (showAiRoleZh || showUserRoleZh)) ...[
             if (showAiRoleZh)
-            Text(
-              'AI role (ZH): ${session.aiRoleZh}',
-              style: theme.textTheme.bodySmall,
-            ),
+              Text(
+                'AI role (ZH): ${session.aiRoleZh}',
+                style: theme.textTheme.bodySmall,
+              ),
             if (showUserRoleZh)
-            Text(
-              'Your role (ZH): ${session.userRoleZh}',
-              style: theme.textTheme.bodySmall,
-            ),
+              Text(
+                'Your role (ZH): ${session.userRoleZh}',
+                style: theme.textTheme.bodySmall,
+              ),
           ],
           const SizedBox(height: 4),
           Text(
@@ -704,8 +798,11 @@ class _ConversationPracticeScreenState
     return RegExp(r'[\u4e00-\u9fff]').hasMatch(zhText);
   }
 
-  Widget _buildReplyHintPanel(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildReplyHintPanel(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -718,20 +815,25 @@ class _ConversationPracticeScreenState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.tips_and_updates_rounded,
-              size: 18, color: theme.colorScheme.onTertiaryContainer),
+          Icon(
+            Icons.tips_and_updates_rounded,
+            size: 18,
+            color: theme.colorScheme.onTertiaryContainer,
+          ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(session.latestReplyHint,
-                style: TextStyle(
-                    color: theme.colorScheme.onTertiaryContainer)),
+            child: Text(
+              session.latestReplyHint,
+              style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
+            ),
           ),
           TextButton(
             onPressed: () {
               _textController.value = TextEditingValue(
                 text: session.latestReplyHint,
                 selection: TextSelection.collapsed(
-                    offset: session.latestReplyHint.length),
+                  offset: session.latestReplyHint.length,
+                ),
               );
             },
             child: Text(l10n.useHint),
@@ -741,71 +843,81 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildSuggestedRepliesPanel(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildSuggestedRepliesPanel(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.5),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.tryTheseReplies,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            l10n.tryTheseReplies,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 170),
             child: SingleChildScrollView(
               child: Column(
-                children:
-                    session.suggestedReplies.asMap().entries.map((entry) {
+                children: session.suggestedReplies.asMap().entries.map((entry) {
                   final index = entry.key + 1;
                   final suggestion = entry.value;
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
                     decoration: BoxDecoration(
-                      color:
-                          theme.colorScheme.surface.withValues(alpha: 0.7),
+                      color: theme.colorScheme.surface.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          color: theme.colorScheme.outlineVariant),
+                        color: theme.colorScheme.outlineVariant,
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('$index.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w800)),
+                        Text(
+                          '$index.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(suggestion.reply,
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(
-                                          fontWeight: FontWeight.w600)),
+                              Text(
+                                suggestion.reply,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               if (suggestion.zhHint.isNotEmpty)
-                                Text(suggestion.zhHint,
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(
-                                      color: theme
-                                          .colorScheme.onSurfaceVariant,
-                                    )),
+                                Text(
+                                  suggestion.zhHint,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               if (suggestion.focusWord.isNotEmpty)
-                                Text('Focus: ${suggestion.focusWord}',
-                                    style: theme.textTheme.labelSmall
-                                        ?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                    )),
+                                Text(
+                                  'Focus: ${suggestion.focusWord}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -814,7 +926,8 @@ class _ConversationPracticeScreenState
                             _textController.value = TextEditingValue(
                               text: suggestion.reply,
                               selection: TextSelection.collapsed(
-                                  offset: suggestion.reply.length),
+                                offset: suggestion.reply.length,
+                              ),
                             );
                           },
                           child: Text(l10n.useHint),
@@ -831,8 +944,11 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildCoveragePanel(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildCoveragePanel(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     final practiced = session.practicedTerms.length;
     final total = session.targetTerms.length;
     final progress = total == 0 ? 0.0 : practiced / total;
@@ -845,8 +961,9 @@ class _ConversationPracticeScreenState
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.45),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.45,
+        ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
@@ -855,13 +972,19 @@ class _ConversationPracticeScreenState
         children: [
           Row(
             children: [
-              Text(l10n.targetCoverage,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                l10n.targetCoverage,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const Spacer(),
-              Text('$practiced / $total',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                '$practiced / $total',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -878,9 +1001,12 @@ class _ConversationPracticeScreenState
               spacing: 6,
               runSpacing: 6,
               children: remaining
-                  .map((w) => Chip(
+                  .map(
+                    (w) => Chip(
                       visualDensity: VisualDensity.compact,
-                      label: Text(w)))
+                      label: Text(w),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -889,19 +1015,23 @@ class _ConversationPracticeScreenState
     );
   }
 
-  Widget _buildApiGuardPanel(ThemeData theme, AppLocalizations l10n,
-      ConversationSessionState session) {
+  Widget _buildApiGuardPanel(
+    ThemeData theme,
+    AppLocalizations l10n,
+    ConversationSessionState session,
+  ) {
     final mode = session.useLocalCoachOnly
         ? l10n.modeLocalCoach
         : (session.isQuotaExhausted
-            ? l10n.modeQuotaLimited
-            : l10n.modeRemoteAi);
+              ? l10n.modeQuotaLimited
+              : l10n.modeRemoteAi);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
@@ -910,16 +1040,15 @@ class _ConversationPracticeScreenState
         runSpacing: 6,
         children: [
           _tinyBadge(theme, 'Mode: $mode'),
+          _tinyBadge(theme, '${l10n.chatApiLabel}: ${session.chatApiCalls}'),
           _tinyBadge(
-              theme, '${l10n.chatApiLabel}: ${session.chatApiCalls}'),
-          _tinyBadge(theme,
-              '${l10n.ideasApiLabel}: ${session.suggestionApiCalls}'),
-          _tinyBadge(
-              theme, '${l10n.voiceLabel}: ${session.voiceStateName}'),
+            theme,
+            '${l10n.ideasApiLabel}: ${session.suggestionApiCalls}',
+          ),
+          _tinyBadge(theme, '${l10n.voiceLabel}: ${session.voiceStateName}'),
           _tinyBadge(theme, session.voiceDiagnostic),
           if (session.isInRateCooldown)
-            _tinyBadge(
-                theme, l10n.cooldownLabel(session.cooldownSecondsLeft)),
+            _tinyBadge(theme, l10n.cooldownLabel(session.cooldownSecondsLeft)),
         ],
       ),
     );
@@ -937,4 +1066,3 @@ class _ConversationPracticeScreenState
     );
   }
 }
-

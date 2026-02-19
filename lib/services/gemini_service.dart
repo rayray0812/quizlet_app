@@ -78,9 +78,13 @@ class GeminiService {
     'gemini-2.0-flash',
     'gemini-2.5-flash',
   ];
+  static List<String> get chatModels => List<String>.unmodifiable(_chatModels);
   static const _timeout = Duration(seconds: 30);
   static const maxCards = 300;
-  static const _lightweightModels = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
+  static const _lightweightModels = [
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+  ];
 
   static const _vocabularyPrompt =
       'Extract all term-definition pairs from this vocabulary list/word table image. '
@@ -167,7 +171,7 @@ class GeminiService {
       } on FormatException catch (e) {
         lastError = ScanException(ScanFailureReason.parseError, e.toString());
       } catch (e) {
-        if (e is ScanException) throw e;
+        if (e is ScanException) rethrow;
         lastError = ScanException(ScanFailureReason.networkError, e.toString());
       }
     }
@@ -201,7 +205,7 @@ class GeminiService {
           msg.contains('responsemime') ||
           msg.contains('invalid argument') ||
           msg.contains('unsupported');
-      if (!likelySchemaIssue) throw e;
+      if (!likelySchemaIssue) rethrow;
     }
 
     final jsonOnlyModel = GenerativeModel(
@@ -404,6 +408,7 @@ class GeminiService {
     required String scenarioSetting,
     required String aiRole,
     required String userRole,
+    String? chatModel,
   }) {
     final normalizedDifficulty = difficulty.toLowerCase().trim();
     final difficultyRules = switch (normalizedDifficulty) {
@@ -470,8 +475,11 @@ Reply hint: ...
 19. On the final turn, end naturally with a short closing line in the Question.
 ''';
 
+    final resolvedChatModel = chatModel != null && chatModel.trim().isNotEmpty
+        ? chatModel.trim()
+        : _chatModels.first;
     final model = GenerativeModel(
-      model: _chatModels.first, // Prefer stable chat model
+      model: resolvedChatModel,
       apiKey: apiKey,
       systemInstruction: Content.system(systemPrompt),
       generationConfig: GenerationConfig(
@@ -561,10 +569,10 @@ Rules:
     if (text == null || text.trim().isEmpty) {
       return const <ConversationReplySuggestion>[];
     }
-        final suggestions = _parseReplySuggestions(text);
-        if (suggestions.isNotEmpty) {
-          return suggestions.take(3).toList();
-        }
+    final suggestions = _parseReplySuggestions(text);
+    if (suggestions.isNotEmpty) {
+      return suggestions.take(3).toList();
+    }
     return const <ConversationReplySuggestion>[];
   }
 
@@ -584,7 +592,9 @@ Rules:
             responseMimeType: 'application/json',
           ),
         );
-        final response = await model.generateContent([content]).timeout(_timeout);
+        final response = await model
+            .generateContent([content])
+            .timeout(_timeout);
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
       } catch (_) {
@@ -615,7 +625,10 @@ Rules:
       final stagesRaw = decoded['stages'];
       final stagesZhRaw = decoded['stagesZh'];
       final stages = stagesRaw is List
-          ? stagesRaw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList()
+          ? stagesRaw
+                .map((e) => e.toString().trim())
+                .where((e) => e.isNotEmpty)
+                .toList()
           : <String>[];
       final stagesZh = stagesZhRaw is List
           ? stagesZhRaw
@@ -623,7 +636,10 @@ Rules:
                 .where((e) => e.isNotEmpty)
                 .toList()
           : <String>[];
-      if (title.isEmpty || setting.isEmpty || aiRole.isEmpty || userRole.isEmpty) {
+      if (title.isEmpty ||
+          setting.isEmpty ||
+          aiRole.isEmpty ||
+          userRole.isEmpty) {
         return null;
       }
       return ConversationScenario(
