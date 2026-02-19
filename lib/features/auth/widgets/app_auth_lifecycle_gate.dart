@@ -25,16 +25,49 @@ class _AppAuthLifecycleGateState extends ConsumerState<AppAuthLifecycleGate>
   bool _isAuthenticating = false;
   bool _lockOnResume = false;
   bool _sessionValidated = false;
+  ProviderSubscription<AsyncValue<AuthState>>? _authStateSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    Future.microtask(_validateSessionAtLaunch);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _validateSessionAtLaunch();
+    });
+    _authStateSubscription = ref.listenManual<AsyncValue<AuthState>>(
+      authStateProvider,
+      (previous, next) {
+        next.whenData((authState) {
+          if (authState.event == AuthChangeEvent.signedOut) {
+            Future<void>(() {
+              if (!mounted) return;
+              ref.read(studySetsProvider.notifier).refresh();
+              setState(() {
+                _isLocked = false;
+                _lockOnResume = false;
+              });
+            });
+            return;
+          }
+
+          if (authState.event == AuthChangeEvent.initialSession ||
+              authState.event == AuthChangeEvent.signedIn ||
+              authState.event == AuthChangeEvent.tokenRefreshed ||
+              authState.event == AuthChangeEvent.userUpdated) {
+            Future<void>(() {
+              if (!mounted) return;
+              ref.invalidate(syncProvider);
+            });
+          }
+        });
+      },
+    );
   }
 
   @override
   void dispose() {
+    _authStateSubscription?.close();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -46,9 +79,15 @@ class _AppAuthLifecycleGateState extends ConsumerState<AppAuthLifecycleGate>
     final valid = await supabase.validateAndRestoreSession();
     if (!mounted) return;
     if (valid) {
-      ref.invalidate(syncProvider);
+      Future<void>(() {
+        if (!mounted) return;
+        ref.invalidate(syncProvider);
+      });
     } else {
-      ref.read(studySetsProvider.notifier).refresh();
+      Future<void>(() {
+        if (!mounted) return;
+        ref.read(studySetsProvider.notifier).refresh();
+      });
     }
   }
 
@@ -97,28 +136,6 @@ class _AppAuthLifecycleGateState extends ConsumerState<AppAuthLifecycleGate>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
-      next.whenData((authState) {
-        if (authState.event == AuthChangeEvent.signedOut) {
-          ref.read(studySetsProvider.notifier).refresh();
-          if (mounted) {
-            setState(() {
-              _isLocked = false;
-              _lockOnResume = false;
-            });
-          }
-          return;
-        }
-
-        if (authState.event == AuthChangeEvent.initialSession ||
-            authState.event == AuthChangeEvent.signedIn ||
-            authState.event == AuthChangeEvent.tokenRefreshed ||
-            authState.event == AuthChangeEvent.userUpdated) {
-          ref.invalidate(syncProvider);
-        }
-      });
-    });
-
     if (!_isLocked) return widget.child;
 
     return Stack(

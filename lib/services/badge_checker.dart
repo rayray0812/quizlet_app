@@ -39,6 +39,29 @@ class BadgeChecker {
       dailyChallengeCompletions.add('${d.year}-${d.month}-${d.day}');
     }
 
+    // Conversation session counting: distinct setId+date combos with reviewType='conversation'
+    final convLogs =
+        allReviewLogs.where((l) => l.reviewType == 'conversation').toList();
+    final convSessionKeys = <String>{};
+    final convDays = <String>{};
+    for (final log in convLogs) {
+      final d = log.reviewedAt.toUtc();
+      final dateKey = '${d.year}-${d.month}-${d.day}';
+      convSessionKeys.add('${log.setId}::$dateKey');
+      convDays.add(dateKey);
+    }
+
+    // Conversation streak: consecutive days with conversation logs
+    var convStreak = 0;
+    var convCheckDate = today;
+    while (true) {
+      final key =
+          '${convCheckDate.year}-${convCheckDate.month}-${convCheckDate.day}';
+      if (!convDays.contains(key)) break;
+      convStreak++;
+      convCheckDate = convCheckDate.subtract(const Duration(days: 1));
+    }
+
     return {
       'first_review': totalReviews >= 1,
       'streak_7': streak >= 7,
@@ -52,6 +75,9 @@ class BadgeChecker {
       'daily_challenge_30': dailyChallengeCompletions.length >= 30,
       'photo_import_10': false, // Checked at runtime
       'speedrun_match': false, // Checked at runtime
+      'conversation_10': convSessionKeys.length >= 10,
+      'conversation_streak_7': convStreak >= 7,
+      'conversation_perfect': false, // Checked at runtime after session
     };
   }
 }

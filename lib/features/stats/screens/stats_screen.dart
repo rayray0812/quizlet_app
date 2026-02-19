@@ -8,6 +8,7 @@ import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/stats/widgets/accuracy_donut.dart';
 import 'package:recall_app/features/stats/widgets/daily_chart.dart';
 import 'package:recall_app/features/stats/widgets/review_heatmap.dart';
+import 'package:recall_app/providers/conversation_stats_provider.dart';
 import 'package:recall_app/providers/stats_provider.dart';
 
 class StatsScreen extends ConsumerWidget {
@@ -26,6 +27,9 @@ class StatsScreen extends ConsumerWidget {
     final speakingTotal = ref.watch(totalSpeakingCountProvider);
     final speakingTodayAvg = ref.watch(todaySpeakingAverageProvider);
     final speakingLast30Avg = ref.watch(last30DaysSpeakingAverageProvider);
+    final convTotalTurns = ref.watch(totalConversationTurnsProvider);
+    final convTodayTurns = ref.watch(todayConversationTurnsProvider);
+    final convTotalSessions = ref.watch(totalConversationSessionsProvider);
 
     final content = Stack(
       children: [
@@ -151,6 +155,33 @@ class StatsScreen extends ConsumerWidget {
                   label: l10n.speakingAttempts,
                   value: '$speakingTotal',
                   icon: Icons.mic_rounded,
+                  color: AppTheme.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionTitle(title: l10n.conversationPracticeStats),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _SummaryCard(
+                  label: l10n.todayTurns,
+                  value: '$convTodayTurns',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  color: AppTheme.cyan,
+                ),
+                const SizedBox(width: 10),
+                _SummaryCard(
+                  label: l10n.totalTurns,
+                  value: '$convTotalTurns',
+                  icon: Icons.forum_rounded,
+                  color: AppTheme.indigo,
+                ),
+                const SizedBox(width: 10),
+                _SummaryCard(
+                  label: l10n.totalSessions,
+                  value: '$convTotalSessions',
+                  icon: Icons.history_rounded,
                   color: AppTheme.green,
                 ),
               ],

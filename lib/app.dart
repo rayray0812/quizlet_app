@@ -19,17 +19,11 @@ class RecallApp extends ConsumerWidget {
     return MaterialApp.router(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
-      themeMode: ThemeMode.light,
       routerConfig: router,
       builder: (context, child) {
         if (child == null) return const SizedBox.shrink();
         return AppAuthLifecycleGate(
-          child: Stack(
-            children: [
-              child,
-              const PomodoroFab(),
-            ],
-          ),
+          child: Stack(children: [child, const PomodoroFab()]),
         );
       },
       debugShowCheckedModeBanner: false,
@@ -44,4 +38,3 @@ class RecallApp extends ConsumerWidget {
     );
   }
 }
-

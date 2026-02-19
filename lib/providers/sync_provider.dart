@@ -25,8 +25,10 @@ final syncProvider = FutureProvider<void>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user != null) {
     await syncService.syncAll();
-    ref.read(studySetsProvider.notifier).refresh();
-    ref.invalidate(syncConflictsProvider);
+    Future<void>(() {
+      ref.read(studySetsProvider.notifier).refresh();
+      ref.invalidate(syncConflictsProvider);
+    });
   }
 });
 

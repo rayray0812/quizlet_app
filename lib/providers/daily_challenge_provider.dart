@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:recall_app/providers/conversation_stats_provider.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/providers/stats_provider.dart';
 
@@ -26,8 +27,12 @@ final dailyChallengeStatusProvider = Provider<DailyChallengeStatus>((ref) {
   final todayCount = ref.watch(todayReviewCountProvider);
   final dueNow = ref.watch(dueCountProvider);
   final allLogs = ref.watch(allReviewLogsProvider);
+  // Every 2 conversation turns = 1 daily challenge progress
+  final convTurnsToday = ref.watch(todayConversationTurnsProvider);
+  final convBonus = convTurnsToday ~/ 2;
+  final effectiveToday = todayCount + convBonus;
 
-  final remaining = (dailyChallengeTarget - todayCount).clamp(0, dailyChallengeTarget);
+  final remaining = (dailyChallengeTarget - effectiveToday).clamp(0, dailyChallengeTarget);
   final currentStreak = _calculateChallengeStreak(
     allLogs.map((log) => log.reviewedAt).toList(),
     target: dailyChallengeTarget,
@@ -35,7 +40,7 @@ final dailyChallengeStatusProvider = Provider<DailyChallengeStatus>((ref) {
 
   return DailyChallengeStatus(
     target: dailyChallengeTarget,
-    reviewedToday: todayCount,
+    reviewedToday: effectiveToday,
     remaining: remaining,
     dueNow: dueNow,
     currentStreak: currentStreak,

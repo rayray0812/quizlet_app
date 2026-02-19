@@ -114,6 +114,10 @@ class AppLocalizations {
   String timeSeconds(int seconds) => '';
   String attemptsForPairs(int attempts, int pairs) => '';
   String get playAgain => '';
+  String get matchingReady => '';
+  String get matchingTime => '';
+  String get matchingAccuracy => '';
+  String get matchingAttempts => '';
 
   // -- Import --
   String get importTitle => '';
@@ -163,6 +167,8 @@ class AppLocalizations {
   // -- SRS --
   String get srsReview => '';
   String get srsReviewDesc => '';
+  String get reviewQueueLoadFailed => '';
+  String get reviewingLabel => '';
   String get quickBrowse => '';
   String get quickBrowseDesc => '';
   String get speakingPractice => '';
@@ -498,6 +504,68 @@ class AppLocalizations {
   String generatedExamplesCount(int count) => '';
   String get practiceComplete => '';
   String completedNTurns(int count) => '';
+  String coverageLabel(int practiced, int total) => '';
+  String get helpMeReply => '';
+  String get tryTheseReplies => '';
+  String get targetCoverage => '';
+  String get scenarioPrefix => '';
+  String get scenarioZhPrefix => '';
+  String get aiRolePrefix => '';
+  String get aiRoleZhPrefix => '';
+  String get yourRolePrefix => '';
+  String get yourRoleZhPrefix => '';
+  String get currentStepPrefix => '';
+  String get currentStepZhPrefix => '';
+  String get modeRemoteAi => '';
+  String get modeLocalCoach => '';
+  String get modeQuotaLimited => '';
+  String get chatApiLabel => '';
+  String get ideasApiLabel => '';
+  String get voiceLabel => '';
+  String cooldownLabel(int seconds) => '';
+  String get rateLimitedSwitched => '';
+  String get apiAuthErrorMsg => '';
+  String get aiServiceUnstable => '';
+  String get useHint => '';
+
+  // -- Conversation Stats --
+  String get conversationTurns => '';
+  String get conversationSessions => '';
+  String get todayConversationTurns => '';
+  String get conversationStats => '';
+  String get conversationPracticeStats => '';
+  String get totalTurns => '';
+  String get todayTurns => '';
+  String get totalSessions => '';
+  // -- Conversation Scoring (Phase 2) --
+  String get evaluating => '';
+  String get grammarLabel => '';
+  String get vocabLabel => '';
+  String get relevanceLabel => '';
+  String get correctionLabel => '';
+  String get noErrorsFound => '';
+  // -- Conversation Summary (Phase 3) --
+  String get conversationSummary => '';
+  String get overallScore => '';
+  String get vocabCoverage => '';
+  String get errorList => '';
+  String get practiceAgain => '';
+  String get goHome => '';
+  String get conversationHistory => '';
+  String get noConversationHistory => '';
+  String get turnTimeline => '';
+  String get grammarAvg => '';
+  String get vocabAvg => '';
+  String get relevanceAvg => '';
+  String nTurnsCompleted(int n) => '';
+  String scoreOutOf(double score, int max) => '';
+  // -- Conversation Badges (Phase 4) --
+  String get badgeConversation10 => '';
+  String get badgeConversation10Desc => '';
+  String get badgeConversationStreak7 => '';
+  String get badgeConversationStreak7Desc => '';
+  String get badgeConversationPerfect => '';
+  String get badgeConversationPerfectDesc => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -687,6 +755,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '$attempts \u6B21\u5617\u8A66\uFF0C$pairs \u7D44\u914D\u5C0D';
   @override
   String get playAgain => '\u518D\u73A9\u4E00\u6B21';
+  @override
+  String get matchingReady => '\u6E96\u5099\u597D\u4E86\u55CE?';
+  @override
+  String get matchingTime => '\u6642\u9593';
+  @override
+  String get matchingAccuracy => '\u6B63\u78BA\u7387';
+  @override
+  String get matchingAttempts => '\u5617\u8A66\u6B21\u6578';
 
   // -- Import --
   @override
@@ -783,6 +859,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get srsReviewDesc =>
       '\u9593\u9694\u91CD\u8907\u5B78\u7FD2\uFF0C\u66F4\u9AD8\u6548';
+  @override
+  String get reviewQueueLoadFailed =>
+      '\u7121\u6CD5\u8F09\u5165\u8907\u7FD2\u4F47\u5217';
+  @override
+  String get reviewingLabel => '\u8907\u7FD2\u4E2D';
   @override
   String get quickBrowse => '\u5FEB\u901F\u700F\u89BD';
   @override
@@ -1469,17 +1550,147 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String nTurns(int count) => '$count \u56DE\u5408';
   @override
-  String get difficultyEasyDesc => '\u7C21\u55AE\u8A5E\u5F59\uFF0C\u8A9E\u901F\u8F03\u6162';
+  String get difficultyEasyDesc =>
+      '\u7C21\u55AE\u8A5E\u5F59\uFF0C\u8A9E\u901F\u8F03\u6162';
   @override
-  String get difficultyMediumDesc => '\u65E5\u5E38\u5C0D\u8A71\uFF0C\u6A19\u6E96\u8A9E\u901F';
+  String get difficultyMediumDesc =>
+      '\u65E5\u5E38\u5C0D\u8A71\uFF0C\u6A19\u6E96\u8A9E\u901F';
   @override
-  String get difficultyHardDesc => '\u9032\u968E\u8A5E\u5F59\uFF0C\u9053\u5730\u7528\u8A9E';
+  String get difficultyHardDesc =>
+      '\u9032\u968E\u8A5E\u5F59\uFF0C\u9053\u5730\u7528\u8A9E';
   @override
-  String generatedExamplesCount(int count) => '\u5DF2\u751F\u6210 $count \u500B\u4F8B\u53E5';
+  String generatedExamplesCount(int count) =>
+      '\u5DF2\u751F\u6210 $count \u500B\u4F8B\u53E5';
   @override
   String get practiceComplete => '\u7DF4\u7FD2\u5B8C\u6210\uFF01';
   @override
-  String completedNTurns(int count) => '\u4F60\u5DF2\u5B8C\u6210 $count \u56DE\u5408\u7684\u5C0D\u8A71\u7DF4\u7FD2\u3002';
+  String completedNTurns(int count) =>
+      '\u4F60\u5DF2\u5B8C\u6210 $count \u56DE\u5408\u7684\u5C0D\u8A71\u7DF4\u7FD2\u3002';
+  @override
+  String coverageLabel(int practiced, int total) =>
+      '\u8986\u84CB\u7387\uFF1A${(total == 0 ? 0 : (practiced / total * 100).round())}% ($practiced/$total)';
+  @override
+  String get helpMeReply => '\u5E6B\u6211\u56DE\u7B54';
+  @override
+  String get tryTheseReplies => '\u8A66\u8A66\u9019\u4E9B\u56DE\u7B54';
+  @override
+  String get targetCoverage => '\u76EE\u6A19\u8986\u84CB\u7387';
+  @override
+  String get scenarioPrefix => '\u60C5\u5883\uFF1A';
+  @override
+  String get scenarioZhPrefix => '\u60C5\u5883\uFF1A';
+  @override
+  String get aiRolePrefix => 'AI \u89D2\u8272\uFF1A';
+  @override
+  String get aiRoleZhPrefix => 'AI \u89D2\u8272\uFF1A';
+  @override
+  String get yourRolePrefix => '\u4F60\u7684\u89D2\u8272\uFF1A';
+  @override
+  String get yourRoleZhPrefix => '\u4F60\u7684\u89D2\u8272\uFF1A';
+  @override
+  String get currentStepPrefix => '\u76EE\u524D\u6B65\u9A5F\uFF1A';
+  @override
+  String get currentStepZhPrefix => '\u76EE\u524D\u6B65\u9A5F\uFF1A';
+  @override
+  String get modeRemoteAi => '\u9060\u7AEF AI';
+  @override
+  String get modeLocalCoach => '\u672C\u5730\u6559\u7DF4';
+  @override
+  String get modeQuotaLimited => '\u914D\u984D\u53D7\u9650';
+  @override
+  String get chatApiLabel => '\u5C0D\u8A71 API';
+  @override
+  String get ideasApiLabel => '\u5EFA\u8B70 API';
+  @override
+  String get voiceLabel => '\u8A9E\u97F3';
+  @override
+  String cooldownLabel(int seconds) => '\u51B7\u5374\uFF1A${seconds}s';
+  @override
+  String get rateLimitedSwitched =>
+      '\u8ACB\u6C42\u904E\u65BC\u983B\u7E41\uFF0C\u5DF2\u5207\u63DB\u81F3\u672C\u5730\u6559\u7DF4\u6A21\u5F0F\u3002';
+  @override
+  String get apiAuthErrorMsg =>
+      'API \u9A57\u8B49\u932F\u8AA4\uFF0C\u8ACB\u6AA2\u67E5 API Key\u3002';
+  @override
+  String get aiServiceUnstable =>
+      'AI \u670D\u52D9\u4E0D\u7A69\u5B9A\uFF0C\u5DF2\u5207\u63DB\u81F3\u672C\u5730\u6559\u7DF4\u6A21\u5F0F\u3002';
+  @override
+  String get useHint => '\u4F7F\u7528';
+
+  // -- Conversation Stats --
+  @override
+  String get conversationTurns => '\u5C0D\u8A71\u56DE\u5408';
+  @override
+  String get conversationSessions => '\u5C0D\u8A71\u5834\u6B21';
+  @override
+  String get todayConversationTurns => '\u4ECA\u65E5\u5C0D\u8A71';
+  @override
+  String get conversationStats => '\u5C0D\u8A71\u7DF4\u7FD2\u7D71\u8A08';
+  @override
+  String get conversationPracticeStats => '\u5C0D\u8A71\u7DF4\u7FD2';
+  @override
+  String get totalTurns => '\u7E3D\u56DE\u5408\u6578';
+  @override
+  String get todayTurns => '\u4ECA\u65E5\u56DE\u5408';
+  @override
+  String get totalSessions => '\u7E3D\u5834\u6B21';
+  @override
+  String get evaluating => '\u8A55\u5206\u4E2D...';
+  @override
+  String get grammarLabel => '\u6587\u6CD5';
+  @override
+  String get vocabLabel => '\u8A5E\u5F59';
+  @override
+  String get relevanceLabel => '\u76F8\u95DC\u6027';
+  @override
+  String get correctionLabel => '\u7CFE\u6B63';
+  @override
+  String get noErrorsFound => '\u7121\u932F\u8AA4';
+  @override
+  String get conversationSummary => '\u5C0D\u8A71\u7E3D\u7D50';
+  @override
+  String get overallScore => '\u7E3D\u5206';
+  @override
+  String get vocabCoverage => '\u8A5E\u5F59\u8986\u84CB\u7387';
+  @override
+  String get errorList => '\u932F\u8AA4\u5217\u8868';
+  @override
+  String get practiceAgain => '\u518D\u7DF4\u4E00\u6B21';
+  @override
+  String get goHome => '\u56DE\u9996\u9801';
+  @override
+  String get conversationHistory => '\u5C0D\u8A71\u6B77\u53F2';
+  @override
+  String get noConversationHistory =>
+      '\u9084\u6C92\u6709\u5C0D\u8A71\u8A18\u9304';
+  @override
+  String get turnTimeline => '\u56DE\u5408\u6642\u9593\u8EF8';
+  @override
+  String get grammarAvg => '\u6587\u6CD5\u5E73\u5747';
+  @override
+  String get vocabAvg => '\u8A5E\u5F59\u5E73\u5747';
+  @override
+  String get relevanceAvg => '\u76F8\u95DC\u6027\u5E73\u5747';
+  @override
+  String nTurnsCompleted(int n) => '\u5B8C\u6210 $n \u56DE\u5408';
+  @override
+  String scoreOutOf(double score, int max) =>
+      '${score.toStringAsFixed(1)} / $max';
+  @override
+  String get badgeConversation10 => '\u5C0D\u8A71\u9054\u4EBA';
+  @override
+  String get badgeConversation10Desc =>
+      '\u5B8C\u6210 10 \u5834\u5C0D\u8A71\u7DF4\u7FD2';
+  @override
+  String get badgeConversationStreak7 => '\u5C0D\u8A71\u9023\u7E8C 7 \u5929';
+  @override
+  String get badgeConversationStreak7Desc =>
+      '\u9023\u7E8C 7 \u5929\u90FD\u6709\u5C0D\u8A71\u7DF4\u7FD2';
+  @override
+  String get badgeConversationPerfect => '\u5B8C\u7F8E\u5C0D\u8A71';
+  @override
+  String get badgeConversationPerfectDesc =>
+      '\u55AE\u5834\u5C0D\u8A71\u5168\u90E8 5 \u5206';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -1657,6 +1868,14 @@ class AppLocalizationsEn extends AppLocalizations {
       '$attempts attempts for $pairs pairs';
   @override
   String get playAgain => 'Play Again';
+  @override
+  String get matchingReady => 'Ready?';
+  @override
+  String get matchingTime => 'Time';
+  @override
+  String get matchingAccuracy => 'Accuracy';
+  @override
+  String get matchingAttempts => 'Attempts';
 
   // -- Import --
   @override
@@ -1747,6 +1966,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get srsReview => 'SRS Review';
   @override
   String get srsReviewDesc => 'Spaced repetition for efficient memorization';
+  @override
+  String get reviewQueueLoadFailed => 'Failed to load review queue';
+  @override
+  String get reviewingLabel => 'Reviewing';
   @override
   String get quickBrowse => 'Quick Browse (Swipe)';
   @override
@@ -2404,7 +2627,128 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get practiceComplete => 'Practice Complete!';
   @override
-  String completedNTurns(int count) => 'You have completed $count turns of conversation practice.';
+  String completedNTurns(int count) =>
+      'You have completed $count turns of conversation practice.';
+  @override
+  String coverageLabel(int practiced, int total) =>
+      'Coverage: ${total == 0 ? 0 : (practiced / total * 100).round()}% ($practiced/$total)';
+  @override
+  String get helpMeReply => 'Help me reply';
+  @override
+  String get tryTheseReplies => 'Try one of these replies';
+  @override
+  String get targetCoverage => 'Target Coverage';
+  @override
+  String get scenarioPrefix => 'Scenario: ';
+  @override
+  String get scenarioZhPrefix => 'Scenario: ';
+  @override
+  String get aiRolePrefix => 'AI Role: ';
+  @override
+  String get aiRoleZhPrefix => 'AI Role: ';
+  @override
+  String get yourRolePrefix => 'Your Role: ';
+  @override
+  String get yourRoleZhPrefix => 'Your Role: ';
+  @override
+  String get currentStepPrefix => 'Current Step: ';
+  @override
+  String get currentStepZhPrefix => 'Current Step: ';
+  @override
+  String get modeRemoteAi => 'Remote AI';
+  @override
+  String get modeLocalCoach => 'Local Coach';
+  @override
+  String get modeQuotaLimited => 'Quota Limited';
+  @override
+  String get chatApiLabel => 'Chat API';
+  @override
+  String get ideasApiLabel => 'Ideas API';
+  @override
+  String get voiceLabel => 'Voice';
+  @override
+  String cooldownLabel(int seconds) => 'Cooldown: ${seconds}s';
+  @override
+  String get rateLimitedSwitched => 'Rate limited. Switched to local coach.';
+  @override
+  String get apiAuthErrorMsg => 'API auth error: check your API key.';
+  @override
+  String get aiServiceUnstable =>
+      'AI service unstable. Switched to local coach.';
+  @override
+  String get useHint => 'Use';
+
+  // -- Conversation Stats --
+  @override
+  String get conversationTurns => 'Conversation Turns';
+  @override
+  String get conversationSessions => 'Conversation Sessions';
+  @override
+  String get todayConversationTurns => 'Today\'s Turns';
+  @override
+  String get conversationStats => 'Conversation Stats';
+  @override
+  String get conversationPracticeStats => 'Conversation Practice';
+  @override
+  String get totalTurns => 'Total Turns';
+  @override
+  String get todayTurns => 'Today';
+  @override
+  String get totalSessions => 'Sessions';
+  @override
+  String get evaluating => 'Evaluating...';
+  @override
+  String get grammarLabel => 'Grammar';
+  @override
+  String get vocabLabel => 'Vocab';
+  @override
+  String get relevanceLabel => 'Relevance';
+  @override
+  String get correctionLabel => 'Correction';
+  @override
+  String get noErrorsFound => 'No errors found';
+  @override
+  String get conversationSummary => 'Conversation Summary';
+  @override
+  String get overallScore => 'Overall Score';
+  @override
+  String get vocabCoverage => 'Vocab Coverage';
+  @override
+  String get errorList => 'Error List';
+  @override
+  String get practiceAgain => 'Practice Again';
+  @override
+  String get goHome => 'Go Home';
+  @override
+  String get conversationHistory => 'Conversation History';
+  @override
+  String get noConversationHistory => 'No conversation history yet';
+  @override
+  String get turnTimeline => 'Turn Timeline';
+  @override
+  String get grammarAvg => 'Grammar Avg';
+  @override
+  String get vocabAvg => 'Vocab Avg';
+  @override
+  String get relevanceAvg => 'Relevance Avg';
+  @override
+  String nTurnsCompleted(int n) => 'Completed $n turns';
+  @override
+  String scoreOutOf(double score, int max) =>
+      '${score.toStringAsFixed(1)} / $max';
+  @override
+  String get badgeConversation10 => 'Chat Pro';
+  @override
+  String get badgeConversation10Desc => 'Complete 10 conversation sessions';
+  @override
+  String get badgeConversationStreak7 => '7-Day Chat Streak';
+  @override
+  String get badgeConversationStreak7Desc =>
+      'Practice conversations for 7 days straight';
+  @override
+  String get badgeConversationPerfect => 'Perfect Conversation';
+  @override
+  String get badgeConversationPerfectDesc => 'Score all 5s in a single session';
 }
 
 class _AppLocalizationsDelegate

@@ -74,5 +74,23 @@ class BadgeDefinitions {
           descKey: 'badgeSpeedrunDesc',
           iconCodePoint: 0xe425, // timer
         ),
+        const AppBadge(
+          id: 'conversation_10',
+          titleKey: 'badgeConversation10',
+          descKey: 'badgeConversation10Desc',
+          iconCodePoint: 0xe0b7, // chat
+        ),
+        const AppBadge(
+          id: 'conversation_streak_7',
+          titleKey: 'badgeConversationStreak7',
+          descKey: 'badgeConversationStreak7Desc',
+          iconCodePoint: 0xe0ca, // forum
+        ),
+        const AppBadge(
+          id: 'conversation_perfect',
+          titleKey: 'badgeConversationPerfect',
+          descKey: 'badgeConversationPerfectDesc',
+          iconCodePoint: 0xe86c, // grade (star)
+        ),
       ];
 }

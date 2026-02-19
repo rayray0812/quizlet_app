@@ -1,17 +1,16 @@
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/rating_buttons.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/models/card_progress.dart';
@@ -60,17 +59,9 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   int _hardCount = 0;
   int _goodCount = 0;
   int _easyCount = 0;
-  late final FlutterTts _tts;
-  bool _ttsInitialized = false;
-  bool _isTtsReady = false;
-  String _lastSpokenCardId = '';
-  bool _suppressFlipOnce = false;
-  Set<String>? _supportedLanguages;
-  List<Map<String, String>>? _availableVoices;
-  String? _activeLanguage;
-  String? _activeVoiceKey;
-  bool _isSpeaking = false;
-  DateTime? _lastSpeakRequestedAt;
+
+  late final VoicePlaybackService _voice;
+  DateTime? _lastSpeakTapAt;
 
   @override
   void initState() {
@@ -83,8 +74,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOutCubic),
     );
 
+    _voice = VoicePlaybackService();
+    _voice.init();
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _buildQueue());
-    _initTts();
   }
 
   Future<void> _buildQueue() async {
@@ -157,7 +150,9 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         }
       }
 
-      items.shuffle();
+      // Sort: Learning/Relearning first, then Review, then New; shuffle within groups
+      _sortQueue(items);
+
       if (widget.maxCards != null &&
           widget.maxCards! > 0 &&
           items.length > widget.maxCards!) {
@@ -170,7 +165,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         _currentIndex = 0;
       });
       if (items.isNotEmpty) {
-        _speakCardTerm(items.first.card);
+        _voice.speakCardTerm(items.first.card.id, items.first.card.term);
       }
     } catch (e) {
       if (!mounted) return;
@@ -185,242 +180,42 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     }
   }
 
+  /// Sort queue: Learning/Relearning (state 1,3) → Review (state 2) → New (state 0).
+  /// Shuffle within each group.
+  static void _sortQueue(List<_ReviewItem> items) {
+    final rng = Random();
+    items.shuffle(rng);
+    items.sort((a, b) =>
+        _queueSortOrder(a.progress.state).compareTo(
+            _queueSortOrder(b.progress.state)));
+  }
+
+  static int _queueSortOrder(int state) {
+    // state 1=Learning, 3=Relearning → 0 (first)
+    // state 2=Review → 1
+    // state 0=New → 2 (last)
+    switch (state) {
+      case 1:
+      case 3:
+        return 0;
+      case 2:
+        return 1;
+      default:
+        return 2;
+    }
+  }
+
   @override
   void dispose() {
-    if (_ttsInitialized) {
-      _isSpeaking = false;
-      _tts.stop();
-    }
+    _voice.dispose();
     _flipController.dispose();
     super.dispose();
   }
 
-  Future<void> _initTts() async {
-    if (!_ttsInitialized) {
-      _tts = FlutterTts();
-      _ttsInitialized = true;
-    }
-    try {
-      await _tts.awaitSpeakCompletion(true);
-      await _tts.setSpeechRate(0.48);
-      await _tts.setPitch(1.0);
-      await _tts.setVolume(1.0);
-      _isTtsReady = true;
-    } catch (_) {
-      _isTtsReady = false;
-    }
-  }
-
-  String _pickLanguage(String text) {
-    final hasJapaneseKana = RegExp(r'[\u3040-\u30FF]').hasMatch(text);
-    if (hasJapaneseKana) return 'ja-JP';
-    final hasChinese = RegExp(r'[\u3400-\u9FFF]').hasMatch(text);
-    return hasChinese ? 'zh-TW' : 'en-US';
-  }
-
-  String _normalizeLocaleCode(String code) {
-    return code.replaceAll('_', '-').toLowerCase();
-  }
-
-  Future<Set<String>> _loadSupportedLanguages() async {
-    if (_supportedLanguages != null) return _supportedLanguages!;
-    try {
-      final langs = await _tts.getLanguages;
-      final normalized = langs
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toSet();
-      _supportedLanguages = normalized;
-      return normalized;
-    } catch (_) {
-      _supportedLanguages = <String>{};
-      return _supportedLanguages!;
-    }
-  }
-
-  Future<List<Map<String, String>>> _loadAvailableVoices() async {
-    if (_availableVoices != null) return _availableVoices!;
-    try {
-      final voices = await _tts.getVoices;
-      final normalized = <Map<String, String>>[];
-      for (final voice in voices) {
-        if (voice is Map) {
-          final name = voice['name']?.toString().trim() ?? '';
-          final locale = voice['locale']?.toString().trim() ?? '';
-          if (name.isNotEmpty && locale.isNotEmpty) {
-            normalized.add({
-              'name': name,
-              'locale': locale,
-              'quality': voice['quality']?.toString().trim().toLowerCase() ?? '',
-              'identifier':
-                  voice['identifier']?.toString().trim().toLowerCase() ?? '',
-            });
-          }
-        }
-      }
-      _availableVoices = normalized;
-      return normalized;
-    } catch (_) {
-      _availableVoices = const <Map<String, String>>[];
-      return _availableVoices!;
-    }
-  }
-
-  int _voiceNaturalnessScore(Map<String, String> voice, String preferred) {
-    final name = (voice['name'] ?? '').toLowerCase();
-    final quality = (voice['quality'] ?? '').toLowerCase();
-    final identifier = (voice['identifier'] ?? '').toLowerCase();
-    var score = 0;
-
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-      if (quality.contains('premium') || quality.contains('enhanced')) score += 40;
-      if (quality == '2' || quality == '300') score += 24;
-      if (name.contains('compact') || identifier.contains('compact')) score -= 24;
-    }
-
-    if (name.contains('novelty') ||
-        name.contains('zarvox') ||
-        name.contains('boing') ||
-        name.contains('bubbles') ||
-        name.contains('bad news')) {
-      score -= 20;
-    }
-
-    if (preferred.startsWith('en')) {
-      if (name.contains('samantha') || name.contains('alex')) score += 8;
-    }
-
-    return score;
-  }
-
-  Map<String, String>? _pickBestVoiceForLocale(
-    List<Map<String, String>> voices,
-    String preferred,
-    String localePrefix,
-  ) {
-    final matches = voices.where((voice) {
-      final locale = _normalizeLocaleCode(voice['locale'] ?? '');
-      return locale == localePrefix || locale.startsWith('$localePrefix-');
-    }).toList();
-    if (matches.isEmpty) return null;
-    matches.sort(
-      (a, b) => _voiceNaturalnessScore(
-        b,
-        preferred,
-      ).compareTo(_voiceNaturalnessScore(a, preferred)),
-    );
-    return matches.first;
-  }
-
-  Future<String?> _resolveLanguage(String preferred) async {
-    final available = await _loadSupportedLanguages();
-    if (available.isEmpty) return null;
-    final lowerMap = <String, String>{
-      for (final lang in available) _normalizeLocaleCode(lang): lang,
-    };
-    final normalizedPreferred = _normalizeLocaleCode(preferred);
-    final candidates = preferred.startsWith('zh')
-        ? <String>[preferred, 'zh-TW', 'zh-CN', 'zh']
-        : preferred.startsWith('ja')
-        ? <String>[preferred, 'ja-JP', 'ja']
-        : <String>[preferred, 'en-US', 'en-GB', 'en'];
-    for (final candidate in candidates) {
-      final normalizedCandidate = _normalizeLocaleCode(candidate);
-      final exact = lowerMap[normalizedCandidate];
-      if (exact != null) return exact;
-      final prefix = '$normalizedCandidate-';
-      for (final entry in lowerMap.entries) {
-        if (entry.key == normalizedCandidate || entry.key.startsWith(prefix)) {
-          return entry.value;
-        }
-      }
-    }
-    if (normalizedPreferred.startsWith('en')) {
-      for (final entry in lowerMap.entries) {
-        if (entry.key.startsWith('en')) return entry.value;
-      }
-    }
-    if (normalizedPreferred.startsWith('ja')) {
-      for (final entry in lowerMap.entries) {
-        if (entry.key.startsWith('ja')) return entry.value;
-      }
-    }
-    return null;
-  }
-
-  Future<Map<String, String>?> _resolveVoice(String preferred) async {
-    final voices = await _loadAvailableVoices();
-    if (voices.isEmpty) return null;
-    final localeCandidates = preferred.startsWith('zh')
-        ? <String>['zh-tw', 'zh-cn', 'zh']
-        : preferred.startsWith('ja')
-        ? <String>['ja-jp', 'ja']
-        : <String>['en-us', 'en-gb', 'en-au', 'en'];
-    for (final candidate in localeCandidates) {
-      final best = _pickBestVoiceForLocale(voices, preferred, candidate);
-      if (best != null) return best;
-    }
-    return null;
-  }
-
-  Future<void> _speakText(String text, {bool userInitiated = false}) async {
-    if (!_isTtsReady) {
-      await _initTts();
-      if (!_isTtsReady) return;
-    }
-    final value = text.trim();
-    if (value.isEmpty) return;
-    final now = DateTime.now();
-    final lastAt = _lastSpeakRequestedAt;
-    if (!userInitiated &&
-        lastAt != null &&
-        now.difference(lastAt).inMilliseconds < 120) {
-      return;
-    }
-    _lastSpeakRequestedAt = now;
-    try {
-      if (_isSpeaking) {
-        await _tts.stop();
-        await Future<void>.delayed(const Duration(milliseconds: 40));
-      }
-      final resolved = await _resolveLanguage(_pickLanguage(value));
-      if (resolved != null && resolved != _activeLanguage) {
-        try {
-          await _tts.setLanguage(resolved);
-          _activeLanguage = resolved;
-        } catch (_) {}
-      }
-      if (defaultTargetPlatform != TargetPlatform.iOS) {
-        final voice = await _resolveVoice(_pickLanguage(value));
-        if (voice != null) {
-          final voiceKey = '${voice['name']}|${voice['locale']}';
-          if (voiceKey != _activeVoiceKey) {
-            try {
-              await _tts.setVoice({
-                'name': voice['name'] ?? '',
-                'locale': voice['locale'] ?? '',
-              });
-              _activeVoiceKey = voiceKey;
-            } catch (_) {}
-          }
-        }
-      }
-      _isSpeaking = true;
-      await _tts.speak(value);
-    } catch (_) {
-    } finally {
-      _isSpeaking = false;
-    }
-  }
-
-  Future<void> _speakCardTerm(Flashcard card) async {
-    _lastSpokenCardId = card.id;
-    await _speakText(card.term);
-  }
-
   void _flip() {
-    if (_suppressFlipOnce) {
-      _suppressFlipOnce = false;
+    // Timestamp-based debounce: skip flip if speak button was just tapped
+    if (_lastSpeakTapAt != null &&
+        DateTime.now().difference(_lastSpeakTapAt!).inMilliseconds < 200) {
       return;
     }
     if (_flipController.isAnimating || _isSubmittingRating) return;
@@ -463,6 +258,11 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         break;
     }
 
+    // Again/Hard re-queue (Anki-style): add card back to end of queue
+    if (rating <= 2) {
+      _queue.add(_ReviewItem(card: item.card, progress: result.progress));
+    }
+
     if (_currentIndex + 1 >= _queue.length) {
       final total = _againCount + _hardCount + _goodCount + _easyCount;
       final challengeTarget = widget.challengeTarget ?? widget.maxCards;
@@ -472,6 +272,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           challengeTarget > 0 &&
           total >= challengeTarget;
       HapticFeedback.mediumImpact();
+      setState(() {
+        _isSubmittingRating = false;
+        _lastRating = null;
+      });
       context.go(
         '/review/summary',
         extra: {
@@ -498,7 +302,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         _lastRating = null;
       });
       _flipController.reset();
-      _speakCardTerm(_queue[_currentIndex].card);
+      _voice.speakCardTerm(
+          _queue[_currentIndex].card.id, _queue[_currentIndex].card.term);
     }
   }
 
@@ -514,6 +319,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+
     if (_isQueueLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -525,7 +332,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             decoration: AppTheme.softCardDecoration(
-              fillColor: Colors.white,
+              fillColor: surfaceColor,
               borderRadius: 14,
               borderColor: AppTheme.indigo.withValues(alpha: 0.22),
             ),
@@ -548,7 +355,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
               decoration: AppTheme.softCardDecoration(
-                fillColor: Colors.white,
+                fillColor: surfaceColor,
                 borderRadius: 14,
                 borderColor: AppTheme.red.withValues(alpha: 0.25),
               ),
@@ -556,16 +363,18 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Failed to load review queue',
+                    l10n.reviewQueueLoadFailed,
                     style: Theme.of(context).textTheme.titleMedium,
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _queueError!,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _queueError!,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: _buildQueue,
@@ -590,7 +399,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             decoration: AppTheme.softCardDecoration(
-              fillColor: Colors.white,
+              fillColor: surfaceColor,
               borderRadius: 16,
               borderColor: AppTheme.green.withValues(alpha: 0.24),
             ),
@@ -628,10 +437,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     }
 
     final item = _queue[_currentIndex];
-    if (_lastSpokenCardId != item.card.id && !_isSubmittingRating) {
+    if (_voice.lastSpokenCardId != item.card.id && !_isSubmittingRating) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _lastSpokenCardId != item.card.id) {
-          _speakCardTerm(item.card);
+        if (mounted && _voice.lastSpokenCardId != item.card.id) {
+          _voice.speakCardTerm(item.card.id, item.card.term);
         }
       });
     }
@@ -659,7 +468,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
             child: Row(
               children: [
                 Text(
-                  'Reviewing',
+                  l10n.reviewingLabel,
                   style: GoogleFonts.notoSerifTc(
                     textStyle: Theme.of(context).textTheme.bodySmall,
                     letterSpacing: 1.2,
@@ -696,7 +505,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                           builder: (context, child) {
                             final angle = _flipAnimation.value * pi;
                             final isFront = _flipAnimation.value < 0.5;
-                            final flipDepth = sin(_flipAnimation.value * pi).abs();
+                            final flipDepth =
+                                sin(_flipAnimation.value * pi).abs();
                             final depthScale = 1 - (flipDepth * 0.015);
                             return Transform(
                               alignment: Alignment.center,
@@ -709,13 +519,13 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                                       text: item.card.term,
                                       label: l10n.tapToFlip,
                                       onSpeak: () {
-                                        _suppressFlipOnce = true;
-                                        _speakText(
+                                        _lastSpeakTapAt = DateTime.now();
+                                        _voice.speakMultiLingual(
                                           item.card.term,
                                           userInitiated: true,
                                         );
                                       },
-                                      bgColor: Colors.white,
+                                      bgColor: surfaceColor,
                                       textColor: Theme.of(
                                         context,
                                       ).colorScheme.onSurface,
@@ -730,13 +540,13 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                                         text: item.card.definition,
                                         label: l10n.definitionLabel,
                                         onSpeak: () {
-                                          _suppressFlipOnce = true;
-                                          _speakText(
+                                          _lastSpeakTapAt = DateTime.now();
+                                          _voice.speakMultiLingual(
                                             item.card.definition,
                                             userInitiated: true,
                                           );
                                         },
-                                        bgColor: Colors.white,
+                                        bgColor: surfaceColor,
                                         textColor: Theme.of(
                                           context,
                                         ).colorScheme.onSurface,
@@ -841,7 +651,8 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       decoration: AppTheme.softCardDecoration(
         fillColor: bgColor,
         borderRadius: 18,
-        borderColor: AppTheme.indigo.withValues(alpha: 0.22 + (shadowBoost * 0.08)),
+        borderColor:
+            AppTheme.indigo.withValues(alpha: 0.22 + (shadowBoost * 0.08)),
         elevation: 1.2 + (shadowBoost * 1.4),
       ),
       child: Stack(

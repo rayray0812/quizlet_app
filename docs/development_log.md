@@ -265,3 +265,27 @@
   - `scripts/run_admin_compliance_export.sh`
 - Documented admin console usage flow:
   - approvals, impersonation control, bulk jobs, and signed compliance export
+
+## 2026-02-18 - Conversation Scenario Quality + Anti-dup
+
+### Conversation UX/Parsing
+- Fixed `conversation_practice_screen.dart` structural syntax corruption introduced by accidental literal text insertion.
+- Improved scenario panel bilingual rendering:
+  - Default EN display, optional ZH toggle.
+  - Only render ZH blocks when content is truly Chinese and not identical to EN.
+- Reduced prompt-leak exposure in AI turn parsing by filtering scenario/meta lines from candidate question text.
+
+### Scenario Generation Reliability
+- Strengthened generated scenario validation:
+  - reject meta/prompt artifacts
+  - reject invalid/duplicated role mappings
+  - require usable zh fields
+- Added AI-first anti-dup strategy:
+  - `GeminiService.generateRandomScenario(..., avoidTitles: ...)`
+  - recent title memory in provider (`_recentScenarioTitles`)
+  - near-duplicate title rejection before accept
+  - retry loop with decreasing term count before fallback
+- Updated fallback scenario content to remain term-driven and bilingual.
+
+### Notes
+- Local sandbox analyze commands timed out during this session; full device-side verify is required in next pass.

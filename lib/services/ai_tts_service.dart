@@ -11,6 +11,9 @@ import 'package:path_provider/path_provider.dart';
 
 class AiTtsService {
   static const Duration _timeout = Duration(seconds: 15);
+  static const int _maxCacheEntries = 5;
+  static final RegExp _hanChars = RegExp(r'[\u4e00-\u9fff]');
+  static final RegExp _kanaChars = RegExp(r'[\u3040-\u30ff]');
   static const List<String> _ttsModels = <String>[
     'gemini-2.5-flash-preview-tts',
     'gemini-2.5-pro-preview-tts',
@@ -20,6 +23,8 @@ class AiTtsService {
   static String _lastError = '';
   static final Map<String, Uint8List> _audioBytesCacheByText =
       <String, Uint8List>{};
+  static final List<String> _cacheInsertionOrder = <String>[];
+  static File? _lastTempFile;
 
   static Future<bool> speakFirstLine({
     required String apiKey,
@@ -36,6 +41,21 @@ class AiTtsService {
   }
 
   static Future<void> stop() => _player.stop();
+
+  /// Release static resources. Call from app lifecycle dispose.
+  static Future<void> dispose() async {
+    await _player.stop();
+    await _player.dispose();
+    _audioBytesCacheByText.clear();
+    _cacheInsertionOrder.clear();
+    await _cleanupLastTempFile();
+  }
+
+  /// Clear audio cache (call on session end to free memory).
+  static void clearCache() {
+    _audioBytesCacheByText.clear();
+    _cacheInsertionOrder.clear();
+  }
 
   static Future<bool> prepareFirstLineAudio({
     required String apiKey,
@@ -54,16 +74,20 @@ class AiTtsService {
           text: key,
         );
         if (bytes.isEmpty) continue;
-        _audioBytesCacheByText[key] = bytes;
+        _putCache(key, bytes);
         _lastError = '';
         return true;
       } catch (e) {
         _lastError = 'model=$model error=$e';
-        debugPrint('[AI_TTS] $_lastError');
+        if (kDebugMode) {
+          debugPrint('[AI_TTS] $_lastError');
+        }
         continue;
       }
     }
-    debugPrint('[AI_TTS] all models failed: $_lastError');
+    if (kDebugMode) {
+      debugPrint('[AI_TTS] all models failed: $_lastError');
+    }
     return false;
   }
 
@@ -74,16 +98,46 @@ class AiTtsService {
     final bytes = _audioBytesCacheByText[key];
     if (bytes == null || bytes.isEmpty) return false;
     try {
+      await _cleanupLastTempFile();
       final cachedFile = await _writeTempWav(bytes);
+      _lastTempFile = cachedFile;
       await _player.stop();
       return await _playFileAndConfirmStarted(cachedFile);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AI_TTS] speakCached failed: $e');
+      }
       return false;
     }
   }
 
   static String _clipKey(String text) {
     return text.length > 220 ? text.substring(0, 220) : text;
+  }
+
+  static void _putCache(String key, Uint8List bytes) {
+    // Evict oldest entries when cache exceeds limit
+    while (_cacheInsertionOrder.length >= _maxCacheEntries) {
+      final oldest = _cacheInsertionOrder.removeAt(0);
+      _audioBytesCacheByText.remove(oldest);
+    }
+    _audioBytesCacheByText[key] = bytes;
+    _cacheInsertionOrder.add(key);
+  }
+
+  static Future<void> _cleanupLastTempFile() async {
+    final file = _lastTempFile;
+    _lastTempFile = null;
+    if (file == null) return;
+    try {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AI_TTS] cleanup temp file failed: $e');
+      }
+    }
   }
 
   static Future<bool> _playFileAndConfirmStarted(File file) async {
@@ -116,8 +170,35 @@ class AiTtsService {
     required String model,
     required String text,
   }) async {
+    final voices = _voiceCandidatesForText(text);
+    Object? lastVoiceError;
+    for (final voiceName in voices) {
+      try {
+        return await _requestAudioBytesWithVoice(
+          apiKey: apiKey,
+          model: model,
+          text: text,
+          voiceName: voiceName,
+        );
+      } catch (e) {
+        lastVoiceError = e;
+        if (kDebugMode) {
+          debugPrint('[AI_TTS] voice=$voiceName failed: $e');
+        }
+      }
+    }
+    throw Exception('all voice candidates failed: $lastVoiceError');
+  }
+
+  static Future<Uint8List> _requestAudioBytesWithVoice({
+    required String apiKey,
+    required String model,
+    required String text,
+    required String voiceName,
+  }) async {
+    // Use path-only URL; pass API key via header to avoid logging exposure
     final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey',
+      'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent',
     );
     final payload = <String, dynamic>{
       'contents': <Map<String, dynamic>>[
@@ -131,7 +212,7 @@ class AiTtsService {
         'responseModalities': <String>['AUDIO'],
         'speechConfig': <String, dynamic>{
           'voiceConfig': <String, dynamic>{
-            'prebuiltVoiceConfig': <String, String>{'voiceName': 'Kore'},
+            'prebuiltVoiceConfig': <String, String>{'voiceName': voiceName},
           },
         },
       },
@@ -139,7 +220,10 @@ class AiTtsService {
     final response = await http
         .post(
           uri,
-          headers: <String, String>{'Content-Type': 'application/json'},
+          headers: <String, String>{
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: jsonEncode(payload),
         )
         .timeout(_timeout);
@@ -162,6 +246,23 @@ class AiTtsService {
       return bytes;
     }
     return _pcm16Mono24kToWav(bytes);
+  }
+
+  static List<String> _voiceCandidatesForText(String text) {
+    final lang = _detectLanguage(text);
+    if (lang == 'zh') {
+      return const <String>['Leda', 'Aoede', 'Kore'];
+    }
+    if (lang == 'ja') {
+      return const <String>['Aoede', 'Leda', 'Kore'];
+    }
+    return const <String>['Kore', 'Aoede', 'Leda'];
+  }
+
+  static String _detectLanguage(String text) {
+    if (_hanChars.hasMatch(text)) return 'zh';
+    if (_kanaChars.hasMatch(text)) return 'ja';
+    return 'en';
   }
 
   static _AudioPayload? _extractAudioPayload(dynamic decoded) {

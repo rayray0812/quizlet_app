@@ -1,14 +1,12 @@
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/services/speaking_auto_score_service.dart';
+import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
@@ -27,22 +25,14 @@ class SpeakingPracticeScreen extends ConsumerStatefulWidget {
 }
 
 class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen> {
-  late final FlutterTts _tts;
-  bool _ttsInitialized = false;
+  late final VoicePlaybackService _voice;
   late final SpeechToText _speech;
-  bool _isTtsReady = false;
   bool _speechReady = false;
   bool _isListening = false;
   bool _isScoring = false;
   String _recognizedText = '';
   double? _recognizedConfidence;
   int? _lastAutoScore;
-  Set<String>? _supportedLanguages;
-  List<Map<String, String>>? _availableVoices;
-  String? _activeLanguage;
-  String? _activeVoiceKey;
-  bool _isSpeaking = false;
-  DateTime? _lastSpeakRequestedAt;
   bool _isPlaying = false;
   Future<void> _speakQueue = Future<void>.value();
   int _index = 0;
@@ -52,36 +42,18 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
   @override
   void initState() {
     super.initState();
-    _initTts();
+    _voice = VoicePlaybackService();
+    _voice.init();
     _initSpeech();
   }
 
   @override
   void dispose() {
-    if (_isTtsReady) {
-      _isSpeaking = false;
-      _tts.stop();
-    }
+    _voice.dispose();
     if (_isListening) {
       _speech.stop();
     }
     super.dispose();
-  }
-
-  Future<void> _initTts() async {
-    if (!_ttsInitialized) {
-      _tts = FlutterTts();
-      _ttsInitialized = true;
-    }
-    try {
-      await _tts.awaitSpeakCompletion(true);
-      await _tts.setSpeechRate(0.48);
-      await _tts.setPitch(1.0);
-      await _tts.setVolume(1.0);
-      _isTtsReady = true;
-    } catch (_) {
-      _isTtsReady = false;
-    }
   }
 
   Future<void> _initSpeech() async {
@@ -100,13 +72,6 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     );
   }
 
-  String _pickLanguage(String text) {
-    final hasJapaneseKana = RegExp(r'[\u3040-\u30FF]').hasMatch(text);
-    if (hasJapaneseKana) return 'ja-JP';
-    final hasChinese = RegExp(r'[\u3400-\u9FFF]').hasMatch(text);
-    return hasChinese ? 'zh-TW' : 'en-US';
-  }
-
   String _pickSpeechLanguage(Flashcard card) {
     final term = card.term.trim();
     final sentence = _buildSafeSentence(card);
@@ -115,209 +80,15 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     if (hasLatin) {
       return 'en-US';
     }
-    return _pickLanguage('$term $sentence');
+    return VoicePlaybackService.pickLanguage('$term $sentence');
   }
 
-  String _normalizeLocaleCode(String code) {
-    return code.replaceAll('_', '-').toLowerCase();
-  }
-
-  Future<Set<String>> _loadSupportedLanguages() async {
-    if (_supportedLanguages != null) return _supportedLanguages!;
-    try {
-      final langs = await _tts.getLanguages;
-      final normalized = langs
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toSet();
-      _supportedLanguages = normalized;
-      return normalized;
-    } catch (_) {
-      _supportedLanguages = <String>{};
-      return _supportedLanguages!;
-    }
-  }
-
-  Future<List<Map<String, String>>> _loadAvailableVoices() async {
-    if (_availableVoices != null) return _availableVoices!;
-    try {
-      final voices = await _tts.getVoices;
-      final normalized = <Map<String, String>>[];
-      for (final voice in voices) {
-        if (voice is Map) {
-          final name = voice['name']?.toString().trim() ?? '';
-          final locale = voice['locale']?.toString().trim() ?? '';
-          if (name.isNotEmpty && locale.isNotEmpty) {
-            normalized.add({
-              'name': name,
-              'locale': locale,
-              'quality': voice['quality']?.toString().trim().toLowerCase() ?? '',
-              'identifier':
-                  voice['identifier']?.toString().trim().toLowerCase() ?? '',
-            });
-          }
-        }
-      }
-      _availableVoices = normalized;
-      return normalized;
-    } catch (_) {
-      _availableVoices = const <Map<String, String>>[];
-      return _availableVoices!;
-    }
-  }
-
-  int _voiceNaturalnessScore(Map<String, String> voice, String preferred) {
-    final name = (voice['name'] ?? '').toLowerCase();
-    final quality = (voice['quality'] ?? '').toLowerCase();
-    final identifier = (voice['identifier'] ?? '').toLowerCase();
-    var score = 0;
-
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-      if (quality.contains('premium') || quality.contains('enhanced')) score += 40;
-      if (quality == '2' || quality == '300') score += 24;
-      if (name.contains('compact') || identifier.contains('compact')) score -= 24;
-    }
-
-    if (name.contains('novelty') ||
-        name.contains('zarvox') ||
-        name.contains('boing') ||
-        name.contains('bubbles') ||
-        name.contains('bad news')) {
-      score -= 20;
-    }
-
-    if (preferred.startsWith('en')) {
-      if (name.contains('samantha') || name.contains('alex')) score += 8;
-    }
-
-    return score;
-  }
-
-  Map<String, String>? _pickBestVoiceForLocale(
-    List<Map<String, String>> voices,
-    String preferred,
-    String localePrefix,
-  ) {
-    final matches = voices.where((voice) {
-      final locale = _normalizeLocaleCode(voice['locale'] ?? '');
-      return locale == localePrefix || locale.startsWith('$localePrefix-');
-    }).toList();
-    if (matches.isEmpty) return null;
-    matches.sort(
-      (a, b) => _voiceNaturalnessScore(
-        b,
-        preferred,
-      ).compareTo(_voiceNaturalnessScore(a, preferred)),
-    );
-    return matches.first;
-  }
-
-  Future<String?> _resolveLanguage(String preferred) async {
-    final available = await _loadSupportedLanguages();
-    if (available.isEmpty) return null;
-    final lowerMap = <String, String>{
-      for (final lang in available) _normalizeLocaleCode(lang): lang,
-    };
-    final normalizedPreferred = _normalizeLocaleCode(preferred);
-    final candidates = preferred.startsWith('zh')
-        ? <String>[preferred, 'zh-TW', 'zh-CN', 'zh']
-        : preferred.startsWith('ja')
-        ? <String>[preferred, 'ja-JP', 'ja']
-        : <String>[preferred, 'en-US', 'en-GB', 'en'];
-    for (final candidate in candidates) {
-      final normalizedCandidate = _normalizeLocaleCode(candidate);
-      final exact = lowerMap[normalizedCandidate];
-      if (exact != null) return exact;
-      final prefix = '$normalizedCandidate-';
-      for (final entry in lowerMap.entries) {
-        if (entry.key == normalizedCandidate || entry.key.startsWith(prefix)) {
-          return entry.value;
-        }
-      }
-    }
-    if (normalizedPreferred.startsWith('en')) {
-      for (final entry in lowerMap.entries) {
-        if (entry.key.startsWith('en')) return entry.value;
-      }
-    }
-    if (normalizedPreferred.startsWith('ja')) {
-      for (final entry in lowerMap.entries) {
-        if (entry.key.startsWith('ja')) return entry.value;
-      }
-    }
-    return null;
-  }
-
-  Future<Map<String, String>?> _resolveVoice(String preferred) async {
-    final voices = await _loadAvailableVoices();
-    if (voices.isEmpty) return null;
-    final localeCandidates = preferred.startsWith('zh')
-        ? <String>['zh-tw', 'zh-cn', 'zh']
-        : preferred.startsWith('ja')
-        ? <String>['ja-jp', 'ja']
-        : <String>['en-us', 'en-gb', 'en-au', 'en'];
-    for (final candidate in localeCandidates) {
-      final best = _pickBestVoiceForLocale(voices, preferred, candidate);
-      if (best != null) return best;
-    }
-    return null;
-  }
-
+  /// Speak text via the queue wrapper (sequential).
   Future<void> _speak(String text, {bool userInitiated = false}) async {
     _speakQueue = _speakQueue.then(
-      (_) => _speakInternal(text, userInitiated: userInitiated),
+      (_) => _voice.speakMultiLingual(text, userInitiated: userInitiated),
     );
     return _speakQueue;
-  }
-
-  Future<void> _speakInternal(String text, {bool userInitiated = false}) async {
-    if (!_isTtsReady) {
-      await _initTts();
-      if (!_isTtsReady) return;
-    }
-    final value = text.trim();
-    if (value.isEmpty) return;
-    final now = DateTime.now();
-    final lastAt = _lastSpeakRequestedAt;
-    if (!userInitiated &&
-        lastAt != null &&
-        now.difference(lastAt).inMilliseconds < 120) {
-      return;
-    }
-    _lastSpeakRequestedAt = now;
-    try {
-      if (_isSpeaking) {
-        await _tts.stop();
-        await Future<void>.delayed(const Duration(milliseconds: 40));
-      }
-      final resolved = await _resolveLanguage(_pickLanguage(value));
-      if (resolved != null && resolved != _activeLanguage) {
-        try {
-          await _tts.setLanguage(resolved);
-          _activeLanguage = resolved;
-        } catch (_) {}
-      }
-      if (defaultTargetPlatform != TargetPlatform.iOS) {
-        final voice = await _resolveVoice(_pickLanguage(value));
-        if (voice != null) {
-          final voiceKey = '${voice['name']}|${voice['locale']}';
-          if (voiceKey != _activeVoiceKey) {
-            try {
-              await _tts.setVoice({
-                'name': voice['name'] ?? '',
-                'locale': voice['locale'] ?? '',
-              });
-              _activeVoiceKey = voiceKey;
-            } catch (_) {}
-          }
-        }
-      }
-      _isSpeaking = true;
-      await _tts.speak(value);
-    } catch (_) {
-    } finally {
-      _isSpeaking = false;
-    }
   }
 
   String _buildSentence(Flashcard card) {
@@ -327,12 +98,12 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     }
     final term = card.term.trim();
     if (term.isEmpty) return '';
-    final language = _pickLanguage(term);
+    final language = VoicePlaybackService.pickLanguage(term);
     if (language.startsWith('ja')) {
-      return '$termを毎日使います。';
+      return 'Please make a short sentence with $term.';
     }
     if (language.startsWith('zh')) {
-      return '我每天都會用$term。';
+      return '\u8ACB\u7528\u300C$term\u300D\u9020\u4E00\u500B\u7C21\u77ED\u53E5\u5B50\u3002';
     }
     return 'I use $term every day.';
   }
@@ -345,9 +116,9 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
   String _fallbackSentence(Flashcard card) {
     final term = card.term.trim();
     if (term.isEmpty) return '';
-    final language = _pickLanguage(term);
-    if (language.startsWith('ja')) return '$term を毎日使います。';
-    if (language.startsWith('zh')) return '我每天都會使用$term。';
+    final language = VoicePlaybackService.pickLanguage(term);
+    if (language.startsWith('ja')) return 'Please say one short sentence with $term.';
+    if (language.startsWith('zh')) return '\u8ACB\u7528\u300C$term\u300D\u8AAA\u4E00\u53E5\u8A71\u3002';
     return 'I use $term every day.';
   }
 
@@ -381,16 +152,16 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
     if (locales.isEmpty) return null;
     final byNormalized = <String, String>{
       for (final locale in locales)
-        _normalizeLocaleCode(locale.localeId): locale.localeId,
+        VoicePlaybackService.normalizeLocaleCode(locale.localeId): locale.localeId,
     };
-    final normalizedPreferred = _normalizeLocaleCode(preferred);
+    final normalizedPreferred = VoicePlaybackService.normalizeLocaleCode(preferred);
     final candidates = preferred.startsWith('zh')
         ? <String>[preferred, 'zh-TW', 'zh-CN', 'zh']
         : preferred.startsWith('ja')
         ? <String>[preferred, 'ja-JP', 'ja']
         : <String>[preferred, 'en-US', 'en-GB', 'en'];
     for (final candidate in candidates) {
-      final normalized = _normalizeLocaleCode(candidate);
+      final normalized = VoicePlaybackService.normalizeLocaleCode(candidate);
       final exact = byNormalized[normalized];
       if (exact != null) return exact;
       final prefix = '$normalized-';
@@ -676,7 +447,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: AppTheme.softCardDecoration(
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         borderRadius: 16,
                         borderColor: AppTheme.indigo.withValues(alpha: 0.24),
                       ),
@@ -806,7 +577,7 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: AppTheme.softCardDecoration(
-                          fillColor: Colors.white,
+                          fillColor: Theme.of(context).colorScheme.surface,
                           borderRadius: 12,
                           borderColor: AppTheme.cyan.withValues(alpha: 0.34),
                         ),

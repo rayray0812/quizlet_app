@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/models/conversation_turn_record.dart';
@@ -8,6 +9,7 @@ import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/turn_feedback_chip.dart';
 import 'package:recall_app/providers/conversation_session_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/services/ai_tts_service.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -32,11 +34,15 @@ class _ConversationPracticeScreenState
     extends ConsumerState<ConversationPracticeScreen> {
   late final VoicePlaybackService _voice;
   late SpeechToText _stt;
+  ProviderSubscription<String>? _geminiKeySubscription;
   bool _sttAvailable = false;
   bool _isListening = false;
   bool _isDisposed = false;
   bool _sessionStarted = false;
+  bool _isStartingSession = false;
+  bool _isSessionBootstrapping = true;
   bool _didPlayFirstAiLine = false;
+  bool _showScenarioChinese = false;
   String _firstAiQuestionText = '';
 
   final TextEditingController _textController = TextEditingController();
@@ -57,14 +63,21 @@ class _ConversationPracticeScreenState
     _voice = VoicePlaybackService();
     _voice.init();
     _initStt();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_sessionStarted) return;
-    _sessionStarted = true;
-    _startSession();
+    _geminiKeySubscription = ref.listenManual<String>(
+      geminiKeyProvider,
+      (previous, next) {
+        if (!mounted || _isDisposed) return;
+        if (next.trim().isEmpty) return;
+        final session = ref.read(conversationSessionProvider(_params)).valueOrNull;
+        if (_isStartingSession || (session?.messages.isNotEmpty ?? false)) return;
+        _startSession();
+      },
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _sessionStarted) return;
+      _sessionStarted = true;
+      _startSession();
+    });
   }
 
   Future<void> _initStt() async {
@@ -92,26 +105,61 @@ class _ConversationPracticeScreenState
   }
 
   Future<void> _startSession() async {
-    await _notifier.startSession();
-    // Pre-generate first AI audio
-    final sessionState = ref.read(conversationSessionProvider(_params)).valueOrNull;
-    if (sessionState != null && sessionState.messages.isNotEmpty) {
-      final lastMsg = sessionState.messages.last;
-      if (lastMsg.isAi && lastMsg.text.isNotEmpty) {
-        _firstAiQuestionText = lastMsg.text;
-        final apiKey = ref.read(geminiKeyProvider);
-        if (apiKey.isNotEmpty &&
-            !(sessionState.useLocalCoachOnly)) {
-          try {
-            await AiTtsService.prepareFirstLineAudio(
-              apiKey: apiKey,
-              text: lastMsg.text,
-            ).timeout(const Duration(milliseconds: 1200), onTimeout: () async => false);
-          } catch (_) {}
+    if (_isStartingSession) return;
+    _isStartingSession = true;
+    try {
+      final l10n = AppLocalizations.of(context);
+      final apiKey = await _waitForGeminiKey();
+      if (!mounted || _isDisposed) return;
+      if (apiKey.isEmpty) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(l10n.geminiApiKeyNotSet)),
+        );
+        return;
+      }
+
+      await _notifier.startSession();
+      // Pre-generate first AI audio
+      final sessionState = ref.read(conversationSessionProvider(_params)).valueOrNull;
+      if (sessionState != null && sessionState.messages.isNotEmpty) {
+        final lastMsg = sessionState.messages.last;
+        if (lastMsg.isAi && lastMsg.text.isNotEmpty) {
+          _firstAiQuestionText = lastMsg.text;
+          final apiKey = ref.read(geminiKeyProvider);
+          if (apiKey.isNotEmpty &&
+              !(sessionState.useLocalCoachOnly)) {
+            try {
+              await AiTtsService.prepareFirstLineAudio(
+                apiKey: apiKey,
+                text: lastMsg.text,
+              ).timeout(const Duration(milliseconds: 1200), onTimeout: () async => false);
+            } catch (e) {
+              if (kDebugMode) {
+                debugPrint('prepareFirstLineAudio failed: $e');
+              }
+            }
+          }
+          _speakLatestAiQuestionOnce();
         }
-        _speakLatestAiQuestionOnce();
+      }
+    } finally {
+      _isStartingSession = false;
+      if (mounted && !_isDisposed && _isSessionBootstrapping) {
+        setState(() => _isSessionBootstrapping = false);
       }
     }
+  }
+
+  Future<String> _waitForGeminiKey() async {
+    final startedAt = DateTime.now();
+    var key = ref.read(geminiKeyProvider).trim();
+    while (key.isEmpty &&
+        DateTime.now().difference(startedAt).inMilliseconds < 1500) {
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted || _isDisposed) return '';
+      key = ref.read(geminiKeyProvider).trim();
+    }
+    return key;
   }
 
   void _speakLatestAiQuestionOnce() {
@@ -213,9 +261,22 @@ class _ConversationPracticeScreenState
     });
   }
 
+  void _navigateToSummary(BuildContext context) {
+    final localStorage =
+        ref.read(localStorageServiceProvider);
+    final transcripts = localStorage.getAllConversationTranscripts();
+    if (transcripts.isNotEmpty) {
+      context.push(
+        '/study/${widget.setId}/conversation/practice/summary',
+        extra: transcripts.first,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
+    _geminiKeySubscription?.close();
     _voice.dispose();
     _stt.cancel();
     _textController.dispose();
@@ -230,8 +291,17 @@ class _ConversationPracticeScreenState
     final theme = Theme.of(context);
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardOpen = keyboardInset > 0;
-
     final asyncSession = ref.watch(conversationSessionProvider(_params));
+
+    if (_isSessionBootstrapping) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: const AppBackButton(),
+          title: Text(l10n.conversationPractice),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return asyncSession.when(
       loading: () => Scaffold(
@@ -300,12 +370,22 @@ class _ConversationPracticeScreenState
               if (session.isSessionEnded)
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text(
-                    l10n.practiceComplete,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    children: [
+                      Text(
+                        l10n.practiceComplete,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => _navigateToSummary(context),
+                        icon: const Icon(Icons.assessment_rounded),
+                        label: Text(l10n.conversationSummary),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -482,6 +562,28 @@ class _ConversationPracticeScreenState
 
   Widget _buildScenarioPanel(ThemeData theme, AppLocalizations l10n,
       ConversationSessionState session) {
+    final hasStages = session.stages.isNotEmpty;
+    final stageIndex = hasStages ? (session.currentTurn % session.stages.length) : 0;
+    final currentObjective = hasStages ? session.stages[stageIndex] : session.currentStage;
+    final currentObjectiveZh =
+        session.stagesZh.isNotEmpty && stageIndex < session.stagesZh.length
+            ? session.stagesZh[stageIndex]
+            : session.currentStageZh;
+    final nextIndex = hasStages ? ((stageIndex + 1) % session.stages.length) : 0;
+    final nextObjective = hasStages ? session.stages[nextIndex] : '';
+    final nextObjectiveZh =
+        session.stagesZh.isNotEmpty && nextIndex < session.stagesZh.length
+            ? session.stagesZh[nextIndex]
+            : '';
+    final showTitleZh = _hasDistinctChinese(session.scenarioTitleZh, session.scenarioTitle);
+    final showAiRoleZh = _hasDistinctChinese(session.aiRoleZh, session.aiRole);
+    final showUserRoleZh = _hasDistinctChinese(session.userRoleZh, session.userRole);
+    final showSettingZh = _hasDistinctChinese(session.scenarioSettingZh, session.scenarioSetting);
+    final showCurrentObjectiveZh =
+        _hasDistinctChinese(currentObjectiveZh, currentObjective);
+    final showNextObjectiveZh =
+        _hasDistinctChinese(nextObjectiveZh, nextObjective);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -493,37 +595,113 @@ class _ConversationPracticeScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${l10n.scenarioPrefix}${session.scenarioTitle}',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          Text('${l10n.scenarioZhPrefix}${session.scenarioTitleZh}',
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${l10n.scenarioPrefix}${session.scenarioTitle}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _showScenarioChinese = !_showScenarioChinese;
+                }),
+                child: Text(_showScenarioChinese ? 'Hide ZH' : 'Show ZH'),
+              ),
+            ],
+          ),
+          if (_showScenarioChinese && showTitleZh)
+            Text(
+              '${l10n.scenarioZhPrefix}${session.scenarioTitleZh}',
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           const SizedBox(height: 2),
-          Text('${l10n.aiRolePrefix}${session.aiRole}',
-              style: theme.textTheme.bodySmall),
-          Text('${l10n.aiRoleZhPrefix}${session.aiRoleZh}',
-              style: theme.textTheme.bodySmall),
-          Text('${l10n.yourRolePrefix}${session.userRole}',
-              style: theme.textTheme.bodySmall),
-          Text('${l10n.yourRoleZhPrefix}${session.userRoleZh}',
-              style: theme.textTheme.bodySmall),
+          Text(
+            'AI role: ${session.aiRole} | Your role: ${session.userRole}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (_showScenarioChinese && (showAiRoleZh || showUserRoleZh)) ...[
+            if (showAiRoleZh)
+            Text(
+              'AI role (ZH): ${session.aiRoleZh}',
+              style: theme.textTheme.bodySmall,
+            ),
+            if (showUserRoleZh)
+            Text(
+              'Your role (ZH): ${session.userRoleZh}',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 4),
-          Text(session.scenarioSetting,
+          Text(
+            session.scenarioSetting,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (_showScenarioChinese && showSettingZh)
+            Text(
+              session.scenarioSettingZh,
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
-          Text(session.scenarioSettingZh,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          if (session.targetTerms.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Focus terms: ${session.targetTerms.join(', ')}',
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
-          Text('${l10n.currentStepPrefix}${session.currentStage}',
-              style: theme.textTheme.bodySmall),
-          if (session.currentStageZh.isNotEmpty)
-            Text('${l10n.currentStepZhPrefix}${session.currentStageZh}',
-                style: theme.textTheme.bodySmall),
+          Text(
+            'Objective now: $currentObjective',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (_showScenarioChinese && showCurrentObjectiveZh)
+            Text(
+              'Objective (ZH): $currentObjectiveZh',
+              style: theme.textTheme.bodySmall,
+            ),
+          if (nextObjective.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Next objective: $nextObjective',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (_showScenarioChinese && showNextObjectiveZh)
+              Text(
+                'Next objective (ZH): $nextObjectiveZh',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
         ],
       ),
     );
+  }
+
+  bool _hasDistinctChinese(String zh, String en) {
+    final zhText = zh.trim();
+    final enText = en.trim();
+    if (zhText.isEmpty) return false;
+    if (zhText.toLowerCase() == enText.toLowerCase()) return false;
+    return RegExp(r'[\u4e00-\u9fff]').hasMatch(zhText);
   }
 
   Widget _buildReplyHintPanel(ThemeData theme, AppLocalizations l10n,
@@ -759,3 +937,4 @@ class _ConversationPracticeScreenState
     );
   }
 }
+

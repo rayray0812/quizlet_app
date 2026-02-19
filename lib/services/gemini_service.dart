@@ -399,6 +399,7 @@ class GeminiService {
     required String apiKey,
     required List<String> terms,
     required String difficulty,
+    required int totalTurns,
     required String scenarioTitle,
     required String scenarioSetting,
     required String aiRole,
@@ -437,6 +438,7 @@ Difficulty profile (MEDIUM):
 You are a strict vocabulary conversation coach. No greetings, no small talk.
 Target words the student must practice: ${terms.join(', ')}.
 Difficulty: $normalizedDifficulty.
+Total turns in this session: $totalTurns.
 Scenario: $scenarioTitle
 Setting: $scenarioSetting
 Stay in this scenario for the whole session.
@@ -445,7 +447,8 @@ Student role: $userRole
 $difficultyRules
 Rules:
 1. Every turn must make it easy for the student to answer.
-2. Every response MUST include target words according to the difficulty profile.
+2. Prioritize target words according to the difficulty profile, but do NOT force awkward usage.
+   If a target word is unnatural for this scenario, skip it this turn and use another target word.
 3. Ask exactly ONE concrete question with specific detail (item/time/price/quantity).
 4. Also provide ONE short "Reply hint" starter sentence the student can copy and complete.
 5. Rotate target words and prioritize words not practiced yet.
@@ -457,6 +460,14 @@ Reply hint: ...
 9. First message must directly ask a question (no greeting).
 10. Avoid broad prompts like "Tell me more". Be specific and situational.
 11. Avoid robotic tutor tone. Sound like a real person in this role.
+12. Do not produce broken grammar or unnatural phrasing.
+13. In shopping scenarios, ask realistic item/location/price questions only.
+14. Always speak from AI role perspective ($aiRole). Never switch to student/customer perspective.
+15. If AI role is store staff/service staff, ask what the student needs; never ask "Where can I find ...?" for yourself.
+16. Every question must include at least one concrete target word from the provided focus list when possible.
+17. Avoid personal psychology/off-topic judgment questions (confidence/personality/self-esteem).
+18. Respect the provided turn index from user prompt (`Current turn: x/$totalTurns`).
+19. On the final turn, end naturally with a short closing line in the Question.
 ''';
 
     final model = GenerativeModel(
@@ -477,16 +488,26 @@ Reply hint: ...
     required String apiKey,
     required String difficulty,
     required List<String> terms,
+    List<String> avoidTitles = const <String>[],
   }) async {
+    final avoid = avoidTitles
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .take(8)
+        .join(' | ');
     final prompt =
         '''
 Create one realistic daily-life English roleplay scenario for speaking practice.
 Difficulty: $difficulty
 Target words (use these later in dialogue): ${terms.take(8).join(', ')}
+Do not reuse these recent scenario titles: ${avoid.isEmpty ? 'N/A' : avoid}
 Requirements:
 - scenario must be practical and specific in real life
+- scenario must be clearly anchored to the given target words (not generic)
+- include at least 3 target words explicitly in setting/stages
 - include clear context: place + concrete goal + at least one constraint (time/budget/urgency)
 - keep roles clear and useful for language learners
+- title must be semantically different from all avoided titles
 - return ONLY JSON object with keys:
   title, titleZh, setting, settingZh, aiRole, aiRoleZh, userRole, userRoleZh, stages, stagesZh
 - stages must be an array of 5 short step strings
@@ -516,7 +537,7 @@ Requirements:
   }) async {
     final prompt =
         '''
-Generate 4 short reply suggestions for the student.
+Generate 3 short reply suggestions for the student.
 Context:
 - Scenario: $scenarioTitle
 - AI role: $aiRole
@@ -692,4 +713,3 @@ Rules:
     }
   }
 }
-

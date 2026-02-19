@@ -12,6 +12,7 @@ import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:recall_app/features/study/widgets/completion_celebrate_overlay.dart';
 
 enum QuizQuestionType { multipleChoice, textInput, trueFalse }
 
@@ -157,11 +158,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int _currentIndex = 0;
   int _score = 0;
   int? _selectedOption;
-  late List<Flashcard> _allCards;
-  late List<QuizQuestion> _questions;
-  late int _mainQuestionCount;
-  late DateTime _sessionStartedAt;
-  late DateTime _questionStartedAt;
+  List<Flashcard> _allCards = const [];
+  List<QuizQuestion> _questions = const [];
+  int _mainQuestionCount = 0;
+  DateTime _sessionStartedAt = DateTime.now();
+  DateTime _questionStartedAt = DateTime.now();
   final List<int> _wrongIndices = [];
   bool _isReinforcementRound = false;
   int _reinforcementScore = 0;
@@ -172,9 +173,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   QuizSettings get _effectiveSettings {
     if (widget.settings != null) return widget.settings!;
-    return QuizSettings(
-      questionCount: widget.questionCount ?? 999,
-    );
+    return QuizSettings(questionCount: widget.questionCount ?? 999);
   }
 
   @override
@@ -194,8 +193,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _initQuiz() {
-    final studySet =
-        ref.read(studySetsProvider.notifier).getById(widget.setId);
+    final studySet = ref.read(studySetsProvider.notifier).getById(widget.setId);
     if (studySet == null || studySet.cards.length < 4) return;
 
     _allCards = studySet.cards;
@@ -383,8 +381,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _startReinforcementRound() {
-    final wrongCards =
-        _wrongIndices.map((i) => _questions[i].card).toList();
+    final wrongCards = _wrongIndices.map((i) => _questions[i].card).toList();
     setState(() {
       _isReinforcementRound = true;
       _reinforcementScore = 0;
@@ -398,7 +395,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _applyPaceScore(QuizQuestionType type) {
-    final elapsedMs = DateTime.now().difference(_questionStartedAt).inMilliseconds;
+    final elapsedMs = DateTime.now()
+        .difference(_questionStartedAt)
+        .inMilliseconds;
     final targetMs = type == QuizQuestionType.textInput ? 7000 : 4000;
     _pacedQuestionCount++;
     _paceDeltaPoints += elapsedMs <= targetMs ? 1 : -1;
@@ -419,7 +418,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final percent = mainTotal == 0
         ? 0
         : (mainScore / mainTotal * 100).round().clamp(0, 100);
-    final elapsedSeconds = DateTime.now().difference(_sessionStartedAt).inSeconds;
+    final elapsedSeconds = DateTime.now()
+        .difference(_sessionStartedAt)
+        .inSeconds;
     final paceScore = _computePaceScore();
 
     context.pushReplacement(
@@ -460,17 +461,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     final l10n = AppLocalizations.of(context);
 
-    if (studySet == null || studySet.cards.length < 4) {
+    if (studySet == null || studySet.cards.length < 4 || _questions.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          leading: const AppBackButton(),
-          title: Text(l10n.quiz),
-        ),
+        appBar: AppBar(leading: const AppBackButton(), title: Text(l10n.quiz)),
         body: Center(child: Text(l10n.needAtLeast4Cards)),
       );
     }
-
-    if (_questions.isEmpty) return const SizedBox();
 
     final question = _questions[_currentIndex];
     final progress = (_currentIndex + 1) / _questions.length;
@@ -486,9 +482,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               child: Text(
                 '${_currentIndex + 1} / ${_questions.length}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.green,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: AppTheme.green,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -497,7 +493,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             child: Center(
               child: Text(
                 l10n.scoreLabel(
-                    _isReinforcementRound ? _reinforcementScore : _score),
+                  _isReinforcementRound ? _reinforcementScore : _score,
+                ),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -517,7 +514,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               if (_isReinforcementRound)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                   decoration: AppTheme.softCardDecoration(
                     fillColor: Colors.white,
@@ -526,13 +526,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.refresh_rounded,
-                          size: 18, color: AppTheme.cyan),
+                      const Icon(
+                        Icons.refresh_rounded,
+                        size: 18,
+                        color: AppTheme.cyan,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '${l10n.reinforcementRound} \u2014 ${l10n.reinforcementDesc}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppTheme.cyan,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -561,7 +565,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           if (_showCompletionCelebrate)
             Positioned.fill(
               child: IgnorePointer(
-                child: _QuizCompletionCelebrateOverlay(
+                child: CompletionCelebrateOverlay(
                   animation: _completionController,
                   color: AppTheme.green,
                 ),
@@ -593,15 +597,15 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         Text(
           question.reversed ? l10n.whatIsTermFor : l10n.whatIsDefinitionOf,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
         const SizedBox(height: 10),
         Text(
           prompt,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 32),
         ...List.generate(4, (i) {
@@ -644,8 +648,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         Text(
           question.reversed ? l10n.whatIsTermFor : l10n.whatIsDefinitionOf,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
         const SizedBox(height: 16),
         TextInputQuestion(
@@ -667,119 +671,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       shownDefinition: question.shownDefinition,
       isCorrectPair: question.isCorrectPair,
       onAnswered: _onTrueFalseAnswered,
-    );
-  }
-}
-
-class _QuizCompletionCelebrateOverlay extends StatelessWidget {
-  final Animation<double> animation;
-  final Color color;
-
-  const _QuizCompletionCelebrateOverlay({
-    required this.animation,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, _) {
-        final t = animation.value;
-        final overlayT =
-            const Interval(0.0, 0.7, curve: Curves.easeOut).transform(t);
-        final revealT =
-            const Interval(0.16, 0.74, curve: Curves.easeOutBack).transform(t);
-        final revealOpacity = revealT.clamp(0.0, 1.0);
-        final burstT =
-            const Interval(0.28, 1.0, curve: Curves.easeOutCubic).transform(t);
-        final overlayOpacity =
-            (0.18 * (1 - (overlayT - 0.72).clamp(0.0, 1.0))).clamp(0.0, 0.18);
-        final pop = 0.46 + (revealT * 0.54) + sin(revealT * pi * 1.6) * 0.035;
-
-        return Container(
-          color: Colors.white.withValues(alpha: overlayOpacity),
-          child: Center(
-            child: Transform.scale(
-              scale: pop,
-              child: Opacity(
-                opacity: revealOpacity,
-                child: Container(
-                  width: 124,
-                  height: 124,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.94),
-                    border: Border.all(
-                      color: color.withValues(alpha: 0.25),
-                      width: 1.4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.22),
-                        blurRadius: 26,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      for (var i = 0; i < 10; i++)
-                        _QuizCelebrationDot(
-                          index: i,
-                          progress: burstT,
-                          color: color,
-                        ),
-                      Icon(
-                        Icons.celebration_rounded,
-                        size: 54,
-                        color: color,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _QuizCelebrationDot extends StatelessWidget {
-  final int index;
-  final double progress;
-  final Color color;
-
-  const _QuizCelebrationDot({
-    required this.index,
-    required this.progress,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final angle = ((index / 10) * pi * 2) - pi / 2;
-    final distance = 16 + progress * 42;
-    final dx = cos(angle) * distance;
-    final dy = sin(angle) * distance;
-    final alpha = (0.8 - progress * 0.75).clamp(0.0, 1.0);
-
-    return Transform.translate(
-      offset: Offset(dx, dy),
-      child: Opacity(
-        opacity: alpha,
-        child: Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: Color.lerp(color, const Color(0xFFFFD96B), (index % 3) * 0.35),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ),
     );
   }
 }

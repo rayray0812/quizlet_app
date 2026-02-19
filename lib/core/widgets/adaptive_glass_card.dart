@@ -24,7 +24,6 @@ class AdaptiveGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final content = padding != null
         ? Padding(padding: padding!, child: child)
         : child;
@@ -32,13 +31,11 @@ class AdaptiveGlassCard extends StatelessWidget {
     final card = isLiquidGlassSupported
         ? LiquidGlass(
             borderRadius: borderRadius,
-            blurSigma: isDark ? 20 : 24,
+            blurSigma: 24,
             tintColor: (fillColor ?? Theme.of(context).colorScheme.surface)
-                .withValues(alpha: isDark ? 0.16 : 0.22),
+                .withValues(alpha: 0.22),
             border: Border.all(
-              color:
-                  borderColor ??
-                  Colors.white.withValues(alpha: isDark ? 0.24 : 0.46),
+              color: borderColor ?? Colors.white.withValues(alpha: 0.46),
               width: 1,
             ),
             child: content,

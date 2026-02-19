@@ -39,6 +39,10 @@ import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/study/screens/custom_study_screen.dart';
 import 'package:recall_app/features/study/screens/conversation_setup_screen.dart';
 import 'package:recall_app/features/study/screens/conversation_practice_screen.dart';
+import 'package:recall_app/features/study/screens/conversation_summary_screen.dart';
+import 'package:recall_app/features/study/screens/conversation_history_screen.dart';
+import 'package:recall_app/features/study/screens/transcript_detail_screen.dart';
+import 'package:recall_app/features/study/models/conversation_transcript.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/services/supabase_service.dart';
@@ -181,6 +185,25 @@ GoRouter createAppRouter({
         path: '/achievements',
         builder: (context, state) => const AchievementsScreen(),
       ),
+      GoRoute(
+        path: '/conversation/history',
+        builder: (context, state) => const ConversationHistoryScreen(),
+        routes: [
+          GoRoute(
+            path: ':transcriptId',
+            builder: (context, state) {
+              final transcript =
+                  state.extra as ConversationTranscript?;
+              if (transcript == null) {
+                return const Scaffold(
+                  body: Center(child: Text('Transcript not found')),
+                );
+              }
+              return TranscriptDetailScreen(transcript: transcript);
+            },
+          ),
+        ],
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/signup',
@@ -273,6 +296,13 @@ GoRouter createAppRouter({
         builder: (context, state) => const SearchScreen(),
       ),
       GoRoute(
+        path: '/speaking/:setId',
+        builder: (context, state) {
+          final setId = state.pathParameters['setId']!;
+          return SpeakingPracticeScreen(setId: setId);
+        },
+      ),
+      GoRoute(
         path: '/study/custom',
         builder: (context, state) => const CustomStudyScreen(),
       ),
@@ -310,6 +340,25 @@ GoRouter createAppRouter({
                     difficulty: difficulty,
                   );
                 },
+                routes: [
+                  GoRoute(
+                    path: 'summary',
+                    builder: (context, state) {
+                      final setId = state.pathParameters['setId']!;
+                      final transcript =
+                          state.extra as ConversationTranscript?;
+                      if (transcript == null) {
+                        return const Scaffold(
+                          body: Center(child: Text('No transcript data')),
+                        );
+                      }
+                      return ConversationSummaryScreen(
+                        transcript: transcript,
+                        setId: setId,
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
