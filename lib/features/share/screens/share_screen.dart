@@ -17,7 +17,9 @@ class ShareScreen extends ConsumerWidget {
   /// Try to create a QrCode to validate the data fits.
   bool _canGenerateQr(String data) {
     try {
-      QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.L);
+      final qr = QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.L);
+      // Force computation — fromData is lazy; accessing moduleCount triggers _createData
+      qr.moduleCount; // ignore: unnecessary_statements
       return true;
     } catch (_) {
       return false;
