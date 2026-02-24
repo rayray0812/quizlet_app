@@ -35,6 +35,8 @@ import 'package:recall_app/providers/admin_provider.dart';
 import 'package:recall_app/models/sync_conflict.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/providers/stats_provider.dart';
+import 'package:recall_app/providers/tts_engine_provider.dart';
+import 'package:recall_app/providers/profile_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -101,26 +103,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           transitionBuilder: (child, animation) {
             return FadeTransition(
               opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.08, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              ),
+              child: child,
             );
           },
-          child: Text(
-            pageTitle,
-            key: ValueKey(pageTitle),
-            style: TextStyle(
-              color: AppTheme.indigo,
-              fontWeight: FontWeight.w800,
-              fontSize: 22,
-            ),
-          ),
+          child: _currentTab == 0
+              ? Row(
+                  key: const ValueKey('app-logo-title'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: Image.asset(
+                        'assets/branding/logo_clean.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n.appDisplayName,
+                      style: TextStyle(
+                        color: AppTheme.indigo,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  key: ValueKey(pageTitle),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      switch (_currentTab) {
+                        1 => Icons.search_rounded,
+                        2 => Icons.bar_chart_rounded,
+                        3 => Icons.settings_rounded,
+                        _ => Icons.home_rounded,
+                      },
+                      color: AppTheme.indigo,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      pageTitle,
+                      style: TextStyle(
+                        color: AppTheme.indigo,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                      ),
+                    ),
+                  ],
+                ),
         ),
         actions: [
+          if (_currentTab == 0)
+            IconButton(
+              icon: const Icon(Icons.groups_2_rounded, size: 22),
+              onPressed: () => context.push('/classes'),
+              tooltip: 'Classes',
+            ),
           if (_currentTab == 0)
             IconButton(
               icon: const Icon(Icons.search_rounded, size: 22),
@@ -264,81 +306,161 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  Widget _buildProfileAvatar(BuildContext context, UserProfile? profile, dynamic user) {
+    final hasAvatar = profile?.avatarUrl.isNotEmpty == true;
+    final name = profile?.displayName ?? '';
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.indigo.withValues(alpha: 0.15),
+            AppTheme.cyan.withValues(alpha: 0.12),
+            AppTheme.purple.withValues(alpha: 0.10),
+          ],
+        ),
+        border: Border.all(color: AppTheme.indigo.withValues(alpha: 0.12)),
+      ),
+      child: hasAvatar
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: Image.network(
+                profile!.avatarUrl,
+                fit: BoxFit.cover,
+                width: 52,
+                height: 52,
+                errorBuilder: (_, __, ___) => _avatarFallback(context, name, user),
+              ),
+            )
+          : _avatarFallback(context, name, user),
+    );
+  }
+
+  Widget _avatarFallback(BuildContext context, String name, dynamic user) {
+    if (name.isNotEmpty) {
+      return Center(
+        child: Text(
+          name[0].toUpperCase(),
+          style: GoogleFonts.notoSerifTc(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.indigo.withValues(alpha: 0.75),
+          ),
+        ),
+      );
+    }
+    return Icon(
+      user == null ? CupertinoIcons.person : CupertinoIcons.person_fill,
+      color: AppTheme.indigo.withValues(alpha: 0.6),
+    );
+  }
+
   Widget _buildSettingsTab(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final supabase = ref.read(supabaseServiceProvider);
     final user = supabase.currentUser;
+    final userEmail = user?.email?.trim();
+    final hasSignedInEmail = userEmail != null && userEmail.isNotEmpty;
     final reminderEnabled = ref.watch(notificationProvider);
     final biometricQuickUnlockEnabled = ref.watch(biometricQuickUnlockProvider);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final isAdmin = ref
         .watch(adminAccessProvider)
         .maybeWhen(data: (value) => value, orElse: () => false);
+    final profile = ref.watch(profileProvider).valueOrNull;
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 10, 16, 28 + bottomInset),
       children: [
         // -- User card --
         _AdaptiveSettingsCard(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.52),
-                  AppTheme.indigo.withValues(alpha: 0.1),
-                  AppTheme.cyan.withValues(alpha: 0.08),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () async {
+              await context.push('/profile/edit');
+              if (mounted) ref.invalidate(profileProvider);
+            },
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.52),
+                    AppTheme.indigo.withValues(alpha: 0.1),
+                    AppTheme.cyan.withValues(alpha: 0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  _buildProfileAvatar(context, profile, user),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (profile?.displayName.isNotEmpty == true)
+                              ? profile!.displayName
+                              : (!hasSignedInEmail
+                                  ? l10n.guestMode
+                                  : l10n.personalSettings),
+                          style: GoogleFonts.notoSerifTc(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasSignedInEmail ? userEmail : l10n.loginToSync,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (profile?.bio.isNotEmpty == true) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            profile!.bio,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (user == null)
+                    FilledButton(
+                      onPressed: () => context.push('/login'),
+                      child: Text(l10n.logIn),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(
+                        CupertinoIcons.chevron_right,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.24),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
-                  ),
-                  child: Icon(
-                    user == null ? CupertinoIcons.person : CupertinoIcons.person_fill,
-                    color: AppTheme.indigo,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user == null ? l10n.guestMode : l10n.personalSettings,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user?.email ?? l10n.loginToSync,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (user == null)
-                  FilledButton(
-                    onPressed: () => context.push('/login'),
-                    child: Text(l10n.logIn),
-                  ),
-              ],
             ),
           ),
         ),
@@ -465,6 +587,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   isAdmin: isAdmin,
                 ),
               ),
+              if (isAdmin && user != null) ...[
+                Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  minLeadingWidth: 24,
+                  leading: const Icon(Icons.admin_panel_settings_rounded),
+                  title: _serifSettingTitle(context, l10n.adminConsole),
+                  trailing: const Icon(CupertinoIcons.chevron_right),
+                  onTap: () => context.push('/admin'),
+                ),
+              ],
               if (user != null) ...[
                 Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
                 ListTile(
@@ -504,7 +637,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               GestureDetector(
                 onTap: () => context.push('/about'),
                 child: Text(
-                  '${AppConstants.appName} Recall \u00B7 v${AppConstants.appVersion}',
+                  '${AppConstants.appName} \u00B7 v${AppConstants.appVersion}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     decoration: TextDecoration.underline,
@@ -568,14 +701,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(l10n.geminiApiKey),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: InputDecoration(
-              hintText: l10n.geminiApiKeyHint,
-              isDense: true,
-            ),
+          title: Text(l10n.aiSettings),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: l10n.geminiApiKey,
+                  hintText: l10n.geminiApiKeyHint,
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _TtsEnginePicker(ref: ref),
+            ],
           ),
           actions: [
             TextButton(
@@ -597,7 +738,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         );
       },
     );
-    controller.dispose();
+    // Do NOT dispose controller here — the dialog's exit animation may still
+    // reference the TextField's controller. Let GC reclaim it once all
+    // references are gone.
   }
 
   Widget _buildSettingsSheetContainer({
@@ -639,6 +782,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final l10n = AppLocalizations.of(context);
     final supabase = ref.read(supabaseServiceProvider);
     final user = supabase.currentUser;
+    final userEmail = user?.email?.trim();
+    final hasSignedInEmail = userEmail != null && userEmail.isNotEmpty;
     final biometricQuickUnlockEnabled = ref.read(biometricQuickUnlockProvider);
     await showModalBottomSheet<void>(
       context: context,
@@ -669,7 +814,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         if (context.mounted) Navigator.pop(sheetContext);
                       },
               ),
-              if (user != null)
+              if (hasSignedInEmail)
                 ListTile(
                   leading: const Icon(Icons.security_rounded),
                   title: _serifSettingTitle(context, l10n.securityCenter),
@@ -678,11 +823,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     await _showSecurityCenterDialog(
                       context: context,
                       ref: ref,
-                      email: user.email ?? 'Unknown',
+                      email: userEmail,
                     );
                   },
                 ),
-              if (isAdmin && user != null)
+              if (isAdmin && hasSignedInEmail)
                 ListTile(
                   leading: const Icon(Icons.admin_panel_settings_rounded),
                   title: _serifSettingTitle(context, l10n.adminConsole),
@@ -691,7 +836,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     context.push('/admin');
                   },
                 ),
-              if (user != null)
+              if (hasSignedInEmail)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: SizedBox(
@@ -758,7 +903,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await notifier.setEnabled(true);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Biometric quick unlock enabled.')),
+      const SnackBar(content: Text('已啟用生物辨識快速解鎖。')),
     );
   }
 
@@ -776,17 +921,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Security Center'),
+        title: const Text('帳號安全中心'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Current account: $email'),
+            Text('目前帳號：$email'),
             const SizedBox(height: 8),
-            Text('Sync conflicts: ${conflicts.length}'),
+            Text('同步衝突：${conflicts.length}'),
             const SizedBox(height: 8),
             const Text(
-              'Use these actions when you suspect account access on another device.',
+              '若懷疑帳號在其他裝置被登入，請使用以下安全操作。',
             ),
           ],
         ),
@@ -796,7 +941,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Navigator.pop(dialogContext);
               _showSyncConflictDialog(context: context, ref: ref);
             },
-            child: const Text('Resolve Conflicts'),
+            child: const Text('處理同步衝突'),
           ),
           TextButton(
             onPressed: () async {
@@ -807,18 +952,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 importExportService: importExportService,
               );
             },
-            child: const Text('Encrypted Backup'),
+            child: const Text('加密備份'),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
               await _showDeleteAccountDialog(context: context, ref: ref);
             },
-            child: const Text('Delete Account'),
+            child: const Text('刪除帳號'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: const Text('關閉'),
           ),
           TextButton(
             onPressed: () async {
@@ -831,7 +976,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
             },
-            child: const Text('Sign Out This Device'),
+            child: const Text('登出此裝置'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -844,7 +989,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
             },
-            child: const Text('Sign Out All Devices'),
+            child: const Text('登出所有裝置'),
           ),
         ],
       ),
@@ -859,7 +1004,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final conflicts = ref.read(syncConflictsProvider);
     if (conflicts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No sync conflicts detected.')),
+        const SnackBar(content: Text('目前沒有同步衝突。')),
       );
       return;
     }
@@ -867,7 +1012,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sync Conflicts'),
+        title: const Text('同步衝突'),
         content: SizedBox(
           width: 500,
           child: ListView.separated(
@@ -899,7 +1044,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: const Text('關閉'),
           ),
         ],
       ),
@@ -915,25 +1060,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Encrypted Backup'),
+        title: const Text('加密備份'),
         content: TextField(
           obscureText: true,
           onChanged: (value) => passphrase = value,
           decoration: const InputDecoration(
-            labelText: 'Passphrase',
-            hintText: 'At least 8 characters',
+            labelText: '密碼短語',
+            hintText: '至少 8 個字元',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () async {
               if (passphrase.length < 8) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passphrase must be at least 8 characters.')),
+                  const SnackBar(content: Text('密碼短語至少需要 8 個字元。')),
                 );
                 return;
               }
@@ -944,18 +1089,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 );
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Encrypted backup exported.')),
+                  const SnackBar(content: Text('已匯出加密備份。')),
                 );
               } catch (e) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+                ).showSnackBar(SnackBar(content: Text('匯出失敗：$e')));
               } finally {
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Export'),
+            child: const Text('匯出'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -969,7 +1114,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Imported ${result.setCount} sets, ${result.progressCount} progress, ${result.reviewLogCount} logs.',
+                      '已匯入 ${result.setCount} 個學習集、${result.progressCount} 筆進度、${result.reviewLogCount} 筆複習紀錄。',
                     ),
                   ),
                 );
@@ -977,12 +1122,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+                ).showSnackBar(SnackBar(content: Text('匯入失敗：$e')));
               } finally {
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Import'),
+            child: const Text('匯入'),
           ),
         ],
       ),
@@ -1001,19 +1146,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Account'),
+        title: const Text('刪除帳號'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'This action is irreversible. Enter password to re-authenticate if needed.',
+              '此操作無法復原。如有需要，請輸入密碼重新驗證。',
             ),
             const SizedBox(height: 12),
             TextField(
               obscureText: true,
               onChanged: (value) => passwordForReauth = value,
               decoration: const InputDecoration(
-                labelText: 'Password (optional for OAuth users)',
+                labelText: '密碼（OAuth 使用者可留空）',
               ),
             ),
           ],
@@ -1021,7 +1166,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1041,21 +1186,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   SnackBar(
                     content: Text(
                       fullDeleted
-                          ? 'Account deleted successfully.'
-                          : 'Account data deleted. Ask admin to enable full auth-user deletion RPC.',
+                          ? '帳號已成功刪除。'
+                          : '已刪除帳號資料；如要完整刪除 auth 使用者，請請管理員啟用對應 RPC。',
                     ),
                   ),
                 );
               } catch (e) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Delete account failed: $e')),
+                  SnackBar(content: Text('刪除帳號失敗：$e')),
                 );
               } finally {
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Delete'),
+            child: const Text('刪除'),
           ),
         ],
       ),
@@ -1778,12 +1923,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
 class _HomeSectionHeader extends StatelessWidget {
   final String title;
-  final String? subtitle;
   final Widget? trailing;
 
   const _HomeSectionHeader({
     required this.title,
-    this.subtitle,
     this.trailing,
   });
 
@@ -1794,7 +1937,7 @@ class _HomeSectionHeader extends StatelessWidget {
       children: [
         Container(
           width: 2.5,
-          height: subtitle == null ? 20 : 34,
+          height: 20,
           decoration: BoxDecoration(
             color: AppTheme.indigo.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(999),
@@ -1802,26 +1945,12 @@ class _HomeSectionHeader extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 1),
-                Text(
-                  subtitle!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ],
           ),
         ),
         if (trailing != null) trailing!,
@@ -2315,4 +2444,51 @@ class _StaggeredFadeItemState extends State<_StaggeredFadeItem>
   }
 }
 
+class _TtsEnginePicker extends ConsumerWidget {
+  final WidgetRef ref;
 
+  const _TtsEnginePicker({required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final engine = ref.watch(ttsEngineProvider);
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.ttsEngine,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        _ttsOption(context, ref, TtsEngine.cloudTts, engine, l10n.ttsCloudTts, l10n.ttsCloudTtsDesc),
+        _ttsOption(context, ref, TtsEngine.geminiTts, engine, l10n.ttsGeminiTts, l10n.ttsGeminiTtsDesc),
+        _ttsOption(context, ref, TtsEngine.deviceTts, engine, l10n.ttsDeviceTts, l10n.ttsDeviceTtsDesc),
+      ],
+    );
+  }
+
+  Widget _ttsOption(
+    BuildContext context,
+    WidgetRef ref,
+    TtsEngine value,
+    TtsEngine current,
+    String title,
+    String subtitle,
+  ) {
+    return RadioListTile<TtsEngine>(
+      value: value,
+      groupValue: current,
+      onChanged: (v) {
+        if (v != null) ref.read(ttsEngineProvider.notifier).setEngine(v);
+      },
+      title: Text(title, style: const TextStyle(fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11)),
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}

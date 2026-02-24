@@ -25,6 +25,14 @@ class SupabaseConstants {
   static const String studySetsTable = 'study_sets';
   static const String cardProgressTable = 'card_progress';
   static const String reviewLogsTable = 'review_logs';
+  static const String foldersTable = 'folders';
+  static const String profilesTable = 'profiles';
+  static const String classesTable = 'classes';
+  static const String classMembersTable = 'class_members';
+  static const String classSetsTable = 'class_sets';
+  static const String classAssignmentsTable = 'class_assignments';
+  static const String studentAssignmentProgressTable =
+      'student_assignment_progress';
   static const String adminRolesTable = 'admin_roles';
   static const String adminRoleBindingsTable = 'admin_role_bindings';
   static const String adminAuditLogsTable = 'admin_audit_logs';

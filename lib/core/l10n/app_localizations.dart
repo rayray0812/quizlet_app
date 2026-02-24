@@ -24,6 +24,9 @@ class AppLocalizations {
     return AppLocalizationsZh(locale);
   }
 
+  // -- App --
+  String get appDisplayName => '';
+
   // -- Home --
   String get myStudySets => '';
   String get noStudySetsYet => '';
@@ -118,6 +121,21 @@ class AppLocalizations {
   String get matchingTime => '';
   String get matchingAccuracy => '';
   String get matchingAttempts => '';
+  String get matchingRoundComplete => '';
+
+  // -- Result Screen --
+  String get quizTime => '';
+  String get accuracy => '';
+  String get correctCount => '';
+  String get gradeLabel => '';
+
+  // -- XP / Combo --
+  String xpEarned(int xp) => '';
+  String combo(int count) => '';
+  String comboMultiplier(String mult) => '';
+  String get maxComboLabel => '';
+  String get sessionXpTotal => '';
+  String get newRecord => '';
 
   // -- Import --
   String get importTitle => '';
@@ -230,6 +248,13 @@ class AppLocalizations {
   String get geminiApiKeyHint => '';
   String get geminiApiKeyNotSet => '';
   String get geminiApiKeySaved => '';
+  String get ttsEngine => '';
+  String get ttsCloudTts => '';
+  String get ttsCloudTtsDesc => '';
+  String get ttsGeminiTts => '';
+  String get ttsGeminiTtsDesc => '';
+  String get ttsDeviceTts => '';
+  String get ttsDeviceTtsDesc => '';
   String get analyzing => '';
   String get noCardsExtracted => '';
   String get photoScanFailed => '';
@@ -566,10 +591,43 @@ class AppLocalizations {
   String get badgeConversationStreak7Desc => '';
   String get badgeConversationPerfect => '';
   String get badgeConversationPerfectDesc => '';
+
+  // -- Conversation Optimization --
+  String get showChinese => '';
+  String get hideChinese => '';
+  String get you => '';
+  String get aiRoleLabelPrefix => '';
+  String get yourRoleLabelPrefix => '';
+  String get focusTermsLabel => '';
+  String get objectiveNowLabel => '';
+  String get nextObjectiveLabel => '';
+  String nTermsUsed(int count) => '';
+  String get weakAreas => '';
+  String get nextSteps => '';
+  String get recommendPracticeAgain => '';
+  String get recommendLowerDifficulty => '';
+  String get recommendHigherDifficulty => '';
+  String get unusedTargetTerms => '';
+  String get lowestDimension => '';
+  String get replyHintTitle => '';
+
+  // -- Profile --
+  String get editProfile => '';
+  String get displayName => '';
+  String get displayNameHint => '';
+  String get bio => '';
+  String get bioHint => '';
+  String get changeAvatar => '';
+  String get profileSaved => '';
+  String get profileSyncNote => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh(super.locale);
+
+  // -- App --
+  @override
+  String get appDisplayName => '\u62FE\u61B6';
 
   // -- Home --
   @override
@@ -763,6 +821,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get matchingAccuracy => '\u6B63\u78BA\u7387';
   @override
   String get matchingAttempts => '\u5617\u8A66\u6B21\u6578';
+  @override
+  String get matchingRoundComplete => '\u4F60\u5B8C\u6210\u4E86\u4E00\u8F2A\u914D\u5C0D\u7DF4\u7FD2';
+
+  // -- Result Screen --
+  @override
+  String get quizTime => '\u4F5C\u7B54\u6642\u9593';
+  @override
+  String get accuracy => '\u6B63\u78BA\u7387';
+  @override
+  String get correctCount => '\u7B54\u5C0D\u984C\u6578';
+  @override
+  String get gradeLabel => '\u8A55\u5206';
+
+  // -- XP / Combo --
+  @override
+  String xpEarned(int xp) => '+$xp XP';
+  @override
+  String combo(int count) => '$count \u9023\u64CA';
+  @override
+  String comboMultiplier(String mult) => '\u00D7$mult';
+  @override
+  String get maxComboLabel => '\u6700\u9AD8\u9023\u64CA';
+  @override
+  String get sessionXpTotal => '\u7372\u5F97 XP';
+  @override
+  String get newRecord => '\u65B0\u7D00\u9304\uFF01';
 
   // -- Import --
   @override
@@ -990,6 +1074,20 @@ class AppLocalizationsZh extends AppLocalizations {
       '\u8ACB\u5148\u5728\u8A2D\u5B9A\u9801\u8F38\u5165 Gemini API Key';
   @override
   String get geminiApiKeySaved => 'API Key \u5DF2\u5132\u5B58';
+  @override
+  String get ttsEngine => '\u8A9E\u97F3\u5F15\u64CE';
+  @override
+  String get ttsCloudTts => 'Cloud TTS';
+  @override
+  String get ttsCloudTtsDesc => 'Google \u96F2\u7AEF\u8A9E\u97F3\uFF08\u63A8\u85A6\uFF0C\u514D\u8CBB 100 \u842C\u5B57/\u6708\uFF09';
+  @override
+  String get ttsGeminiTts => 'Gemini TTS';
+  @override
+  String get ttsGeminiTtsDesc => 'AI \u751F\u6210\u8A9E\u97F3\uFF08\u6700\u81EA\u7136\uFF0C\u4F46\u8017 token\uFF09';
+  @override
+  String get ttsDeviceTts => '\u8A2D\u5099\u767C\u97F3';
+  @override
+  String get ttsDeviceTtsDesc => '\u624B\u6A5F\u5167\u5EFA\u8A9E\u97F3\uFF08\u514D\u8CBB\uFF0C\u4F46\u8F03\u6A5F\u68B0\uFF09';
   @override
   String get analyzing => 'AI \u5206\u6790\u4E2D\u2026';
   @override
@@ -1691,10 +1789,68 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get badgeConversationPerfectDesc =>
       '\u55AE\u5834\u5C0D\u8A71\u5168\u90E8 5 \u5206';
+
+  // -- Conversation Optimization --
+  @override
+  String get showChinese => '\u986F\u793A\u4E2D\u6587';
+  @override
+  String get hideChinese => '\u96B1\u85CF\u4E2D\u6587';
+  @override
+  String get you => '\u4F60';
+  @override
+  String get aiRoleLabelPrefix => 'AI \u89D2\u8272\uFF1A';
+  @override
+  String get yourRoleLabelPrefix => '\u4F60\u7684\u89D2\u8272\uFF1A';
+  @override
+  String get focusTermsLabel => '\u76EE\u6A19\u55AE\u5B57\uFF1A';
+  @override
+  String get objectiveNowLabel => '\u7576\u524D\u76EE\u6A19\uFF1A';
+  @override
+  String get nextObjectiveLabel => '\u4E0B\u4E00\u76EE\u6A19\uFF1A';
+  @override
+  String nTermsUsed(int count) => '\u5DF2\u4F7F\u7528 $count \u500B\u55AE\u5B57';
+  @override
+  String get weakAreas => '\u5F85\u52A0\u5F37\u9805\u76EE';
+  @override
+  String get nextSteps => '\u5EFA\u8B70\u4E0B\u4E00\u6B65';
+  @override
+  String get recommendPracticeAgain => '\u518D\u7DF4\u7FD2\u4E00\u6B21\u540C\u96E3\u5EA6';
+  @override
+  String get recommendLowerDifficulty => '\u5617\u8A66\u964D\u4F4E\u96E3\u5EA6';
+  @override
+  String get recommendHigherDifficulty => '\u6311\u6230\u66F4\u9AD8\u96E3\u5EA6';
+  @override
+  String get unusedTargetTerms => '\u672A\u4F7F\u7528\u7684\u76EE\u6A19\u55AE\u5B57';
+  @override
+  String get lowestDimension => '\u6700\u5F31\u9805\u76EE';
+  @override
+  String get replyHintTitle => '\u56DE\u8986\u63D0\u793A';
+
+  // -- Profile --
+  @override
+  String get editProfile => '\u7DE8\u8F2F\u500B\u4EBA\u6A94\u6848';
+  @override
+  String get displayName => '\u986F\u793A\u540D\u7A31';
+  @override
+  String get displayNameHint => '\u8F38\u5165\u4F60\u7684\u540D\u5B57';
+  @override
+  String get bio => '\u500B\u4EBA\u7C21\u4ECB';
+  @override
+  String get bioHint => '\u5BEB\u4E00\u6BB5\u7C21\u77ED\u7684\u81EA\u6211\u4ECB\u7D39';
+  @override
+  String get changeAvatar => '\u8B8A\u66F4\u982D\u50CF';
+  @override
+  String get profileSaved => '\u500B\u4EBA\u6A94\u6848\u5DF2\u5132\u5B58';
+  @override
+  String get profileSyncNote => '\u8A2A\u5BA2\u6A21\u5F0F\u4E0B\u7684\u500B\u4EBA\u6A94\u6848\u50C5\u5132\u5B58\u5728\u672C\u6A5F\uFF0C\u767B\u5165\u5F8C\u53EF\u540C\u6B65\u81F3\u96F2\u7AEF';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn(super.locale);
+
+  // -- App --
+  @override
+  String get appDisplayName => 'Grasp';
 
   // -- Home --
   @override
@@ -1876,6 +2032,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get matchingAccuracy => 'Accuracy';
   @override
   String get matchingAttempts => 'Attempts';
+  @override
+  String get matchingRoundComplete => 'You completed a matching round!';
+
+  // -- Result Screen --
+  @override
+  String get quizTime => 'Time';
+  @override
+  String get accuracy => 'Accuracy';
+  @override
+  String get correctCount => 'Correct';
+  @override
+  String get gradeLabel => 'Grade';
+
+  // -- XP / Combo --
+  @override
+  String xpEarned(int xp) => '+$xp XP';
+  @override
+  String combo(int count) => '$count Combo';
+  @override
+  String comboMultiplier(String mult) => '\u00D7$mult';
+  @override
+  String get maxComboLabel => 'Max Combo';
+  @override
+  String get sessionXpTotal => 'XP Earned';
+  @override
+  String get newRecord => 'New Record!';
 
   // -- Import --
   @override
@@ -2091,6 +2273,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please set Gemini API Key in Settings first';
   @override
   String get geminiApiKeySaved => 'API Key saved';
+  @override
+  String get ttsEngine => 'Voice Engine';
+  @override
+  String get ttsCloudTts => 'Cloud TTS';
+  @override
+  String get ttsCloudTtsDesc => 'Google Cloud voice (recommended, free 1M chars/mo)';
+  @override
+  String get ttsGeminiTts => 'Gemini TTS';
+  @override
+  String get ttsGeminiTtsDesc => 'AI-generated voice (most natural, costs tokens)';
+  @override
+  String get ttsDeviceTts => 'Device Voice';
+  @override
+  String get ttsDeviceTtsDesc => 'Built-in phone voice (free, more robotic)';
   @override
   String get analyzing => 'AI analyzing...';
   @override
@@ -2749,6 +2945,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get badgeConversationPerfect => 'Perfect Conversation';
   @override
   String get badgeConversationPerfectDesc => 'Score all 5s in a single session';
+
+  // -- Conversation Optimization --
+  @override
+  String get showChinese => 'Show ZH';
+  @override
+  String get hideChinese => 'Hide ZH';
+  @override
+  String get you => 'You';
+  @override
+  String get aiRoleLabelPrefix => 'AI role: ';
+  @override
+  String get yourRoleLabelPrefix => 'Your role: ';
+  @override
+  String get focusTermsLabel => 'Focus terms: ';
+  @override
+  String get objectiveNowLabel => 'Objective now: ';
+  @override
+  String get nextObjectiveLabel => 'Next objective: ';
+  @override
+  String nTermsUsed(int count) => '$count terms used';
+  @override
+  String get weakAreas => 'Weak Areas';
+  @override
+  String get nextSteps => 'Next Steps';
+  @override
+  String get recommendPracticeAgain => 'Practice again at the same difficulty';
+  @override
+  String get recommendLowerDifficulty => 'Try a lower difficulty level';
+  @override
+  String get recommendHigherDifficulty => 'Challenge yourself with a higher difficulty';
+  @override
+  String get unusedTargetTerms => 'Unused target terms';
+  @override
+  String get lowestDimension => 'Weakest area';
+  @override
+  String get replyHintTitle => 'Reply Hint';
+
+  // -- Profile --
+  @override
+  String get editProfile => 'Edit Profile';
+  @override
+  String get displayName => 'Display Name';
+  @override
+  String get displayNameHint => 'Enter your name';
+  @override
+  String get bio => 'Bio';
+  @override
+  String get bioHint => 'Write a short bio about yourself';
+  @override
+  String get changeAvatar => 'Change Avatar';
+  @override
+  String get profileSaved => 'Profile saved';
+  @override
+  String get profileSyncNote => 'Guest profile is saved locally only. Log in to sync to the cloud.';
 }
 
 class _AppLocalizationsDelegate

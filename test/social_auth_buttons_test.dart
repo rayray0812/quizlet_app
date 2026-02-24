@@ -14,7 +14,7 @@ void main() {
       rawError: 'access_denied',
       canceledByResult: false,
     );
-    expect(message, 'Google sign-in was canceled.');
+    expect(message, 'Google \u767B\u5165\u5DF2\u53D6\u6D88\u3002');
   });
 
   test(
@@ -25,7 +25,7 @@ void main() {
         rawError: 'Provider is not enabled',
         canceledByResult: false,
       );
-      expect(message, 'This sign-in provider is not enabled yet.');
+      expect(message, '\u6B64\u767B\u5165\u65B9\u5F0F\u5C1A\u672A\u555F\u7528\u3002');
     },
   );
 
@@ -35,6 +35,6 @@ void main() {
       rawError: '',
       canceledByResult: false,
     );
-    expect(message, 'Apple sign-in failed. Please try again.');
+    expect(message, 'Apple \u767B\u5165\u5931\u6557\uFF0C\u8ACB\u518D\u8A66\u4E00\u6B21\u3002');
   });
 }

@@ -15,6 +15,8 @@ final adminServiceProvider = Provider<AdminService>((ref) {
 });
 
 final adminAccessProvider = FutureProvider<bool>((ref) async {
+  // Watch auth state so the provider re-evaluates on login/logout.
+  ref.watch(authStateProvider);
   final adminService = ref.watch(adminServiceProvider);
   return adminService.hasAdminAccess();
 });

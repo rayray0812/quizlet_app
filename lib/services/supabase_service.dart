@@ -3,6 +3,7 @@ import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -70,7 +71,27 @@ class SupabaseService {
   Future<bool> isCurrentUserAdmin() async {
     final client = _clientOrNull;
     final user = currentUser;
-    if (client == null || user == null) return false;
+    if (client == null || user == null) {
+      debugPrint('[Admin] client=$client user=$user → false (null)');
+      return false;
+    }
+    try {
+      final rpcResult = await client.rpc(
+        'is_global_admin',
+        params: {'uid': user.id},
+      );
+      debugPrint('[Admin] RPC is_global_admin returned: $rpcResult (${rpcResult.runtimeType})');
+      if (rpcResult is bool) return rpcResult;
+      if (rpcResult is num) return rpcResult != 0;
+      if (rpcResult is String) {
+        final value = rpcResult.trim().toLowerCase();
+        if (value == 'true' || value == 't' || value == '1') return true;
+        if (value == 'false' || value == 'f' || value == '0') return false;
+      }
+      debugPrint('[Admin] RPC returned unhandled type, falling through');
+    } catch (e) {
+      debugPrint('[Admin] RPC failed: $e — trying table query');
+    }
     try {
       final rows = await client
           .from(SupabaseConstants.adminRoleBindingsTable)
@@ -79,8 +100,11 @@ class SupabaseService {
           .eq('scope_type', 'global')
           .inFilter('role_key', ['super_admin', 'org_admin'])
           .limit(1);
-      return (rows as List).isNotEmpty;
-    } catch (_) {
+      final result = (rows as List).isNotEmpty;
+      debugPrint('[Admin] Table query rows=$rows → $result');
+      return result;
+    } catch (e) {
+      debugPrint('[Admin] Table query failed: $e → false');
       return false;
     }
   }
@@ -199,7 +223,100 @@ class SupabaseService {
       'created_at': studySet.createdAt.toIso8601String(),
       'updated_at': (studySet.updatedAt ?? DateTime.now().toUtc())
           .toIso8601String(),
+      'folder_id': studySet.folderId,
     });
+  }
+
+  // Folders
+  Future<void> upsertFolder(Folder folder) async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    await client.from(SupabaseConstants.foldersTable).upsert({
+      'id': folder.id,
+      'user_id': userId,
+      'name': folder.name,
+      'color_hex': folder.colorHex,
+      'icon_code_point': folder.iconCodePoint,
+      'created_at': folder.createdAt.toIso8601String(),
+      'updated_at': (folder.updatedAt ?? DateTime.now().toUtc())
+          .toIso8601String(),
+    });
+  }
+
+  Future<List<Folder>> fetchFolders() async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    final response = await client
+        .from(SupabaseConstants.foldersTable)
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return (response as List).map(_rowToFolder).toList();
+  }
+
+  Future<List<({String id, DateTime updatedAt})>> fetchFolderManifest() async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    final response = await client
+        .from(SupabaseConstants.foldersTable)
+        .select('id, updated_at')
+        .eq('user_id', userId);
+
+    return (response as List).map((row) {
+      return (
+        id: row['id'] as String,
+        updatedAt: DateTime.parse(row['updated_at'] as String),
+      );
+    }).toList();
+  }
+
+  Future<List<Folder>> fetchFoldersByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return [];
+
+    final response = await client
+        .from(SupabaseConstants.foldersTable)
+        .select()
+        .eq('user_id', userId)
+        .inFilter('id', ids);
+
+    return (response as List).map(_rowToFolder).toList();
+  }
+
+  Future<void> deleteFolderById(String folderId) async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    await client
+        .from(SupabaseConstants.foldersTable)
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', folderId);
+  }
+
+  Folder _rowToFolder(dynamic row) {
+    return Folder(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      colorHex: row['color_hex'] as String,
+      iconCodePoint: row['icon_code_point'] as int,
+      createdAt: DateTime.parse(row['created_at'] as String),
+      updatedAt: row['updated_at'] != null
+          ? DateTime.parse(row['updated_at'] as String)
+          : null,
+      isSynced: true,
+    );
   }
 
   Future<void> deleteStudySetById(String setId) async {
@@ -406,6 +523,62 @@ class SupabaseService {
       lastDifficulty: (row['last_difficulty'] as num?)?.toDouble() ?? 0.0,
       isSynced: true,
     );
+  }
+
+  // -- Profile --
+
+  /// Fetch the current user's profile from Supabase.
+  Future<Map<String, dynamic>?> fetchProfile() async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return null;
+
+    final response = await client
+        .from(SupabaseConstants.profilesTable)
+        .select()
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    return response;
+  }
+
+  /// Update display_name, bio, and/or avatar_url on the profiles table.
+  Future<void> updateProfile({
+    String? displayName,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    final updates = <String, dynamic>{
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (displayName != null) updates['display_name'] = displayName;
+    if (bio != null) updates['bio'] = bio;
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+
+    await client
+        .from(SupabaseConstants.profilesTable)
+        .update(updates)
+        .eq('user_id', userId);
+  }
+
+  /// Upload avatar bytes to the `avatars` bucket and return the public URL.
+  Future<String> uploadAvatar(Uint8List bytes, String fileExt) async {
+    final client = _requireClient();
+    final userId = currentUser?.id;
+    if (userId == null) throw StateError('No signed-in user.');
+
+    final path = '$userId/avatar.$fileExt';
+    await client.storage.from('avatars').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    return client.storage.from('avatars').getPublicUrl(path);
   }
 
   SupabaseClient _requireClient() {

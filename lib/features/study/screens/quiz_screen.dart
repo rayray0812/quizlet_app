@@ -1,5 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:recall_app/core/services/study_haptics.dart';
+import 'package:recall_app/providers/session_xp_provider.dart';
+import 'package:recall_app/features/study/widgets/combo_indicator.dart';
+import 'package:recall_app/features/study/widgets/xp_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/models/flashcard.dart';
@@ -170,6 +174,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int _pacedQuestionCount = 0;
   bool _showCompletionCelebrate = false;
   bool _navigatingToResult = false;
+  final _xpToastKey = GlobalKey<XpToastOverlayState>();
 
   QuizSettings get _effectiveSettings {
     if (widget.settings != null) return widget.settings!;
@@ -318,9 +323,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     setState(() {
       _selectedOption = optionIndex;
       if (isCorrect) {
+        StudyHaptics.onCorrect();
         _isReinforcementRound ? _reinforcementScore++ : _score++;
-      } else if (!_isReinforcementRound) {
-        _wrongIndices.add(_currentIndex);
+        final earned = ref.read(sessionXpProvider.notifier).onCorrect();
+        _xpToastKey.currentState?.showXp(earned);
+      } else {
+        StudyHaptics.onWrong();
+        ref.read(sessionXpProvider.notifier).onIncorrect();
+        if (!_isReinforcementRound) {
+          _wrongIndices.add(_currentIndex);
+        }
       }
     });
 
@@ -329,6 +341,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   void _onTextInputAnswered(bool isCorrect) {
     _applyPaceScore(_questions[_currentIndex].type);
+    if (isCorrect) {
+      StudyHaptics.onCorrect();
+      final earned = ref.read(sessionXpProvider.notifier).onCorrect();
+      _xpToastKey.currentState?.showXp(earned);
+    } else {
+      StudyHaptics.onWrong();
+      ref.read(sessionXpProvider.notifier).onIncorrect();
+    }
     setState(() {
       if (isCorrect) {
         _isReinforcementRound ? _reinforcementScore++ : _score++;
@@ -342,6 +362,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   void _onTrueFalseAnswered(bool isCorrect) {
     _applyPaceScore(_questions[_currentIndex].type);
+    if (isCorrect) {
+      StudyHaptics.onCorrect();
+      final earned = ref.read(sessionXpProvider.notifier).onCorrect();
+      _xpToastKey.currentState?.showXp(earned);
+    } else {
+      StudyHaptics.onWrong();
+      ref.read(sessionXpProvider.notifier).onIncorrect();
+    }
     setState(() {
       if (isCorrect) {
         _isReinforcementRound ? _reinforcementScore++ : _score++;
@@ -510,7 +538,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         children: [
           Column(
             children: [
-              RoundedProgressBar(value: progress),
+              RoundedProgressBar(
+                value: progress,
+                counterText: '${_currentIndex + 1} / ${_questions.length}',
+              ),
               if (_isReinforcementRound)
                 Container(
                   width: double.infinity,
@@ -561,6 +592,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 ),
               ),
             ],
+          ),
+          // Combo indicator
+          const Positioned(
+            top: 60,
+            right: 16,
+            child: ComboIndicator(),
+          ),
+          // XP toast
+          Positioned(
+            top: 100,
+            left: 0,
+            right: 0,
+            child: Center(child: XpToastOverlay(key: _xpToastKey)),
           ),
           if (_showCompletionCelebrate)
             Positioned.fill(

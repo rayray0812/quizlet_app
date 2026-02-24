@@ -3,7 +3,9 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/services/study_haptics.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/features/study/widgets/flip_card.dart';
 
@@ -29,6 +31,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
   late AnimationController _animController;
   late Animation<Offset> _animOffset;
   late AnimationController _entryController;
+  late Listenable _mergedListenable;
   bool _isAnimating = false;
   bool _isDragging = false;
   bool _isTopCardFlipping = false;
@@ -40,12 +43,13 @@ class SwipeCardStackState extends State<SwipeCardStack>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
+      duration: StudyConstants.swipeOutDuration,
     );
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 230),
     )..value = 1;
+    _mergedListenable = Listenable.merge([_animController, _entryController]);
   }
 
   @override
@@ -97,6 +101,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
       CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
     _animController.forward(from: 0).then((_) {
+      StudyHaptics.onSwipe();
       widget.onSwiped(currentIndex, remembered);
       if (!mounted) return;
       _entryController.stop();
@@ -195,7 +200,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
         }
       },
       child: AnimatedBuilder(
-        animation: Listenable.merge([_animController, _entryController]),
+        animation: _mergedListenable,
         builder: (context, _) {
           final offset = _isAnimating ? _animOffset.value : _dragOffset;
           final ratio = _screenWidth > 0 ? offset.dx / _screenWidth : 0.0;

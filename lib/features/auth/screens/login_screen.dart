@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
@@ -70,25 +69,21 @@ class LoginScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 24),
-                  Container(
-                    width: 82,
-                    height: 82,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.26),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.38)),
-                    ),
-                    child: const Icon(
-                      Icons.auto_stories_rounded,
-                      size: 40,
-                      color: AppTheme.indigo,
+                  Center(
+                    child: SizedBox(
+                      width: 80,
+                      height: 80,
+                      child: Image.asset(
+                        'assets/branding/logo_clean.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   Text(
-                    AppConstants.appName,
+                    l10n.appDisplayName,
                     style: GoogleFonts.notoSerifTc(
-                      fontSize: 34,
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.indigo,
                     ),
@@ -96,7 +91,7 @@ class LoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '歡迎回來，繼續你的學習節奏',
+                    '開始今天的學習。',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                           fontWeight: FontWeight.w600,
@@ -106,7 +101,10 @@ class LoginScreen extends ConsumerWidget {
                   const SizedBox(height: 22),
                   AdaptiveGlassCard(
                     borderRadius: 20,
-                    fillColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.58),
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: 0.58),
                     borderColor: Colors.white.withValues(alpha: 0.26),
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
                     child: AuthForm(
@@ -137,7 +135,7 @@ class LoginScreen extends ConsumerWidget {
                               context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: const Text('Email 尚未驗證，請到信箱點擊驗證連結。'),
+                                content: const Text('信箱尚未驗證，請先完成驗證。'),
                                 action: SnackBarAction(
                                   label: '重寄',
                                   onPressed: () {
@@ -193,7 +191,8 @@ class LoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   TextButton(
-                    onPressed: () => context.push(_withFrom('/forgot-password', from)),
+                    onPressed: () =>
+                        context.push(_withFrom('/forgot-password', from)),
                     child: const Text('忘記密碼？'),
                   ),
                   const SizedBox(height: 8),
@@ -204,7 +203,10 @@ class LoginScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
                           '或',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
                                 color: Theme.of(context).colorScheme.outline,
                                 fontWeight: FontWeight.w600,
                               ),

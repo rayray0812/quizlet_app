@@ -240,6 +240,7 @@ class FolderManagementScreen extends ConsumerWidget {
                   name: name,
                   colorHex: selectedColor,
                   iconCodePoint: selectedIcon,
+                  createdAt: folder?.createdAt ?? DateTime.now().toUtc(),
                 );
                 if (isEditing) {
                   ref.read(foldersProvider.notifier).update(newFolder);

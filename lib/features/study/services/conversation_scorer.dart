@@ -27,7 +27,7 @@ class TurnFeedback {
 
 /// Evaluates student responses in conversation practice.
 class ConversationScorer {
-  static const _models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
+  static const _models = ['gemini-2.0-flash-lite'];
   static const _timeout = Duration(seconds: 15);
 
   /// Evaluate a student's turn using Gemini API (non-blocking).
@@ -76,17 +76,28 @@ Return ONLY valid JSON:
         final text = response.text?.trim() ?? '';
         if (text.isEmpty) continue;
         return _parseFeedback(text);
-      } catch (_) {
+      } catch (e) {
+        // Stop on rate limit — retrying worsens the 429
+        if (_isRateLimitError(e)) return null;
         continue;
       }
     }
     return null;
   }
 
+  static bool _isRateLimitError(Object e) {
+    final msg = e.toString().toLowerCase();
+    return msg.contains('429') ||
+        msg.contains('rate limit') ||
+        msg.contains('rate_limit') ||
+        msg.contains('too many requests');
+  }
+
   /// Offline fallback evaluation based on heuristics.
   static TurnFeedback evaluateOffline({
     required String userResponse,
     required List<String> targetTerms,
+    String aiQuestion = '',
   }) {
     final text = userResponse.trim();
     if (text.isEmpty) {
@@ -97,13 +108,26 @@ Return ONLY valid JSON:
       );
     }
 
-    // Grammar heuristic: based on length and basic structure
+    // Grammar heuristic: length, structure, basic tense/agreement checks
     final words = text.split(RegExp(r'\s+')).length;
     final hasCapital = text[0] == text[0].toUpperCase();
     final hasPunctuation = RegExp(r'[.!?]$').hasMatch(text);
     var grammarScore = 3;
     if (words >= 5) grammarScore++;
     if (hasCapital && hasPunctuation) grammarScore++;
+    // Check basic subject-verb agreement issues
+    final lower = text.toLowerCase();
+    final svErrors = RegExp(
+      r'\b(i is|he are|she are|they is|we is|i are|he have not|she have not)\b',
+    );
+    if (svErrors.hasMatch(lower)) grammarScore--;
+    // Check for tense consistency hints (mixing "yesterday" with present tense markers)
+    if ((lower.contains('yesterday') || lower.contains('last week')) &&
+        RegExp(r'\b(is|are|am)\b').hasMatch(lower) &&
+        !lower.contains('was') &&
+        !lower.contains('were')) {
+      grammarScore--;
+    }
     grammarScore = grammarScore.clamp(1, 5);
 
     // Vocab heuristic: term coverage
@@ -116,10 +140,26 @@ Return ONLY valid JSON:
         targetTerms.isEmpty ? 0.5 : used.length / targetTerms.length;
     var vocabScore = (vocabRatio * 5).round().clamp(1, 5);
 
-    // Relevance heuristic: response length
+    // Relevance heuristic: response length + question keyword overlap
     var relevanceScore = 3;
     if (words >= 8) relevanceScore++;
     if (words >= 15) relevanceScore++;
+    // Check if response contains keywords from the AI question
+    if (aiQuestion.isNotEmpty) {
+      final questionWords = aiQuestion
+          .toLowerCase()
+          .split(RegExp(r'\s+'))
+          .where((w) => w.length >= 4) // skip short function words
+          .toSet();
+      final responseWords = lower.split(RegExp(r'\s+')).toSet();
+      final overlap = questionWords.intersection(responseWords);
+      if (overlap.isNotEmpty) {
+        relevanceScore++;
+      } else if (questionWords.length >= 3) {
+        // No keyword overlap at all — likely off-topic
+        relevanceScore--;
+      }
+    }
     relevanceScore = relevanceScore.clamp(1, 5);
 
     return TurnFeedback(

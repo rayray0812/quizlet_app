@@ -2,18 +2,50 @@ import 'dart:math' show cos, pi, sin;
 
 import 'package:flutter/material.dart';
 
-/// Shared celebration overlay widget used across quiz and matching game screens.
+enum CelebrationTier { basic, good, excellent }
+
+CelebrationTier celebrationTierFromPercent(int percent) {
+  if (percent >= 90) return CelebrationTier.excellent;
+  if (percent >= 60) return CelebrationTier.good;
+  return CelebrationTier.basic;
+}
+
+/// Shared celebration overlay widget used across all study mode screens.
 /// Animates a celebration icon with a burst of dots when a study mode is
-/// completed.
+/// completed. The visual intensity scales with [tier].
 class CompletionCelebrateOverlay extends StatelessWidget {
   final Animation<double> animation;
   final Color color;
+  final CelebrationTier tier;
 
   const CompletionCelebrateOverlay({
     super.key,
     required this.animation,
     required this.color,
+    this.tier = CelebrationTier.good,
   });
+
+  int get _dotCount {
+    switch (tier) {
+      case CelebrationTier.basic:
+        return 6;
+      case CelebrationTier.good:
+        return 10;
+      case CelebrationTier.excellent:
+        return 14;
+    }
+  }
+
+  IconData get _icon {
+    switch (tier) {
+      case CelebrationTier.basic:
+        return Icons.check_rounded;
+      case CelebrationTier.good:
+        return Icons.celebration_rounded;
+      case CelebrationTier.excellent:
+        return Icons.emoji_events_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +73,16 @@ class CompletionCelebrateOverlay extends StatelessWidget {
             .clamp(0.0, 0.18);
         final pop = 0.46 + (revealT * 0.54) + sin(revealT * pi * 1.6) * 0.035;
 
+        // Pulsation for excellent tier
+        final pulseScale = tier == CelebrationTier.excellent
+            ? 1.0 + sin(t * pi * 3) * 0.03
+            : 1.0;
+
         return Container(
           color: Colors.white.withValues(alpha: overlayOpacity),
           child: Center(
             child: Transform.scale(
-              scale: pop,
+              scale: pop * pulseScale,
               child: Opacity(
                 opacity: revealOpacity,
                 child: Container(
@@ -69,13 +106,14 @@ class CompletionCelebrateOverlay extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      for (var i = 0; i < 10; i++)
+                      for (var i = 0; i < _dotCount; i++)
                         _CelebrationDot(
                           index: i,
+                          total: _dotCount,
                           progress: burstT,
                           color: color,
                         ),
-                      Icon(Icons.celebration_rounded, size: 54, color: color),
+                      Icon(_icon, size: 54, color: color),
                     ],
                   ),
                 ),
@@ -90,18 +128,20 @@ class CompletionCelebrateOverlay extends StatelessWidget {
 
 class _CelebrationDot extends StatelessWidget {
   final int index;
+  final int total;
   final double progress;
   final Color color;
 
   const _CelebrationDot({
     required this.index,
+    required this.total,
     required this.progress,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final angle = ((index / 10) * pi * 2) - pi / 2;
+    final angle = ((index / total) * pi * 2) - pi / 2;
     final distance = 16 + progress * 42;
     final dx = cos(angle) * distance;
     final dy = sin(angle) * distance;

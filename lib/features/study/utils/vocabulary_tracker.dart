@@ -95,9 +95,9 @@ class VocabularyTracker {
       case 'easy':
         return 1;
       case 'hard':
-        return 2;
+        return 3;
       default:
-        return 1;
+        return 2;
     }
   }
 

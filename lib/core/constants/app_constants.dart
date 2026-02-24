@@ -1,5 +1,5 @@
-class AppConstants {
-  static const String appName = '拾憶';
+﻿class AppConstants {
+  static const String appName = '拾憶 Grasp';
   static const String hiveStudySetsBox = 'study_sets';
   static const String hiveCardProgressBox = 'card_progress';
   static const String hiveReviewLogsBox = 'review_logs';
@@ -12,6 +12,7 @@ class AppConstants {
   static const String settingAuthEventsKey = 'auth_events';
   static const String settingSyncConflictsKey = 'sync_conflicts';
   static const String settingDeletedStudySetIdsKey = 'deleted_study_set_ids';
+  static const String settingTtsEngineKey = 'tts_engine';
 
   static const int maxCardsPerSet = 2000;
   static const int defaultNewCardsPerDay = 20;

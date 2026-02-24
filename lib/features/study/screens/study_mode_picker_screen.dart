@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
+import 'package:recall_app/providers/classroom_provider.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/services/import_export_service.dart';
@@ -49,6 +50,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   void initState() {
     super.initState();
     _initTts();
+    Future<void>(() => _syncClassAssignmentInProgress());
   }
 
   @override
@@ -74,6 +76,14 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     } catch (_) {
       _isTtsReady = false;
     }
+  }
+
+  Future<void> _syncClassAssignmentInProgress() async {
+    try {
+      await ref.read(classroomServiceProvider).markInProgressFromLocalSetId(
+            localSetId: widget.setId,
+          );
+    } catch (_) {}
   }
 
   String _pickLanguage(String text) {
@@ -332,6 +342,322 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     });
   }
 
+  int _resolveLearnChapterSize(int count) {
+    if (count <= 12) return 6;
+    if (count <= 30) return 8;
+    if (count <= 60) return 10;
+    return 12;
+  }
+
+  ({int chapterIndex, int totalChapters, List<bool> chapterCompleted})?
+      _readLearnResumePreview(StudySet studySet) {
+    final storage = ref.read(localStorageServiceProvider);
+    final raw = storage.getLearnModeResume(studySet.id);
+    if (raw == null) return null;
+
+    final chapterSize = _resolveLearnChapterSize(studySet.cards.length);
+    final totalChapters = studySet.cards.isEmpty
+        ? 0
+        : (studySet.cards.length / chapterSize).ceil();
+    if (totalChapters <= 0) return null;
+
+    final savedTotal = (raw['totalChapters'] as num?)?.toInt();
+    if (savedTotal != totalChapters) return null;
+
+    final rawCompleted = raw['chapterCompleted'];
+    final completed = List<bool>.filled(totalChapters, false);
+    if (rawCompleted is List) {
+      for (var i = 0; i < min(rawCompleted.length, completed.length); i++) {
+        completed[i] = rawCompleted[i] == true;
+      }
+    }
+
+    var chapterIndex = ((raw['chapterIndex'] as num?)?.toInt() ?? 0)
+        .clamp(0, totalChapters - 1);
+    if (completed.every((v) => v)) {
+      chapterIndex = 0;
+    } else if (completed[chapterIndex]) {
+      final firstIncomplete = completed.indexWhere((v) => !v);
+      if (firstIncomplete != -1) chapterIndex = firstIncomplete;
+    }
+
+    return (
+      chapterIndex: chapterIndex,
+      totalChapters: totalChapters,
+      chapterCompleted: completed,
+    );
+  }
+
+  Future<void> _showLearnModeLaunchDialog({
+    required BuildContext context,
+    required StudySet studySet,
+  }) async {
+    final preview = _readLearnResumePreview(studySet);
+    final chapterSize = _resolveLearnChapterSize(studySet.cards.length);
+    final totalChapters = studySet.cards.isEmpty
+        ? 0
+        : (studySet.cards.length / chapterSize).ceil();
+    final completed = preview?.chapterCompleted ?? List<bool>.filled(totalChapters, false);
+    final completedCount = completed.where((v) => v).length;
+    final currentChapter = totalChapters == 0 ? 1 : (preview?.chapterIndex ?? 0) + 1;
+    final progress = totalChapters == 0 ? 0.0 : completedCount / totalChapters;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final timelineWindow = totalChapters <= 10 ? totalChapters : 10;
+        final start = totalChapters <= timelineWindow
+            ? 0
+            : (currentChapter - 1 - (timelineWindow ~/ 2)).clamp(0, totalChapters - timelineWindow);
+        final end = (start + timelineWindow).clamp(0, totalChapters);
+        final completedChapterLabels = <String>[
+          for (var i = 0; i < completed.length; i++)
+            if (completed[i]) '第${i + 1}章',
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.green.withValues(alpha: 0.10),
+                          AppTheme.indigo.withValues(alpha: 0.06),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.green.withValues(alpha: 0.14)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.school_rounded, color: AppTheme.green),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '刷題闖關',
+                                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                preview == null
+                                    ? '尚未開始，準備進入第 1 章'
+                                    : '目前第 $currentChapter/$totalChapters 章 · 已完成 $completedCount 章',
+                                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${(progress * 100).round()}%',
+                          style: Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
+                                color: AppTheme.green,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      minHeight: 10,
+                      value: progress.clamp(0.0, 1.0),
+                      backgroundColor: Theme.of(sheetContext).colorScheme.outlineVariant,
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.green),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _LearnDialogStatChip(label: '卡片', value: '${studySet.cards.length}'),
+                      _LearnDialogStatChip(label: '章節', value: '$totalChapters'),
+                      _LearnDialogStatChip(label: '每章約', value: '$chapterSize 張'),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    '章節時間軸',
+                    style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.indigo.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.indigo.withValues(alpha: 0.10)),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (var i = start; i < end; i++) ...[
+                            _LearnTimelineNode(
+                              chapterLabel: '第${i + 1}章',
+                              state: completed[i]
+                                  ? _LearnTimelineNodeState.completed
+                                  : (i == currentChapter - 1
+                                      ? _LearnTimelineNodeState.current
+                                      : _LearnTimelineNodeState.upcoming),
+                            ),
+                            if (i < end - 1)
+                              Container(
+                                width: 20,
+                                height: 2,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                color: (completed[i] && (i + 1 < completed.length && completed[i + 1]))
+                                    ? AppTheme.green.withValues(alpha: 0.35)
+                                    : Theme.of(sheetContext)
+                                        .colorScheme
+                                        .outlineVariant
+                                        .withValues(alpha: 0.6),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (totalChapters > timelineWindow) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '顯示第 ${start + 1} 到第 $end 章（重點章節區段）',
+                      style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(sheetContext).colorScheme.outline,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Text(
+                    '完成章節',
+                    style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.green.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.green.withValues(alpha: 0.10)),
+                    ),
+                    child: completedChapterLabels.isEmpty
+                        ? Text(
+                            '目前還沒有完成章節，先刷完第 1 章建立手感。',
+                            style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          )
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: completedChapterLabels
+                                .map(
+                                  (label) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.green.withValues(alpha: 0.10),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: AppTheme.green.withValues(alpha: 0.20),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.check_circle_rounded,
+                                            size: 14, color: AppTheme.green),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          label,
+                                          style: Theme.of(sheetContext)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: AppTheme.green,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('取消'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            context.push('/study/${widget.setId}/learn');
+                          },
+                          child: Text(preview == null ? '開始刷題闖關' : '繼續刷題闖關'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _buildLearnModeDescription(StudySet studySet) {
+    final base = '自適應練習（選擇題 + 填空），錯題會重複加強';
+    if (studySet.cards.length < 2) return base;
+    final preview = _readLearnResumePreview(studySet);
+    if (preview == null) return '$base · 尚未開始';
+    final completed = preview.chapterCompleted.where((v) => v).length;
+    return '$base · 第 ${preview.chapterIndex + 1}/${preview.totalChapters} 章（已完成 $completed 章）';
+  }
+
   @override
   Widget build(BuildContext context) {
     final studySet = ref
@@ -542,10 +868,13 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     _StudyModeCard(
                       icon: Icons.school_rounded,
                       iconColor: AppTheme.green,
-                      title: 'Learn',
-                      description: '自適應練習（選擇題 + 填空），錯題會重複加強',
+                      title: '刷題闖關',
+                      description: _buildLearnModeDescription(studySet),
                       onTap: studySet.cards.length >= 2
-                          ? () => context.push('/study/${widget.setId}/learn')
+                          ? () => _showLearnModeLaunchDialog(
+                                context: context,
+                                studySet: studySet,
+                              )
                           : null,
                       disabledReason: studySet.cards.length >= 2
                           ? null
@@ -834,6 +1163,111 @@ class _StudyGlowOrb extends StatelessWidget {
           colors: [color, color.withValues(alpha: 0.03), Colors.transparent],
           stops: const [0, 0.62, 1],
         ),
+      ),
+    );
+  }
+}
+
+enum _LearnTimelineNodeState { completed, current, upcoming }
+
+class _LearnTimelineNode extends StatelessWidget {
+  const _LearnTimelineNode({
+    required this.chapterLabel,
+    required this.state,
+  });
+
+  final String chapterLabel;
+  final _LearnTimelineNodeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isCompleted = state == _LearnTimelineNodeState.completed;
+    final isCurrent = state == _LearnTimelineNodeState.current;
+
+    final fillColor = isCompleted
+        ? AppTheme.green.withValues(alpha: 0.12)
+        : isCurrent
+            ? AppTheme.indigo.withValues(alpha: 0.10)
+            : Colors.white.withValues(alpha: 0.7);
+    final borderColor = isCompleted
+        ? AppTheme.green.withValues(alpha: 0.28)
+        : isCurrent
+            ? AppTheme.indigo.withValues(alpha: 0.24)
+            : colorScheme.outlineVariant.withValues(alpha: 0.7);
+    final textColor = isCompleted
+        ? AppTheme.green
+        : isCurrent
+            ? AppTheme.indigo
+            : colorScheme.outline;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: fillColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isCompleted
+                ? Icons.check_circle_rounded
+                : isCurrent
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+            size: 14,
+            color: textColor,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            chapterLabel,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LearnDialogStatChip extends StatelessWidget {
+  const _LearnDialogStatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.indigo.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.indigo.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.indigo,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ],
       ),
     );
   }

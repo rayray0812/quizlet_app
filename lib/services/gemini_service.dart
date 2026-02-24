@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 enum PhotoScanMode { vocabularyList, textbookPage }
@@ -68,22 +68,17 @@ class ConversationReplySuggestion {
 
 class GeminiService {
   static const _models = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
+    'gemini-2.0-flash',
   ];
   static const _chatModels = [
     'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash',
   ];
   static List<String> get chatModels => List<String>.unmodifiable(_chatModels);
   static const _timeout = Duration(seconds: 30);
   static const maxCards = 300;
   static const _lightweightModels = [
     'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
   ];
 
   static const _vocabularyPrompt =
@@ -127,6 +122,13 @@ class GeminiService {
     required String mimeType,
     required PhotoScanMode mode,
   }) async {
+    final compressedBytes = await _compressImage(imageBytes);
+    if (kDebugMode) {
+      debugPrint(
+        'AI Scan: Original ${imageBytes.length} bytes -> Compressed ${compressedBytes.length} bytes',
+      );
+    }
+
     final prompt = switch (mode) {
       PhotoScanMode.vocabularyList => _vocabularyPrompt,
       PhotoScanMode.textbookPage => _textbookPrompt,
@@ -134,7 +136,7 @@ class GeminiService {
 
     final content = Content.multi([
       TextPart(prompt),
-      DataPart(mimeType, imageBytes),
+      DataPart(mimeType, compressedBytes),
     ]);
 
     ScanException? lastError;
@@ -163,9 +165,9 @@ class GeminiService {
       } on GenerativeAIException catch (e) {
         final reason = _classifyAiError(e.toString());
         lastError = ScanException(reason, e.toString());
-        if (reason == ScanFailureReason.quotaExceeded ||
-            reason == ScanFailureReason.serverError) {
-          // Retry with next model only on transient/server-like failures.
+        // Stop immediately on rate limit — retrying worsens the 429 problem
+        if (_isRateLimitError(e)) break;
+        if (reason == ScanFailureReason.serverError) {
           continue;
         }
       } on FormatException catch (e) {
@@ -192,7 +194,7 @@ class GeminiService {
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 0,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 2048,
           responseMimeType: 'application/json',
           responseSchema: _responseSchema,
         ),
@@ -387,7 +389,8 @@ class GeminiService {
         }
         return map;
       } catch (e) {
-        // Try next model
+        // Stop immediately on rate limit — retrying worsens the 429
+        if (_isRateLimitError(e)) break;
         continue;
       }
     }
@@ -395,6 +398,23 @@ class GeminiService {
     // If all fail
     return {};
   }
+
+  static Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      final compressed = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: 1600,
+        minHeight: 1600,
+        quality: 85,
+        format: CompressFormat.jpeg,
+      );
+      return compressed;
+    } catch (e) {
+      debugPrint('Image compression failed: $e');
+      return bytes; // Fallback to original
+    }
+  }
+
   // -- Conversation Mode --
 
   /// Starts a chat session for practicing vocabulary.
@@ -440,39 +460,25 @@ Difficulty profile (MEDIUM):
 
     final systemPrompt =
         '''
-You are a strict vocabulary conversation coach. No greetings, no small talk.
-Target words the student must practice: ${terms.join(', ')}.
-Difficulty: $normalizedDifficulty.
-Total turns in this session: $totalTurns.
-Scenario: $scenarioTitle
-Setting: $scenarioSetting
-Stay in this scenario for the whole session.
-Your role: $aiRole
-Student role: $userRole
+You are a vocabulary conversation coach. No greetings, no small talk.
+Target words: ${terms.join(', ')}.
+Difficulty: $normalizedDifficulty. Total turns: $totalTurns.
+Scenario: $scenarioTitle — $scenarioSetting
+Your role: $aiRole. Student role: $userRole. Stay in character the whole session.
 $difficultyRules
 Rules:
-1. Every turn must make it easy for the student to answer.
-2. Prioritize target words according to the difficulty profile, but do NOT force awkward usage.
-   If a target word is unnatural for this scenario, skip it this turn and use another target word.
-3. Ask exactly ONE concrete question with specific detail (item/time/price/quantity).
-4. Also provide ONE short "Reply hint" starter sentence the student can copy and complete.
-5. Rotate target words and prioritize words not practiced yet.
-6. If there is an error, correct in one short sentence, then ask the next question.
-7. Keep total output under 35 words, natural spoken English, use contractions when appropriate.
-8. Output must be exactly 2 lines:
-Question: ...
-Reply hint: ...
-9. First message must directly ask a question (no greeting).
-10. Avoid broad prompts like "Tell me more". Be specific and situational.
-11. Avoid robotic tutor tone. Sound like a real person in this role.
-12. Do not produce broken grammar or unnatural phrasing.
-13. In shopping scenarios, ask realistic item/location/price questions only.
-14. Always speak from AI role perspective ($aiRole). Never switch to student/customer perspective.
-15. If AI role is store staff/service staff, ask what the student needs; never ask "Where can I find ...?" for yourself.
-16. Every question must include at least one concrete target word from the provided focus list when possible.
-17. Avoid personal psychology/off-topic judgment questions (confidence/personality/self-esteem).
-18. Respect the provided turn index from user prompt (`Current turn: x/$totalTurns`).
-19. On the final turn, end naturally with a short closing line in the Question.
+1. Ask exactly ONE concrete, scenario-specific question per turn. Include specific details (item/time/price/quantity). Avoid broad prompts like "Tell me more".
+2. Include at least one target word naturally. Skip words that feel forced; rotate and prioritize unpracticed words.
+3. Provide ONE short "Reply hint" starter the student can complete.
+4. If the student makes an error, correct briefly in one sentence, then continue.
+5. Keep output under 35 words, natural spoken English with contractions.
+6. Output exactly 2 lines: Question: ... / Reply hint: ...
+7. Always speak from $aiRole perspective. Never switch to student perspective.
+8. No greeting on first message. Start directly with a question.
+9. Avoid off-topic questions (psychology/personality/self-esteem).
+10. Sound like a real person, not a robotic tutor.
+11. Respect the turn index from user prompt.
+12. On the final turn, wrap up naturally with a short closing line.
 ''';
 
     final resolvedChatModel = chatModel != null && chatModel.trim().isNotEmpty
@@ -597,11 +603,22 @@ Rules:
             .timeout(_timeout);
         final text = response.text?.trim() ?? '';
         if (text.isNotEmpty) return text;
-      } catch (_) {
+      } catch (e) {
+        // Stop immediately on rate limit — retrying makes it worse
+        if (_isRateLimitError(e)) return null;
         continue;
       }
     }
     return null;
+  }
+
+  static bool _isRateLimitError(Object e) {
+    final msg = e.toString().toLowerCase();
+    return msg.contains('429') ||
+        msg.contains('rate limit') ||
+        msg.contains('rate_limit') ||
+        msg.contains('too many requests') ||
+        msg.contains('resource_exhausted');
   }
 
   static ConversationScenario? _parseScenario(String raw) {

@@ -16,6 +16,8 @@ class ReviewSummaryScreen extends StatefulWidget {
   final bool challengeCompleted;
   final bool isRevengeMode;
   final int revengeCardCount;
+  final int sessionXp;
+  final int maxCombo;
 
   const ReviewSummaryScreen({
     super.key,
@@ -29,6 +31,8 @@ class ReviewSummaryScreen extends StatefulWidget {
     this.challengeCompleted = false,
     this.isRevengeMode = false,
     this.revengeCardCount = 0,
+    this.sessionXp = 0,
+    this.maxCombo = 0,
   });
 
   @override
@@ -263,6 +267,45 @@ class _ReviewSummaryScreenState extends State<ReviewSummaryScreen>
                                       ),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (widget.sessionXp > 0) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.green.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.bolt_rounded, color: AppTheme.green, size: 20),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    l10n.xpEarned(widget.sessionXp),
+                                    style: const TextStyle(
+                                      color: AppTheme.green,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  if (widget.maxCombo >= 3) ...[
+                                    const SizedBox(width: 16),
+                                    Icon(Icons.local_fire_department_rounded, color: AppTheme.orange.withValues(alpha: 0.8), size: 18),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${l10n.maxComboLabel}: ${widget.maxCombo}',
+                                      style: TextStyle(
+                                        color: AppTheme.orange.withValues(alpha: 0.9),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

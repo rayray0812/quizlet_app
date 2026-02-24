@@ -25,6 +25,9 @@ mixin _$Folder {
   String get name => throw _privateConstructorUsedError;
   String get colorHex => throw _privateConstructorUsedError;
   int get iconCodePoint => throw _privateConstructorUsedError;
+  bool get isSynced => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
+  DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Folder to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -40,7 +43,15 @@ abstract class $FolderCopyWith<$Res> {
   factory $FolderCopyWith(Folder value, $Res Function(Folder) then) =
       _$FolderCopyWithImpl<$Res, Folder>;
   @useResult
-  $Res call({String id, String name, String colorHex, int iconCodePoint});
+  $Res call({
+    String id,
+    String name,
+    String colorHex,
+    int iconCodePoint,
+    bool isSynced,
+    DateTime? updatedAt,
+    DateTime createdAt,
+  });
 }
 
 /// @nodoc
@@ -62,6 +73,9 @@ class _$FolderCopyWithImpl<$Res, $Val extends Folder>
     Object? name = null,
     Object? colorHex = null,
     Object? iconCodePoint = null,
+    Object? isSynced = null,
+    Object? updatedAt = freezed,
+    Object? createdAt = null,
   }) {
     return _then(
       _value.copyWith(
@@ -81,6 +95,18 @@ class _$FolderCopyWithImpl<$Res, $Val extends Folder>
                 ? _value.iconCodePoint
                 : iconCodePoint // ignore: cast_nullable_to_non_nullable
                       as int,
+            isSynced: null == isSynced
+                ? _value.isSynced
+                : isSynced // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            updatedAt: freezed == updatedAt
+                ? _value.updatedAt
+                : updatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
           )
           as $Val,
     );
@@ -95,7 +121,15 @@ abstract class _$$FolderImplCopyWith<$Res> implements $FolderCopyWith<$Res> {
   ) = __$$FolderImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String name, String colorHex, int iconCodePoint});
+  $Res call({
+    String id,
+    String name,
+    String colorHex,
+    int iconCodePoint,
+    bool isSynced,
+    DateTime? updatedAt,
+    DateTime createdAt,
+  });
 }
 
 /// @nodoc
@@ -116,6 +150,9 @@ class __$$FolderImplCopyWithImpl<$Res>
     Object? name = null,
     Object? colorHex = null,
     Object? iconCodePoint = null,
+    Object? isSynced = null,
+    Object? updatedAt = freezed,
+    Object? createdAt = null,
   }) {
     return _then(
       _$FolderImpl(
@@ -135,6 +172,18 @@ class __$$FolderImplCopyWithImpl<$Res>
             ? _value.iconCodePoint
             : iconCodePoint // ignore: cast_nullable_to_non_nullable
                   as int,
+        isSynced: null == isSynced
+            ? _value.isSynced
+            : isSynced // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        updatedAt: freezed == updatedAt
+            ? _value.updatedAt
+            : updatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
       ),
     );
   }
@@ -148,6 +197,9 @@ class _$FolderImpl implements _Folder {
     required this.name,
     this.colorHex = 'FF6366F1',
     this.iconCodePoint = 0xe6c4,
+    this.isSynced = false,
+    this.updatedAt,
+    required this.createdAt,
   });
 
   factory _$FolderImpl.fromJson(Map<String, dynamic> json) =>
@@ -163,10 +215,17 @@ class _$FolderImpl implements _Folder {
   @override
   @JsonKey()
   final int iconCodePoint;
+  @override
+  @JsonKey()
+  final bool isSynced;
+  @override
+  final DateTime? updatedAt;
+  @override
+  final DateTime createdAt;
 
   @override
   String toString() {
-    return 'Folder(id: $id, name: $name, colorHex: $colorHex, iconCodePoint: $iconCodePoint)';
+    return 'Folder(id: $id, name: $name, colorHex: $colorHex, iconCodePoint: $iconCodePoint, isSynced: $isSynced, updatedAt: $updatedAt, createdAt: $createdAt)';
   }
 
   @override
@@ -179,13 +238,27 @@ class _$FolderImpl implements _Folder {
             (identical(other.colorHex, colorHex) ||
                 other.colorHex == colorHex) &&
             (identical(other.iconCodePoint, iconCodePoint) ||
-                other.iconCodePoint == iconCodePoint));
+                other.iconCodePoint == iconCodePoint) &&
+            (identical(other.isSynced, isSynced) ||
+                other.isSynced == isSynced) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, colorHex, iconCodePoint);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    name,
+    colorHex,
+    iconCodePoint,
+    isSynced,
+    updatedAt,
+    createdAt,
+  );
 
   /// Create a copy of Folder
   /// with the given fields replaced by the non-null parameter values.
@@ -207,6 +280,9 @@ abstract class _Folder implements Folder {
     required final String name,
     final String colorHex,
     final int iconCodePoint,
+    final bool isSynced,
+    final DateTime? updatedAt,
+    required final DateTime createdAt,
   }) = _$FolderImpl;
 
   factory _Folder.fromJson(Map<String, dynamic> json) = _$FolderImpl.fromJson;
@@ -219,6 +295,12 @@ abstract class _Folder implements Folder {
   String get colorHex;
   @override
   int get iconCodePoint;
+  @override
+  bool get isSynced;
+  @override
+  DateTime? get updatedAt;
+  @override
+  DateTime get createdAt;
 
   /// Create a copy of Folder
   /// with the given fields replaced by the non-null parameter values.

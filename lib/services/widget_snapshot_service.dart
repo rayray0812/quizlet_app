@@ -8,9 +8,15 @@ import 'package:recall_app/core/constants/app_constants.dart';
 class WidgetSnapshotService {
   WidgetSnapshotService._();
 
+  static bool get _isSupportedPlatform {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   /// Initialize the home_widget plugin (sets App Group for iOS).
   static Future<void> init() async {
-    if (kIsWeb) return;
+    if (!_isSupportedPlatform) return;
     await HomeWidget.setAppGroupId(AppConstants.widgetAppGroupId);
   }
 
@@ -29,7 +35,7 @@ class WidgetSnapshotService {
     required List<({String setId, String title, int due})> topSets,
     required String locale,
   }) async {
-    if (kIsWeb) return;
+    if (!_isSupportedPlatform) return;
     final data = computeSnapshot(
       dueTotal: dueTotal,
       dueNew: dueNew,

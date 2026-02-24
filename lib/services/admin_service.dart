@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/admin_account_summary.dart';
 import 'package:recall_app/models/admin_approval_request.dart';
@@ -32,18 +31,57 @@ class AdminService {
     if (client == null) return const [];
 
     final normalizedQuery = query.trim().toLowerCase();
-    final setRows = await client
-        .from(SupabaseConstants.studySetsTable)
-        .select('user_id, updated_at')
-        .order('updated_at', ascending: false)
-        .limit(limit * 20);
+    final profileRowsRaw = await (() async {
+      try {
+        final result = await client.rpc(
+          'admin_list_accounts',
+          params: {
+            'search_text': normalizedQuery,
+            'row_limit': limit * 20,
+          },
+        );
+        debugPrint('[Admin] admin_list_accounts returned ${(result is List) ? result.length : 0} rows, type=${result.runtimeType}');
+        if (result is List && result.isNotEmpty) {
+          debugPrint('[Admin] first row: ${result.first}');
+        }
+        return result;
+      } catch (e) {
+        debugPrint('[Admin] admin_list_accounts RPC FAILED: $e');
+        return const <dynamic>[];
+      }
+    })();
+    final profileRows = profileRowsRaw is List
+        ? profileRowsRaw
+        : const <dynamic>[];
+    final setRowsRaw = await (() async {
+      try {
+        final result = await client
+            .from(SupabaseConstants.studySetsTable)
+            .select('user_id, updated_at')
+            .order('updated_at', ascending: false)
+            .limit(limit * 20);
+        debugPrint('[Admin] study_sets query returned ${(result as List).length} rows');
+        return result;
+      } catch (e) {
+        debugPrint('[Admin] study_sets query FAILED: $e');
+        return const <dynamic>[];
+      }
+    })();
+    final setRows = setRowsRaw;
 
-    final blockedRows = await client
-        .from(SupabaseConstants.adminAccountBlocksTable)
-        .select('target_user_id, blocked_until');
+    final blockedRowsRaw = await (() async {
+      try {
+        return await client
+            .from(SupabaseConstants.adminAccountBlocksTable)
+            .select('target_user_id, blocked_until');
+      } catch (_) {
+        return const <dynamic>[];
+      }
+    })();
+    final blockedRows = blockedRowsRaw;
 
     final blockedUserIds = <String>{};
-    for (final row in (blockedRows as List)) {
+    for (final row in blockedRows) {
       final userId = row['target_user_id'] as String?;
       if (userId == null) continue;
       final blockedUntilRaw = row['blocked_until'] as String?;
@@ -58,8 +96,42 @@ class AdminService {
       }
     }
 
+    final roleByUserId = <String, String>{};
+    final emailByUserId = <String, String>{};
+    for (final row in profileRows) {
+      final userId = row['user_id'] as String?;
+      if (userId == null || userId.isEmpty) continue;
+      final role = (row['role'] as String? ?? 'student').trim().toLowerCase();
+      final email = (row['email'] as String? ?? '').trim();
+      roleByUserId[userId] = role == 'teacher' ? 'teacher' : 'student';
+      emailByUserId[userId] = email;
+    }
+
     final map = <String, ({int count, DateTime? lastAt})>{};
-    for (final row in (setRows as List)) {
+    for (final row in profileRows) {
+      final userId = row['user_id'] as String?;
+      if (userId == null || userId.isEmpty) continue;
+      if (normalizedQuery.isNotEmpty &&
+          !userId.toLowerCase().contains(normalizedQuery)) {
+        continue;
+      }
+      final updatedAt = DateTime.tryParse(row['updated_at'] as String? ?? '');
+      final current = map[userId];
+      if (current == null) {
+        map[userId] = (count: 0, lastAt: updatedAt);
+      } else {
+        final last = current.lastAt;
+        map[userId] = (
+          count: current.count,
+          lastAt:
+              (updatedAt != null && (last == null || updatedAt.isAfter(last)))
+              ? updatedAt
+              : last,
+        );
+      }
+    }
+
+    for (final row in setRows) {
       final userId = row['user_id'] as String?;
       if (userId == null) continue;
       if (normalizedQuery.isNotEmpty &&
@@ -87,9 +159,13 @@ class AdminService {
             .map(
               (e) => AdminAccountSummary(
                 userId: e.key,
+                email: emailByUserId[e.key] ?? '',
                 studySetCount: e.value.count,
                 lastActivityAt: e.value.lastAt,
                 isBlocked: blockedUserIds.contains(e.key),
+                classroomRole: roleByUserId[e.key] == 'teacher'
+                    ? 'teacher'
+                    : 'student',
               ),
             )
             .toList()
@@ -102,7 +178,31 @@ class AdminService {
             return bd.compareTo(ad);
           });
 
+    debugPrint('[Admin] Final account list: ${accounts.length} accounts (showing ${accounts.take(limit).length})');
+    for (final a in accounts.take(5)) {
+      debugPrint('[Admin]   - ${a.email} (${a.userId.substring(0, 8)}...) sets=${a.studySetCount}');
+    }
     return accounts.take(limit).toList();
+  }
+
+  Future<void> setUserClassroomRole({
+    required String targetUserId,
+    required String role,
+    String reason = 'manual_admin_action',
+  }) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return;
+    final normalized = role.trim().toLowerCase() == 'teacher'
+        ? 'teacher'
+        : 'student';
+    await client.rpc(
+      'admin_set_profile_role',
+      params: {
+        'target_user_id': targetUserId,
+        'new_role': normalized,
+        'reason': reason,
+      },
+    );
   }
 
   Future<void> blockUser({
@@ -456,6 +556,21 @@ class AdminService {
     final actor = _supabaseService.currentUser;
     final client = _supabaseService.clientOrNull;
     if (actor == null || client == null) return;
+
+    // Security Enhancement: Ensure there is an approved request for this impersonation
+    final approvalCheck = await client
+        .from(SupabaseConstants.adminApprovalRequestsTable)
+        .select('id')
+        .eq('action_type', 'impersonate_user')
+        .eq('status', 'approved')
+        .eq('payload->>target_user_id', targetUserId)
+        .maybeSingle();
+
+    if (approvalCheck == null) {
+      throw StateError(
+        'Security Violation: Impersonation session can only be started for approved requests.',
+      );
+    }
 
     final now = DateTime.now().toUtc();
     final expiresAt = now.add(Duration(minutes: durationMinutes));

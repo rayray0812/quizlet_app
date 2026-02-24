@@ -3,7 +3,8 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:recall_app/core/constants/study_constants.dart';
+import 'package:recall_app/core/services/study_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,7 +12,11 @@ import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/services/voice_playback_service.dart';
+import 'package:recall_app/features/study/widgets/combo_indicator.dart';
+import 'package:recall_app/features/study/widgets/completion_celebrate_overlay.dart';
 import 'package:recall_app/features/study/widgets/rating_buttons.dart';
+import 'package:recall_app/features/study/widgets/xp_toast.dart';
+import 'package:recall_app/providers/session_xp_provider.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
@@ -44,7 +49,7 @@ class SrsReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
   bool _isFlipped = false;
@@ -63,15 +68,20 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   late final VoicePlaybackService _voice;
   DateTime? _lastSpeakTapAt;
 
+  // Celebration overlay
+  AnimationController? _celebrateController;
+  bool _showCelebration = false;
+  final _xpToastKey = GlobalKey<XpToastOverlayState>();
+
   @override
   void initState() {
     super.initState();
     _flipController = AnimationController(
-      duration: const Duration(milliseconds: 520),
+      duration: StudyConstants.flipDuration,
       vsync: this,
     );
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _flipController, curve: Curves.easeInOutCubic),
+      CurvedAnimation(parent: _flipController, curve: StudyConstants.flipCurve),
     );
 
     _voice = VoicePlaybackService();
@@ -173,10 +183,11 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
         _queueError = e.toString();
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isQueueLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isQueueLoading = false;
+        });
+      }
     }
   }
 
@@ -209,7 +220,25 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   void dispose() {
     _voice.dispose();
     _flipController.dispose();
+    _celebrateController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _playCelebrationAndNavigate(VoidCallback navigate) async {
+    final percent = (_goodCount + _easyCount) /
+        (_againCount + _hardCount + _goodCount + _easyCount).clamp(1, 999) *
+        100;
+    celebrationTierFromPercent(percent.round());
+    final controller = AnimationController(
+      vsync: this,
+      duration: StudyConstants.celebrationDuration,
+    );
+    _celebrateController = controller;
+    setState(() => _showCelebration = true);
+    await controller.forward();
+    if (!mounted) return;
+    setState(() => _showCelebration = false);
+    navigate();
   }
 
   void _flip() {
@@ -219,7 +248,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
       return;
     }
     if (_flipController.isAnimating || _isSubmittingRating) return;
-    HapticFeedback.selectionClick();
+    StudyHaptics.onCardFlip();
     setState(() => _isFlipped = true);
     _flipController.forward();
   }
@@ -242,6 +271,10 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     ref.invalidate(allReviewLogsProvider);
     ref.read(widgetRefreshProvider)();
     if (!mounted) return;
+
+    // XP
+    final earned = ref.read(sessionXpProvider.notifier).onSrsRating(rating);
+    _xpToastKey.currentState?.showXp(earned);
 
     switch (rating) {
       case 1:
@@ -271,28 +304,33 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           challengeTarget != null &&
           challengeTarget > 0 &&
           total >= challengeTarget;
-      HapticFeedback.mediumImpact();
+      StudyHaptics.onComplete();
       setState(() {
         _isSubmittingRating = false;
         _lastRating = null;
       });
-      context.go(
-        '/review/summary',
-        extra: {
-          'totalReviewed': total,
-          'againCount': _againCount,
-          'hardCount': _hardCount,
-          'goodCount': _goodCount,
-          'easyCount': _easyCount,
-          'challengeMode': widget.challengeMode,
-          'challengeTarget': challengeTarget,
-          'challengeCompleted': challengeCompleted,
-          'isRevengeMode': widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty,
-          'revengeCardCount': widget.revengeCardIds?.length ?? 0,
-        },
-      );
+      // Play celebration then navigate
+      await _playCelebrationAndNavigate(() {
+        context.go(
+          '/review/summary',
+          extra: {
+            'totalReviewed': total,
+            'againCount': _againCount,
+            'hardCount': _hardCount,
+            'goodCount': _goodCount,
+            'easyCount': _easyCount,
+            'challengeMode': widget.challengeMode,
+            'challengeTarget': challengeTarget,
+            'challengeCompleted': challengeCompleted,
+            'isRevengeMode': widget.revengeCardIds != null && widget.revengeCardIds!.isNotEmpty,
+            'revengeCardCount': widget.revengeCardIds?.length ?? 0,
+            'sessionXp': ref.read(sessionXpProvider).totalXp,
+            'maxCombo': ref.read(sessionXpProvider).maxCombo,
+          },
+        );
+      });
     } else {
-      HapticFeedback.lightImpact();
+      StudyHaptics.onNextCard();
       await Future<void>.delayed(const Duration(milliseconds: 140));
       if (!mounted) return;
       setState(() {
@@ -460,9 +498,14 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          RoundedProgressBar(value: progress),
+          Column(
+        children: [
+          RoundedProgressBar(
+            value: progress,
+            counterText: '${_currentIndex + 1} / ${_queue.length}',
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 2),
             child: Row(
@@ -608,6 +651,35 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),
+                ),
+              ),
+            ),
+        ],
+      ),
+          // Combo indicator
+          const Positioned(
+            top: 60,
+            right: 16,
+            child: ComboIndicator(),
+          ),
+          // XP toast
+          Positioned(
+            top: 100,
+            left: 0,
+            right: 0,
+            child: Center(child: XpToastOverlay(key: _xpToastKey)),
+          ),
+          if (_showCelebration && _celebrateController != null)
+            Positioned.fill(
+              child: CompletionCelebrateOverlay(
+                animation: _celebrateController!,
+                color: AppTheme.green,
+                tier: celebrationTierFromPercent(
+                  ((_goodCount + _easyCount) /
+                          (_againCount + _hardCount + _goodCount + _easyCount)
+                              .clamp(1, 999) *
+                          100)
+                      .round(),
                 ),
               ),
             ),

@@ -1,11 +1,11 @@
 ﻿{
-  "name": "拾憶",
-  "short_name": "拾憶",
+  "name": "拾憶 Grasp",
+  "short_name": "拾憶 Grasp",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0175C2",
   "theme_color": "#0175C2",
-  "description": "Recall - Study smarter with flashcards.",
+  "description": "拾憶 Grasp - Study smarter with flashcards.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

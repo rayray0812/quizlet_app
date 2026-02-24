@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:recall_app/core/services/study_haptics.dart';
+import 'package:recall_app/providers/session_xp_provider.dart';
+import 'package:recall_app/features/study/widgets/combo_indicator.dart';
+import 'package:recall_app/features/study/widgets/xp_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -43,6 +46,7 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
   bool _hasStarted = false;
   bool _showCompletionCelebrate = false;
   bool _navigatingToResult = false;
+  final _xpToastKey = GlobalKey<XpToastOverlayState>();
 
   @override
   void initState() {
@@ -138,19 +142,23 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
     _attempts++;
 
     if (first.cardId == second.cardId && first.isTerm != second.isTerm) {
-      HapticFeedback.selectionClick();
+      StudyHaptics.onMatch();
+      final earned = ref.read(sessionXpProvider.notifier).onCorrect();
+      _xpToastKey.currentState?.showXp(earned);
       setState(() {
         _matchedCardIds.add(first.cardId);
         _selectedIndex = null;
       });
 
       if (_matchedCardIds.length == _gameCards.length) {
-        HapticFeedback.mediumImpact();
+        StudyHaptics.onComplete();
         _ticker?.cancel();
         _stopwatch.stop();
         _playCompletionCelebrateThenShowResults();
       }
     } else {
+      StudyHaptics.onMismatch();
+      ref.read(sessionXpProvider.notifier).onIncorrect();
       setState(() {
         _incorrectIndices.addAll([_selectedIndex!, index]);
       });
@@ -282,13 +290,9 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   transitionBuilder: (child, animation) {
-                    final slide = Tween<Offset>(
-                      begin: const Offset(0, -0.04),
-                      end: Offset.zero,
-                    ).animate(animation);
                     return FadeTransition(
                       opacity: animation,
-                      child: SlideTransition(position: slide, child: child),
+                      child: child,
                     );
                   },
                   child: _hasStarted
@@ -398,17 +402,9 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     transitionBuilder: (child, animation) {
-                      final fade = CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      );
-                      final slide = Tween<Offset>(
-                        begin: const Offset(0, 0.06),
-                        end: Offset.zero,
-                      ).animate(animation);
                       return FadeTransition(
-                        opacity: fade,
-                        child: SlideTransition(position: slide, child: child),
+                        opacity: animation,
+                        child: child,
                       );
                     },
                     child: !_hasStarted
@@ -611,6 +607,19 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
                   ),
                 ),
               ],
+            ),
+            // Combo indicator
+            const Positioned(
+              top: 8,
+              right: 16,
+              child: ComboIndicator(),
+            ),
+            // XP toast
+            Positioned(
+              top: 50,
+              left: 0,
+              right: 0,
+              child: Center(child: XpToastOverlay(key: _xpToastKey)),
             ),
             if (_showCompletionCelebrate)
               Positioned.fill(

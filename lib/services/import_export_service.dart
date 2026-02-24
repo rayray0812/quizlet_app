@@ -133,7 +133,7 @@ class ImportExportService {
     await file.writeAsString(json.encode(encrypted));
     await Share.shareXFiles([
       XFile(file.path),
-    ], text: 'Recall encrypted backup');
+    ], text: '拾憶 Grasp encrypted backup');
   }
 
   Future<BackupImportResult> importEncryptedBackup({

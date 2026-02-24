@@ -37,7 +37,7 @@ void main() {
     test('empty strings', () {
       expect(isFuzzyMatch('', 'hello'), isFalse);
       expect(isFuzzyMatch('hello', ''), isFalse);
-      expect(isFuzzyMatch('', ''), isTrue);
+      expect(isFuzzyMatch('', ''), isFalse);
     });
 
     test('longer strings allow more distance', () {

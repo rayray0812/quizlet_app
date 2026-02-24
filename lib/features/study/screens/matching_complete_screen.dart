@@ -1,17 +1,21 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/features/study/utils/encouragement_lines.dart';
+import 'package:recall_app/providers/classroom_provider.dart';
 
-class MatchingCompleteScreen extends StatefulWidget {
+class MatchingCompleteScreen extends ConsumerStatefulWidget {
   final String setId;
   final int elapsedSeconds;
   final int accuracy;
   final int attempts;
   final int? pairCount;
+  final int sessionXp;
+  final int maxCombo;
 
   const MatchingCompleteScreen({
     super.key,
@@ -20,13 +24,17 @@ class MatchingCompleteScreen extends StatefulWidget {
     required this.accuracy,
     required this.attempts,
     this.pairCount,
+    this.sessionXp = 0,
+    this.maxCombo = 0,
   });
 
   @override
-  State<MatchingCompleteScreen> createState() => _MatchingCompleteScreenState();
+  ConsumerState<MatchingCompleteScreen> createState() =>
+      _MatchingCompleteScreenState();
 }
 
-class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
+class _MatchingCompleteScreenState
+    extends ConsumerState<MatchingCompleteScreen>
     with SingleTickerProviderStateMixin {
   static const Color _primary = Color(0xFF8F9876);
   static const Color _bgLight = Color(0xFFFDFBF7);
@@ -45,6 +53,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
       duration: const Duration(milliseconds: 520),
     )..forward();
     _encouragement = EncouragementLines.pick(_computeFinalScore());
+    Future<void>(() => _syncClassAssignmentCompletion());
   }
 
   @override
@@ -72,6 +81,15 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
       0,
       100,
     );
+  }
+
+  Future<void> _syncClassAssignmentCompletion() async {
+    try {
+      await ref.read(classroomServiceProvider).markCompletedFromLocalSetId(
+            localSetId: widget.setId,
+            score: _computeFinalScore().toDouble(),
+          );
+    } catch (_) {}
   }
 
   String _computeGrade(int score) {
@@ -122,7 +140,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '你完成了一輪配對練習',
+                            l10n.matchingRoundComplete,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: _primary.withValues(alpha: 0.82),
@@ -165,7 +183,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                                       children: [
                                         Expanded(
                                           child: _StatColumn(
-                                            label: '時間',
+                                            label: l10n.matchingTime,
                                             value: _formatTime(
                                               widget.elapsedSeconds,
                                             ),
@@ -175,7 +193,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                                         const _StatLine(),
                                         Expanded(
                                           child: _StatColumn(
-                                            label: '正確率',
+                                            label: l10n.matchingAccuracy,
                                             value: '${widget.accuracy}%',
                                             valueColor: _primary,
                                           ),
@@ -183,7 +201,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                                         const _StatLine(),
                                         Expanded(
                                           child: _StatColumn(
-                                            label: '嘗試次數',
+                                            label: l10n.matchingAttempts,
                                             value: '${widget.attempts}',
                                             valueColor: _charcoal,
                                           ),
@@ -197,7 +215,7 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        '評分',
+                                        l10n.gradeLabel,
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.black.withValues(
@@ -238,6 +256,47 @@ class _MatchingCompleteScreenState extends State<MatchingCompleteScreen>
                               ),
                             ),
                           ),
+                          if (widget.sessionXp > 0) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: _panelWidth,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _primary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.bolt_rounded, color: _primary, size: 20),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      l10n.xpEarned(widget.sessionXp),
+                                      style: TextStyle(
+                                        color: _primary,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    if (widget.maxCombo >= 3) ...[
+                                      const SizedBox(width: 16),
+                                      Icon(Icons.local_fire_department_rounded, color: _primary.withValues(alpha: 0.7), size: 18),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${widget.maxCombo}',
+                                        style: TextStyle(
+                                          color: _primary.withValues(alpha: 0.8),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           SizedBox(
                             width: _panelWidth,

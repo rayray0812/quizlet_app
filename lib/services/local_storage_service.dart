@@ -3,6 +3,7 @@ import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/features/study/models/conversation_transcript.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
+import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/review_log.dart';
 
 class LocalStorageService {
@@ -10,6 +11,7 @@ class LocalStorageService {
   Box get _progressBox => Hive.box(AppConstants.hiveCardProgressBox);
   Box get _reviewLogBox => Hive.box(AppConstants.hiveReviewLogsBox);
   Box get _settingsBox => Hive.box(AppConstants.hiveSettingsBox);
+  Box get _foldersBox => Hive.box(AppConstants.hiveFoldersBox);
 
   // ?? StudySet CRUD ??
 
@@ -265,9 +267,73 @@ class LocalStorageService {
     }
   }
 
+  // —— Folder CRUD ——
+
+  List<Folder> getAllFolders() {
+    return _foldersBox.values.whereType<Folder>().toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Folder? getFolder(String id) {
+    return _foldersBox.get(id) as Folder?;
+  }
+
+  Future<void> saveFolder(Folder folder) async {
+    await _foldersBox.put(folder.id, folder);
+  }
+
+  Future<void> deleteFolder(String id) async {
+    await _foldersBox.delete(id);
+  }
+
+  List<Folder> getUnsyncedFolders() {
+    return _foldersBox.values
+        .whereType<Folder>()
+        .where((f) => !f.isSynced)
+        .toList();
+  }
+
+  Future<void> markFolderAsSynced(String id) async {
+    final folder = getFolder(id);
+    if (folder != null) {
+      await saveFolder(folder.copyWith(isSynced: true));
+    }
+  }
+
+  Future<void> saveFoldersBatch(List<Folder> folders) async {
+    if (folders.isEmpty) return;
+    final payload = <String, Folder>{for (final f in folders) f.id: f};
+    await _foldersBox.putAll(payload);
+  }
+
   // — Conversation Transcripts —
 
   static const _transcriptsKey = 'conversation_transcripts';
+  static const _learnModeResumePrefix = 'learn_mode_resume_';
+
+  Map<String, dynamic>? getLearnModeResume(String setId) {
+    final raw = _settingsBox.get('$_learnModeResumePrefix$setId');
+    if (raw is! Map) return null;
+    return Map<String, dynamic>.from(raw.cast<dynamic, dynamic>());
+  }
+
+  Future<void> saveLearnModeResume({
+    required String setId,
+    required int chapterIndex,
+    required int totalChapters,
+    required List<bool> chapterCompleted,
+  }) async {
+    await _settingsBox.put('$_learnModeResumePrefix$setId', <String, dynamic>{
+      'chapterIndex': chapterIndex,
+      'totalChapters': totalChapters,
+      'chapterCompleted': chapterCompleted,
+      'savedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> clearLearnModeResume(String setId) async {
+    await _settingsBox.delete('$_learnModeResumePrefix$setId');
+  }
 
   Future<void> saveConversationTranscript(
       ConversationTranscript transcript) async {

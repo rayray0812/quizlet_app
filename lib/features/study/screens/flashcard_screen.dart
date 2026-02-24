@@ -1,10 +1,17 @@
 ﻿import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:recall_app/core/constants/study_constants.dart';
+import 'package:recall_app/core/services/study_haptics.dart';
+import 'package:recall_app/features/study/widgets/combo_indicator.dart';
+import 'package:recall_app/features/study/widgets/completion_celebrate_overlay.dart';
+import 'package:recall_app/features/study/widgets/xp_toast.dart';
+import 'package:recall_app/providers/session_xp_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/features/study/widgets/swipe_card_stack.dart';
 import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
 import 'package:recall_app/features/study/utils/encouragement_lines.dart';
@@ -21,17 +28,27 @@ class FlashcardScreen extends ConsumerStatefulWidget {
   ConsumerState<FlashcardScreen> createState() => _FlashcardScreenState();
 }
 
-class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
+class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
+    with TickerProviderStateMixin {
   late List<Flashcard> _currentCards;
   final List<Flashcard> _knownCards = [];
   final List<Flashcard> _unknownCards = [];
   int _swipedCount = 0;
   bool _roundDone = false;
+  AnimationController? _celebrateController;
+  bool _showCelebration = false;
+  final _xpToastKey = GlobalKey<XpToastOverlayState>();
 
   @override
   void initState() {
     super.initState();
     _startRound(null);
+  }
+
+  @override
+  void dispose() {
+    _celebrateController?.dispose();
+    super.dispose();
   }
 
   void _startRound(List<Flashcard>? cards) {
@@ -49,6 +66,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
 
   void _onSwiped(int index, bool remembered) {
     final card = _currentCards[index];
+    StudyHaptics.onSwipe();
+    if (remembered) {
+      final earned = ref.read(sessionXpProvider.notifier).onFlashcardRemembered();
+      _xpToastKey.currentState?.showXp(earned);
+    } else {
+      ref.read(sessionXpProvider.notifier).onFlashcardForgot();
+    }
     setState(() {
       if (remembered) {
         _knownCards.add(card);
@@ -57,8 +81,24 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
       }
       _swipedCount++;
       if (_swipedCount >= _currentCards.length) {
-        _roundDone = true;
+        StudyHaptics.onComplete();
+        _playCelebrationThenShowRoundEnd();
       }
+    });
+  }
+
+  Future<void> _playCelebrationThenShowRoundEnd() async {
+    final controller = AnimationController(
+      vsync: this,
+      duration: StudyConstants.celebrationDuration,
+    );
+    _celebrateController = controller;
+    setState(() => _showCelebration = true);
+    await controller.forward();
+    if (!mounted) return;
+    setState(() {
+      _showCelebration = false;
+      _roundDone = true;
     });
   }
 
@@ -90,17 +130,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
       );
     }
 
+    final progress = _currentCards.isEmpty
+        ? 0.0
+        : _swipedCount / _currentCards.length;
+
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: Text(
-          '$_swipedCount / ${_currentCards.length}',
-          style: GoogleFonts.notoSerifTc(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
+        title: Text(l10n.flashcards),
         actions: [
           IconButton(
             icon: const Icon(CupertinoIcons.house, size: 22),
@@ -109,9 +146,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 4),
+          Column(
+        children: [
+          RoundedProgressBar(
+            value: progress,
+            counterText: '$_swipedCount / ${_currentCards.length}',
+          ),
           // Score row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -175,6 +217,34 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
           Expanded(
             child: _roundDone ? _buildRoundEnd(context) : _buildCardStack(),
           ),
+        ],
+      ),
+          // Combo indicator
+          const Positioned(
+            top: 60,
+            right: 16,
+            child: ComboIndicator(),
+          ),
+          // XP toast
+          Positioned(
+            top: 100,
+            left: 0,
+            right: 0,
+            child: Center(child: XpToastOverlay(key: _xpToastKey)),
+          ),
+          if (_showCelebration && _celebrateController != null)
+            Positioned.fill(
+              child: CompletionCelebrateOverlay(
+                animation: _celebrateController!,
+                color: AppTheme.green,
+                tier: celebrationTierFromPercent(
+                  _currentCards.isEmpty
+                      ? 0
+                      : (_knownCards.length / _currentCards.length * 100)
+                          .round(),
+                ),
+              ),
+            ),
         ],
       ),
     );

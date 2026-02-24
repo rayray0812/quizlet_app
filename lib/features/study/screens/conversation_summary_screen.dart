@@ -54,6 +54,19 @@ class ConversationSummaryScreen extends StatelessWidget {
       allTermsUsed.addAll(turn.termsUsed);
     }
 
+    // Find weakest dimension
+    String weakestDimension = '';
+    if (scored > 0) {
+      final dims = <String, double>{
+        l10n.grammarAvg: grammarAvg,
+        l10n.vocabAvg: vocabAvg,
+        l10n.relevanceAvg: relevanceAvg,
+      };
+      final sorted = dims.entries.toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
+      weakestDimension = sorted.first.key;
+    }
+
     // Turns with corrections
     final correctionTurns =
         transcript.turns.where((t) => t.correction.isNotEmpty).toList();
@@ -152,7 +165,7 @@ class ConversationSummaryScreen extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(
-                  '${allTermsUsed.length} terms used',
+                  l10n.nTermsUsed(allTermsUsed.length),
                   style: theme.textTheme.bodySmall,
                 ),
                 if (allTermsUsed.isNotEmpty) ...[
@@ -169,6 +182,101 @@ class ConversationSummaryScreen extends StatelessWidget {
                         .toList(),
                   ),
                 ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Weak Areas
+          if (scored > 0 || allTermsUsed.length < transcript.turns.length)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.weakAreas,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade800,
+                      )),
+                  const SizedBox(height: 8),
+                  if (weakestDimension.isNotEmpty)
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            size: 16, color: Colors.orange.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${l10n.lowestDimension}: $weakestDimension',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  // Show unused target terms from vocab coverage
+                  // We compute this from transcript turns — terms mentioned in allTermsUsed vs total
+                  if (correctionTurns.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.edit_note_rounded,
+                            size: 16, color: Colors.orange.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${correctionTurns.length} ${l10n.errorList.toLowerCase()}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          if (scored > 0 || allTermsUsed.length < transcript.turns.length)
+            const SizedBox(height: 16),
+
+          // Next Steps
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.nextSteps,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    )),
+                const SizedBox(height: 8),
+                if (score < 2.5)
+                  _NextStepItem(
+                    icon: Icons.trending_down_rounded,
+                    text: l10n.recommendLowerDifficulty,
+                    color: Colors.orange,
+                  ),
+                if (score >= 2.5 && score < 4.0)
+                  _NextStepItem(
+                    icon: Icons.replay_rounded,
+                    text: l10n.recommendPracticeAgain,
+                    color: Colors.blue,
+                  ),
+                if (score >= 4.0)
+                  _NextStepItem(
+                    icon: Icons.trending_up_rounded,
+                    text: l10n.recommendHigherDifficulty,
+                    color: Colors.green,
+                  ),
               ],
             ),
           ),
@@ -426,6 +534,39 @@ class _MiniScore extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: colorFn(score),
         ),
+      ),
+    );
+  }
+}
+
+class _NextStepItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  const _NextStepItem({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }

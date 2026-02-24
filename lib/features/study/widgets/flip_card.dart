@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 
@@ -47,8 +48,8 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 520),
-      reverseDuration: const Duration(milliseconds: 520),
+      duration: StudyConstants.flipDuration,
+      reverseDuration: StudyConstants.flipDuration,
       vsync: this,
     )..addStatusListener((status) {
       final animating =
@@ -86,7 +87,6 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
 
   @override
   void dispose() {
-    widget.onFlipStateChanged?.call(false);
     _stopSpeaking();
     _controller.dispose();
     super.dispose();

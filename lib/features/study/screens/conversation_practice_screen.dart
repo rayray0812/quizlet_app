@@ -11,6 +11,7 @@ import 'package:recall_app/features/study/widgets/turn_feedback_chip.dart';
 import 'package:recall_app/providers/conversation_session_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/providers/tts_engine_provider.dart';
 import 'package:recall_app/services/ai_tts_service.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -67,7 +68,7 @@ class _ConversationPracticeScreenState
   bool _isSessionBootstrapping = true;
   bool _didPlayFirstAiLine = false;
   bool _showScenarioChinese = false;
-  String _firstAiQuestionText = '';
+  bool _showReplyHint = false;
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -144,7 +145,10 @@ class _ConversationPracticeScreenState
         return;
       }
 
-      await _notifier.startSession();
+      if (!mounted || _isDisposed) return;
+      final notifier = ref.read(conversationSessionProvider(_params).notifier);
+      await notifier.startSession();
+      if (!mounted || _isDisposed) return;
       // Pre-generate first AI audio
       final sessionState = ref
           .read(conversationSessionProvider(_params))
@@ -152,7 +156,6 @@ class _ConversationPracticeScreenState
       if (sessionState != null && sessionState.messages.isNotEmpty) {
         final lastMsg = sessionState.messages.last;
         if (lastMsg.isAi && lastMsg.text.isNotEmpty) {
-          _firstAiQuestionText = lastMsg.text;
           final apiKey = ref.read(geminiKeyProvider);
           if (apiKey.isNotEmpty && !(sessionState.useLocalCoachOnly)) {
             try {
@@ -194,6 +197,7 @@ class _ConversationPracticeScreenState
 
   void _speakLatestAiQuestionOnce() {
     if (!mounted || _didPlayFirstAiLine) return;
+    if (_isDisposed) return;
     final sessionState = ref
         .read(conversationSessionProvider(_params))
         .valueOrNull;
@@ -203,34 +207,52 @@ class _ConversationPracticeScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _didPlayFirstAiLine = true;
-      _firstAiQuestionText = last.text.trim();
-      _playAiMessage(last.text, isReplay: false, allowRemote: true);
+      _playAiMessage(last.text);
     });
   }
 
-  void _playAiMessage(
-    String text, {
-    required bool isReplay,
-    required bool allowRemote,
-  }) {
+  void _playAiMessage(String text) {
+    if (!mounted || _isDisposed) return;
+    final engine = ref.read(ttsEngineProvider);
+    // Sync backend setting
+    if (engine == TtsEngine.geminiTts) {
+      AiTtsService.setBackend(TtsBackend.geminiTts);
+    } else {
+      AiTtsService.setBackend(TtsBackend.cloudTts);
+    }
     final sessionState = ref
         .read(conversationSessionProvider(_params))
         .valueOrNull;
     _voice.playAiMessage(
       text,
-      firstAiQuestionText: _firstAiQuestionText,
-      isReplay: isReplay,
-      allowRemoteGenerateForFirstLine: allowRemote,
       useLocalCoachOnly: sessionState?.useLocalCoachOnly ?? false,
+      useDeviceOnly: engine == TtsEngine.deviceTts,
       apiKey: ref.read(geminiKeyProvider),
       onStateChanged: (state, diag) {
         if (_isDisposed || !mounted) return;
-        _notifier.updateVoiceState(state.name, diag);
+        try {
+          _notifier.updateVoiceState(state.name, diag);
+          if (state == VoiceState.completed || state == VoiceState.error) {
+            _showTtsIndicator(diag);
+          }
+        } catch (_) {}
       },
     );
   }
 
+  void _showTtsIndicator(String message) {
+    if (!mounted || _isDisposed) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+  }
+
   void _handleUserSubmit() {
+    if (!mounted || _isDisposed) return;
     final sessionState = ref
         .read(conversationSessionProvider(_params))
         .valueOrNull;
@@ -245,6 +267,7 @@ class _ConversationPracticeScreenState
     }
     _textController.clear();
     _notifier.sendMessage(text).then((_) {
+      if (!mounted || _isDisposed) return;
       // After AI responds, speak the new AI message
       final updated = ref
           .read(conversationSessionProvider(_params))
@@ -252,9 +275,11 @@ class _ConversationPracticeScreenState
       if (updated != null && updated.messages.isNotEmpty) {
         final last = updated.messages.last;
         if (last.isAi && last.text.isNotEmpty) {
-          _playAiMessage(last.text, isReplay: false, allowRemote: false);
+          _playAiMessage(last.text);
         }
       }
+    }).catchError((_) {
+      // Keep UI stable when async send completes after disposal.
     });
   }
 
@@ -266,6 +291,7 @@ class _ConversationPracticeScreenState
       setState(() => _isListening = false);
     } else {
       final localeId = await _resolveSttLocale();
+      if (!mounted || _isDisposed) return;
       setState(() => _isListening = true);
       await _stt.listen(
         localeId: localeId,
@@ -300,6 +326,7 @@ class _ConversationPracticeScreenState
   }
 
   void _navigateToSummary(BuildContext context) {
+    if (!mounted || _isDisposed) return;
     final localStorage = ref.read(localStorageServiceProvider);
     final transcripts = localStorage.getAllConversationTranscripts();
     final session = ref.read(conversationSessionProvider(_params)).valueOrNull;
@@ -322,6 +349,10 @@ class _ConversationPracticeScreenState
   @override
   void dispose() {
     _isDisposed = true;
+    // Clear SnackBars before disposal to avoid disposed AnimationController errors
+    try {
+      ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+    } catch (_) {}
     _geminiKeySubscription?.close();
     _voice.dispose();
     _stt.cancel();
@@ -384,10 +415,11 @@ class _ConversationPracticeScreenState
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                   child: _buildScenarioPanel(theme, l10n, session),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: _buildApiGuardPanel(theme, l10n, session),
-                ),
+                if (kDebugMode)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: _buildApiGuardPanel(theme, l10n, session),
+                  ),
                 if (session.targetTerms.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -562,6 +594,7 @@ class _ConversationPracticeScreenState
     ThemeData theme,
     ConversationSessionState session,
   ) {
+    final l10n = AppLocalizations.of(context);
     final isAi = msg.isAi;
     final turnRecord = isAi ? null : _findTurnRecord(msg.text, session);
     return Align(
@@ -582,7 +615,7 @@ class _ConversationPracticeScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isAi ? session.aiRole : 'You',
+              isAi ? session.aiRole : l10n.you,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: isAi
                     ? theme.colorScheme.onSecondaryContainer.withValues(
@@ -605,11 +638,7 @@ class _ConversationPracticeScreenState
             ),
             if (isAi)
               GestureDetector(
-                onTap: () => _playAiMessage(
-                  msg.text,
-                  isReplay: true,
-                  allowRemote: false,
-                ),
+                onTap: () => _playAiMessage(msg.text),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Icon(
@@ -703,7 +732,7 @@ class _ConversationPracticeScreenState
                 onPressed: () => setState(() {
                   _showScenarioChinese = !_showScenarioChinese;
                 }),
-                child: Text(_showScenarioChinese ? 'Hide ZH' : 'Show ZH'),
+                child: Text(_showScenarioChinese ? l10n.hideChinese : l10n.showChinese),
               ),
             ],
           ),
@@ -716,7 +745,7 @@ class _ConversationPracticeScreenState
             ),
           const SizedBox(height: 2),
           Text(
-            'AI role: ${session.aiRole} | Your role: ${session.userRole}',
+            '${l10n.aiRoleLabelPrefix}${session.aiRole} | ${l10n.yourRoleLabelPrefix}${session.userRole}',
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -724,12 +753,12 @@ class _ConversationPracticeScreenState
           if (_showScenarioChinese && (showAiRoleZh || showUserRoleZh)) ...[
             if (showAiRoleZh)
               Text(
-                'AI role (ZH): ${session.aiRoleZh}',
+                '${l10n.aiRoleLabelPrefix}${session.aiRoleZh}',
                 style: theme.textTheme.bodySmall,
               ),
             if (showUserRoleZh)
               Text(
-                'Your role (ZH): ${session.userRoleZh}',
+                '${l10n.yourRoleLabelPrefix}${session.userRoleZh}',
                 style: theme.textTheme.bodySmall,
               ),
           ],
@@ -750,7 +779,7 @@ class _ConversationPracticeScreenState
           if (session.targetTerms.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Focus terms: ${session.targetTerms.join(', ')}',
+              '${l10n.focusTermsLabel}${session.targetTerms.join(', ')}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -759,27 +788,27 @@ class _ConversationPracticeScreenState
           ],
           const SizedBox(height: 4),
           Text(
-            'Objective now: $currentObjective',
+            '${l10n.objectiveNowLabel}$currentObjective',
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
           if (_showScenarioChinese && showCurrentObjectiveZh)
             Text(
-              'Objective (ZH): $currentObjectiveZh',
+              '${l10n.objectiveNowLabel}$currentObjectiveZh',
               style: theme.textTheme.bodySmall,
             ),
           if (nextObjective.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
-              'Next objective: $nextObjective',
+              '${l10n.nextObjectiveLabel}$nextObjective',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             if (_showScenarioChinese && showNextObjectiveZh)
               Text(
-                'Next objective (ZH): $nextObjectiveZh',
+                '${l10n.nextObjectiveLabel}$nextObjectiveZh',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -806,38 +835,73 @@ class _ConversationPracticeScreenState
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Icon(
-            Icons.tips_and_updates_rounded,
-            size: 18,
-            color: theme.colorScheme.onTertiaryContainer,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              session.latestReplyHint,
-              style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
+          InkWell(
+            onTap: () => setState(() => _showReplyHint = !_showReplyHint),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tips_and_updates_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.replyHintTitle,
+                    style: TextStyle(
+                      color: theme.colorScheme.onTertiaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _showReplyHint
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                ],
+              ),
             ),
           ),
-          TextButton(
-            onPressed: () {
-              _textController.value = TextEditingValue(
-                text: session.latestReplyHint,
-                selection: TextSelection.collapsed(
-                  offset: session.latestReplyHint.length,
-                ),
-              );
-            },
-            child: Text(l10n.useHint),
-          ),
+          if (_showReplyHint)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 8, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      session.latestReplyHint,
+                      style: TextStyle(
+                        color: theme.colorScheme.onTertiaryContainer,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _textController.value = TextEditingValue(
+                        text: session.latestReplyHint,
+                        selection: TextSelection.collapsed(
+                          offset: session.latestReplyHint.length,
+                        ),
+                      );
+                    },
+                    child: Text(l10n.useHint),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,14 +8,19 @@ import 'package:recall_app/features/auth/screens/login_screen.dart';
 import 'package:recall_app/features/auth/screens/signup_screen.dart';
 import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/features/about/screens/about_screen.dart';
 import 'package:recall_app/features/admin/screens/admin_management_screen.dart';
+import 'package:recall_app/features/classroom/screens/class_detail_screen.dart';
+import 'package:recall_app/features/classroom/screens/class_student_detail_screen.dart';
+import 'package:recall_app/features/classroom/screens/classes_screen.dart';
 import 'package:recall_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:recall_app/features/home/screens/folder_management_screen.dart';
 import 'package:recall_app/features/share/screens/share_screen.dart';
 import 'package:recall_app/features/share/screens/qr_scan_screen.dart';
 import 'package:recall_app/features/achievements/screens/achievements_screen.dart';
 import 'package:recall_app/features/home/screens/dashboard_screen.dart';
+import 'package:recall_app/features/profile/screens/profile_edit_screen.dart';
 import 'package:recall_app/features/home/screens/card_editor_screen.dart';
 import 'package:recall_app/features/import/screens/web_import_screen.dart';
 import 'package:recall_app/features/import/screens/review_import_screen.dart';
@@ -121,9 +125,14 @@ class GoRouterRefreshStream extends ChangeNotifier {
   late final StreamSubscription<dynamic> _subscription;
 
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen((_) {
-      notifyListeners();
-    });
+    _subscription = stream.asBroadcastStream().listen(
+      (_) {
+        notifyListeners();
+      },
+      onError: (e) {
+        debugPrint('GoRouterRefreshStream error: $e');
+      },
+    );
   }
 
   @override
@@ -131,6 +140,31 @@ class GoRouterRefreshStream extends ChangeNotifier {
     _subscription.cancel();
     super.dispose();
   }
+}
+
+/// Shared slide+fade transition for all study-mode routes.
+CustomTransitionPage<void> studyTransitionPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: StudyConstants.pageTransitionDuration,
+    reverseTransitionDuration: const Duration(milliseconds: 260),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurveTween(curve: StudyConstants.pageTransitionCurve)
+          .animate(animation);
+      final slide = Tween<Offset>(
+        begin: const Offset(0.08, 0),
+        end: Offset.zero,
+      ).animate(curved);
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(position: slide, child: child),
+      );
+    },
+  );
 }
 
 GoRouter createAppRouter({
@@ -163,11 +197,6 @@ GoRouter createAppRouter({
       );
       if (baseRedirect != null) return baseRedirect;
 
-      if (state.matchedLocation == '/admin' ||
-          state.matchedLocation.startsWith('/admin/')) {
-        final isAdmin = await supabaseService.isCurrentUserAdmin();
-        if (!isAdmin) return '/';
-      }
       return null;
     },
     routes: [
@@ -179,6 +208,34 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/folders',
         builder: (context, state) => const FolderManagementScreen(),
+      ),
+      GoRoute(
+        path: '/classes',
+        builder: (context, state) => const ClassesScreen(),
+      ),
+      GoRoute(
+        path: '/classes/:classId',
+        builder: (context, state) {
+          final classId = state.pathParameters['classId'] ?? '';
+          return ClassDetailScreen(classId: classId);
+        },
+      ),
+      GoRoute(
+        path: '/classes/:classId/student/:studentId',
+        builder: (context, state) {
+          final classId = state.pathParameters['classId'] ?? '';
+          final studentId = state.pathParameters['studentId'] ?? '';
+          final extra = extractMapExtra(state.extra);
+          final studentName =
+              (extra['studentName'] as String?)?.trim().isNotEmpty == true
+              ? extra['studentName'] as String
+              : studentId;
+          return ClassStudentDetailScreen(
+            classId: classId,
+            studentId: studentId,
+            studentName: studentName,
+          );
+        },
       ),
       GoRoute(path: '/scan', builder: (context, state) => const QrScanScreen()),
       GoRoute(
@@ -233,7 +290,7 @@ GoRouter createAppRouter({
       ),
       GoRoute(
         path: '/review',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final data = extractMapExtra(state.extra);
           final tags = (data['tags'] as List<dynamic>?)?.cast<String>();
           final maxCards = extractOptionalIntExtra(state.extra, 'maxCards');
@@ -245,50 +302,73 @@ GoRouter createAppRouter({
           );
           final revengeCardIds = (data['revengeCardIds'] as List<dynamic>?)
               ?.cast<String>();
-          return SrsReviewScreen(
-            filterTags: tags,
-            maxCards: maxCards,
-            challengeMode: challengeMode,
-            challengeTarget: challengeTarget,
-            revengeCardIds: revengeCardIds,
+          return studyTransitionPage(
+            key: state.pageKey,
+            child: SrsReviewScreen(
+              filterTags: tags,
+              maxCards: maxCards,
+              challengeMode: challengeMode,
+              challengeTarget: challengeTarget,
+              revengeCardIds: revengeCardIds,
+            ),
           );
         },
       ),
       GoRoute(
         path: '/review/summary',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final data = extractMapExtra(state.extra);
-          return ReviewSummaryScreen(
-            totalReviewed: data['totalReviewed'] as int? ?? 0,
-            againCount: data['againCount'] as int? ?? 0,
-            hardCount: data['hardCount'] as int? ?? 0,
-            goodCount: data['goodCount'] as int? ?? 0,
-            easyCount: data['easyCount'] as int? ?? 0,
-            challengeMode: data['challengeMode'] as bool? ?? false,
-            challengeTarget: data['challengeTarget'] as int?,
-            challengeCompleted: data['challengeCompleted'] as bool? ?? false,
-            isRevengeMode: data['isRevengeMode'] as bool? ?? false,
-            revengeCardCount: data['revengeCardCount'] as int? ?? 0,
+          return studyTransitionPage(
+            key: state.pageKey,
+            child: ReviewSummaryScreen(
+              totalReviewed: data['totalReviewed'] as int? ?? 0,
+              againCount: data['againCount'] as int? ?? 0,
+              hardCount: data['hardCount'] as int? ?? 0,
+              goodCount: data['goodCount'] as int? ?? 0,
+              easyCount: data['easyCount'] as int? ?? 0,
+              challengeMode: data['challengeMode'] as bool? ?? false,
+              challengeTarget: data['challengeTarget'] as int?,
+              challengeCompleted: data['challengeCompleted'] as bool? ?? false,
+              isRevengeMode: data['isRevengeMode'] as bool? ?? false,
+              revengeCardCount: data['revengeCardCount'] as int? ?? 0,
+              sessionXp: data['sessionXp'] as int? ?? 0,
+              maxCombo: data['maxCombo'] as int? ?? 0,
+            ),
           );
         },
       ),
       GoRoute(
         path: '/revenge',
-        builder: (context, state) => const RevengeDetailScreen(),
+        pageBuilder: (context, state) => studyTransitionPage(
+          key: state.pageKey,
+          child: const RevengeDetailScreen(),
+        ),
       ),
       GoRoute(
         path: '/revenge/quiz',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final data = extractMapExtra(state.extra);
           final cardIds =
               (data['cardIds'] as List<dynamic>?)?.cast<String>() ?? [];
-          return RevengeQuizScreen(cardIds: cardIds);
+          return studyTransitionPage(
+            key: state.pageKey,
+            child: RevengeQuizScreen(cardIds: cardIds),
+          );
         },
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => const ProfileEditScreen(),
       ),
       GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
       GoRoute(path: '/stats', builder: (context, state) => const StatsScreen()),
       GoRoute(
         path: '/admin',
+        redirect: (context, state) async {
+          final isAdmin = await supabaseService.isCurrentUserAdmin();
+          if (!isAdmin) return '/';
+          return null;
+        },
         builder: (context, state) => const AdminManagementScreen(),
       ),
       GoRoute(
@@ -364,16 +444,22 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: 'srs',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final setId = state.pathParameters['setId']!;
-              return SrsReviewScreen(setId: setId);
+              return studyTransitionPage(
+                key: state.pageKey,
+                child: SrsReviewScreen(setId: setId),
+              );
             },
           ),
           GoRoute(
             path: 'flashcards',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final setId = state.pathParameters['setId']!;
-              return FlashcardScreen(setId: setId);
+              return studyTransitionPage(
+                key: state.pageKey,
+                child: FlashcardScreen(setId: setId),
+              );
             },
           ),
           GoRoute(
@@ -392,7 +478,7 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: 'quiz',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final setId = state.pathParameters['setId']!;
               final data = extractMapExtra(state.extra);
               final settings = data['settings'] as QuizSettings?;
@@ -400,10 +486,13 @@ GoRouter createAppRouter({
                 state.extra,
                 'questionCount',
               );
-              return QuizScreen(
-                setId: setId,
-                questionCount: questionCount,
-                settings: settings,
+              return studyTransitionPage(
+                key: state.pageKey,
+                child: QuizScreen(
+                  setId: setId,
+                  questionCount: questionCount,
+                  settings: settings,
+                ),
               );
             },
             routes: [
@@ -434,7 +523,7 @@ GoRouter createAppRouter({
                         'reinforcementTotal',
                       ) ??
                       0;
-                  return CustomTransitionPage<void>(
+                  return studyTransitionPage(
                     key: state.pageKey,
                     child: QuizCompleteScreen(
                       setId: setId,
@@ -446,29 +535,6 @@ GoRouter createAppRouter({
                       reinforcementScore: reinforcementScore,
                       reinforcementTotal: reinforcementTotal,
                     ),
-                    transitionDuration: const Duration(milliseconds: 320),
-                    reverseTransitionDuration: const Duration(
-                      milliseconds: 260,
-                    ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                          final curve = CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                            reverseCurve: Curves.easeInCubic,
-                          );
-                          final slide = Tween<Offset>(
-                            begin: const Offset(0.08, 0),
-                            end: Offset.zero,
-                          ).animate(curve);
-                          return FadeTransition(
-                            opacity: curve,
-                            child: SlideTransition(
-                              position: slide,
-                              child: child,
-                            ),
-                          );
-                        },
                   );
                 },
               ),
@@ -483,13 +549,16 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: 'match',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final setId = state.pathParameters['setId']!;
               final pairCount = extractOptionalIntExtra(
                 state.extra,
                 'pairCount',
               );
-              return MatchingGameScreen(setId: setId, pairCount: pairCount);
+              return studyTransitionPage(
+                key: state.pageKey,
+                child: MatchingGameScreen(setId: setId, pairCount: pairCount),
+              );
             },
             routes: [
               GoRoute(
@@ -507,7 +576,7 @@ GoRouter createAppRouter({
                     state.extra,
                     'pairCount',
                   );
-                  return CustomTransitionPage<void>(
+                  return studyTransitionPage(
                     key: state.pageKey,
                     child: MatchingCompleteScreen(
                       setId: setId,
@@ -516,29 +585,6 @@ GoRouter createAppRouter({
                       attempts: attempts,
                       pairCount: pairCount,
                     ),
-                    transitionDuration: const Duration(milliseconds: 320),
-                    reverseTransitionDuration: const Duration(
-                      milliseconds: 260,
-                    ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                          final curve = CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                            reverseCurve: Curves.easeInCubic,
-                          );
-                          final slide = Tween<Offset>(
-                            begin: const Offset(0.08, 0),
-                            end: Offset.zero,
-                          ).animate(curve);
-                          return FadeTransition(
-                            opacity: curve,
-                            child: SlideTransition(
-                              position: slide,
-                              child: child,
-                            ),
-                          );
-                        },
                   );
                 },
               ),

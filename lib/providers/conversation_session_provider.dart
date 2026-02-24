@@ -52,7 +52,7 @@ class ConversationSessionNotifier
           ConversationSessionParams
         > {
   static const int _maxUserInputLength = 300;
-  static const int _maxSessionTokenBudget = 8000;
+  static const int _maxSessionTokenBudget = 5000;
 
   // ignore: unused_field
   static const List<ConversationScenario> _localScenarioPool = [
@@ -324,9 +324,10 @@ class ConversationSessionNotifier
   ChatSession? _chatSession;
   late VocabularyTracker _vocab;
   int _consecutiveApiFailures = 0;
+  int _rateLimitHitCount = 0;
   DateTime? _lastChatApiCallAt;
   DateTime? _lastSuggestionApiCallAt;
-  int _chatMinGapMs = 900;
+  int _chatMinGapMs = 1500;
   DateTime? _rateLimitCooldownUntil;
   Timer? _cooldownTicker;
   int _estimatedTotalTokens = 0;
@@ -398,9 +399,10 @@ class ConversationSessionNotifier
 
     // Reset state
     _consecutiveApiFailures = 0;
+    _rateLimitHitCount = 0;
     _lastChatApiCallAt = null;
     _lastSuggestionApiCallAt = null;
-    _chatMinGapMs = 900;
+    _chatMinGapMs = 1500;
     _rateLimitCooldownUntil = null;
     _cooldownTicker?.cancel();
     _cooldownTicker = null;
@@ -680,10 +682,12 @@ class ConversationSessionNotifier
 
   int _sessionTargetTermCount(String difficulty) {
     switch (difficulty.toLowerCase().trim()) {
+      case 'easy':
+        return 4;
       case 'hard':
-        return 2;
+        return 8;
       default:
-        return 1;
+        return 6;
     }
   }
 
@@ -877,7 +881,7 @@ class ConversationSessionNotifier
         turnStartCursor: turnStartCursor,
       );
       _consecutiveApiFailures = 0;
-      _chatMinGapMs = 900;
+      _chatMinGapMs = 1500;
     } on GenerativeAIException catch (e) {
       final retried = await _retryWithNextChatModel(
         payload: payload,
@@ -990,8 +994,14 @@ class ConversationSessionNotifier
           turnStartCursor: turnStartCursor,
         );
         _consecutiveApiFailures = 0;
-        _chatMinGapMs = 900;
+        _chatMinGapMs = 1500;
         return true;
+      } on GenerativeAIException catch (e) {
+        // Stop retrying on 429 — further calls will worsen rate limiting
+        if (_classifyApiIssue(e.toString()) == _ApiIssueType.rateLimit) {
+          return false;
+        }
+        continue;
       } catch (_) {
         continue;
       }
@@ -1009,7 +1019,14 @@ class ConversationSessionNotifier
       _appendLocalCoachTurn(userText: userText);
     } else if (issueType == _ApiIssueType.rateLimit) {
       _startRateCooldown();
-      _updateState((s) => s.copyWith(useLocalCoachOnly: true));
+      // After 3+ rate limit hits, stay on local coach for the rest of this session
+      final permanent = _rateLimitHitCount >= 3;
+      _updateState(
+        (s) => s.copyWith(
+          useLocalCoachOnly: true,
+          isQuotaExhausted: permanent ? true : s.isQuotaExhausted,
+        ),
+      );
       _appendLocalCoachTurn(userText: userText);
     } else {
       _consecutiveApiFailures++;
@@ -1060,10 +1077,13 @@ class ConversationSessionNotifier
         ? ' ($lead means: ${leadDef.length > 20 ? '${leadDef.substring(0, 20)}...' : leadDef})'
         : '';
 
+    final aiRole = current.aiRole.isNotEmpty ? current.aiRole : 'the other person';
     final easyTemplates = [
       'At this point, what $lead do you want?$defContext',
       'What would you say about $lead now?$defContext',
       'How would you ask for $lead politely?$defContext',
+      'What question would you ask $aiRole about $lead?$defContext',
+      'Can you describe what you need regarding $lead?$defContext',
       if (extra.isNotEmpty)
         'Can you use $lead or $extra in a sentence?$defContext',
     ];
@@ -1071,13 +1091,21 @@ class ConversationSessionNotifier
       'In this moment, what do you want to ask about $lead?$defContext',
       'How would you continue with $lead in this situation?$defContext',
       'What would your next sentence about $lead be?$defContext',
+      'How would you explain your preference for $lead to $aiRole?$defContext',
+      'What follow-up question about $lead would you ask?$defContext',
       if (extra.isNotEmpty)
         'Try to mention both $lead and $extra in your answer.$defContext',
+      if (extra.isNotEmpty)
+        'Compare $lead and $extra — which do you prefer and why?$defContext',
     ];
     final hardTemplates = [
       'Given this step, how would you justify your choice about $lead?$defContext',
       'How would you ask about $lead while mentioning ${extra.isEmpty ? 'one concern' : extra}?$defContext',
       'What would you say next to move this conversation forward about $lead?$defContext',
+      'How would you negotiate with $aiRole about $lead?$defContext',
+      'Explain your reasoning about $lead in detail.$defContext',
+      if (extra.isNotEmpty)
+        'How do $lead and $extra relate to your decision?$defContext',
       if (third.isNotEmpty)
         'Try to connect $lead, $extra, and $third in one response.$defContext',
     ];
@@ -1191,9 +1219,21 @@ class ConversationSessionNotifier
 
   /// Offline scoring fallback.
   void _evaluateTurnOffline(int turnIndex, String userResponse) {
+    // Find the AI question for this turn to improve relevance scoring
+    final current = state.valueOrNull;
+    String aiQuestion = '';
+    if (current != null) {
+      for (final turn in current.turnRecords) {
+        if (turn.turnIndex == turnIndex) {
+          aiQuestion = turn.aiQuestion;
+          break;
+        }
+      }
+    }
     final feedback = ConversationScorer.evaluateOffline(
       userResponse: userResponse,
       targetTerms: _vocab.targetTerms,
+      aiQuestion: aiQuestion,
     );
     _updateTurnFeedback(turnIndex, feedback);
   }
@@ -1242,6 +1282,9 @@ class ConversationSessionNotifier
         await localStorage.saveReviewLog(log);
       }
 
+      // SRS feedback: penalize unused target terms in low-scoring turns
+      await _applyConversationSrsFeedback(current, localStorage);
+
       // Save transcript
       await _saveTranscript(current);
 
@@ -1250,6 +1293,51 @@ class ConversationSessionNotifier
     } catch (_) {
       _hasPersistedSessionResult = false;
       rethrow;
+    }
+  }
+
+  Future<void> _applyConversationSrsFeedback(
+    ConversationSessionState current,
+    dynamic localStorage,
+  ) async {
+    // Collect all used terms across the session
+    final allUsedTerms = <String>{};
+    for (final turn in current.turnRecords) {
+      allUsedTerms.addAll(turn.termsUsed);
+    }
+
+    // Find unused target terms
+    final unusedTerms = current.targetTerms
+        .where((t) => !allUsedTerms.contains(t))
+        .toList();
+
+    if (unusedTerms.isEmpty) return;
+
+    // Look up flashcards in the study set to find card IDs for unused terms
+    final studySet = ref.read(studySetsProvider.notifier).getById(arg.setId);
+    if (studySet == null) return;
+
+    final termToCardId = <String, String>{};
+    for (final card in studySet.cards) {
+      final normalizedTerm = card.term.trim().toLowerCase();
+      termToCardId[normalizedTerm] = card.id;
+    }
+
+    // For each unused term, reduce stability in CardProgress
+    for (final term in unusedTerms) {
+      final cardId = termToCardId[term.trim().toLowerCase()];
+      if (cardId == null) continue;
+
+      final progress = (localStorage as dynamic).getCardProgress(cardId);
+      if (progress == null) continue;
+
+      // Reduce stability by 20% to schedule earlier review
+      final newStability = (progress.stability * 0.8).clamp(0.1, 9999.0);
+      final updated = progress.copyWith(
+        stability: newStability,
+        isSynced: false,
+      );
+      await (localStorage as dynamic).saveCardProgress(updated);
     }
   }
 
@@ -1347,7 +1435,7 @@ class ConversationSessionNotifier
         _rateLimitCooldownUntil = null;
         _cooldownTicker?.cancel();
         _cooldownTicker = null;
-        _chatMinGapMs = 900;
+        _chatMinGapMs = 1500;
         expiredNow = true;
       }
     }
@@ -1378,11 +1466,14 @@ class ConversationSessionNotifier
   }
 
   bool _canUseRemoteSuggestion(ConversationSessionState s) =>
-      s.suggestionApiCalls < 3;
+      s.suggestionApiCalls < 2;
 
   void _startRateCooldown() {
-    _rateLimitCooldownUntil = DateTime.now().add(const Duration(seconds: 20));
-    _chatMinGapMs = 2800;
+    _rateLimitHitCount++;
+    // Exponential backoff: 45s, 90s, 180s (cap at 180s)
+    final cooldownSeconds = min(180, 45 * pow(2, _rateLimitHitCount - 1).toInt());
+    _rateLimitCooldownUntil = DateTime.now().add(Duration(seconds: cooldownSeconds));
+    _chatMinGapMs = min(10000, 5000 * _rateLimitHitCount);
     _cooldownTicker?.cancel();
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       final active = _refreshCooldownState();
@@ -1447,8 +1538,8 @@ class ConversationSessionNotifier
     final last = _lastSuggestionApiCallAt;
     if (last != null) {
       final gapMs = now.difference(last).inMilliseconds;
-      if (gapMs < 1800) {
-        await Future<void>.delayed(Duration(milliseconds: 1800 - gapMs));
+      if (gapMs < 3000) {
+        await Future<void>.delayed(Duration(milliseconds: 3000 - gapMs));
       }
     }
     _lastSuggestionApiCallAt = DateTime.now();
@@ -1522,6 +1613,32 @@ class ConversationSessionNotifier
     return _ApiIssueType.none;
   }
 
+  /// Compute adaptive difficulty hint based on recent turn scores.
+  /// Returns a prompt modifier string to append.
+  String _adaptDifficultyHint() {
+    final current = state.valueOrNull;
+    if (current == null || current.turnRecords.isEmpty) return '';
+    // Look at most recent 3 turns with feedback
+    final recentWithFeedback = current.turnRecords
+        .where((t) => t.feedback != null)
+        .toList();
+    if (recentWithFeedback.length < 2) return '';
+    final recent = recentWithFeedback.length > 3
+        ? recentWithFeedback.sublist(recentWithFeedback.length - 3)
+        : recentWithFeedback;
+    final avgScore = recent
+            .map((t) => t.feedback!.overallScore)
+            .reduce((a, b) => a + b) /
+        recent.length;
+    if (avgScore >= 4.5) {
+      return '\nStudent is doing very well. Make this question slightly more challenging — use longer sentences or less common vocabulary.';
+    }
+    if (avgScore <= 2.0) {
+      return '\nStudent is struggling. Simplify the question, use shorter sentences, and provide more scaffolding in the reply hint.';
+    }
+    return '';
+  }
+
   String _buildPromptWithCoverageHint(
     String userText, {
     required bool addToUi,
@@ -1556,12 +1673,14 @@ class ConversationSessionNotifier
         ? '(first turn)'
         : (sanitizedInput.isEmpty ? '(empty)' : sanitizedInput);
 
+    final adaptHint = _adaptDifficultyHint();
+
     if (!isFirstTurn) {
       return '''
 Step: $stage
 Student: $studentLine
 Focus words: $focusText
-Word notes: ${meaningHints.isEmpty ? 'N/A' : meaningHints}
+Word notes: ${meaningHints.isEmpty ? 'N/A' : meaningHints}$adaptHint
 Output exactly two lines:
 Question: ...
 Reply hint: Start with "..."
@@ -1746,57 +1865,35 @@ Question MUST include at least one target word exactly as written.
   }
 
   bool _isScenarioAlignedQuestion(String question) {
-    final current = state.valueOrNull;
-    if (current == null) return true;
     final q = question.toLowerCase();
-    final scenario = current.scenarioTitle.toLowerCase();
-    final setting = current.scenarioSetting.toLowerCase();
-    final merged = '$scenario $setting';
 
     // Hard block obvious off-topic mental/personality probes.
     if (q.contains('confidence') ||
         q.contains('self-esteem') ||
-        q.contains('personality')) {
+        q.contains('personality') ||
+        q.contains('personality test') ||
+        q.contains('emotion') ||
+        q.contains('mindset') ||
+        q.contains('belief system')) {
       return false;
     }
 
-    if (merged.contains('supermarket')) {
-      return q.contains('item') ||
-          q.contains('aisle') ||
-          q.contains('price') ||
-          q.contains('brand') ||
-          q.contains('discount') ||
-          q.contains('checkout');
-    }
-    if (merged.contains('cafe')) {
-      return q.contains('order') ||
-          q.contains('drink') ||
-          q.contains('pickup') ||
-          q.contains('wait');
-    }
-    if (merged.contains('pharmacy') || merged.contains('clinic')) {
-      return q.contains('medicine') ||
-          q.contains('prescription') ||
-          q.contains('dose') ||
-          q.contains('appointment');
-    }
+    // Accept anything else — the scenario prompt already constrains the AI.
     return true;
   }
 
   String _buildScenarioAlignedFallbackQuestion(List<String> focusTerms) {
     final lead = focusTerms.isEmpty ? 'this item' : focusTerms.first;
     final current = state.valueOrNull;
-    final scenario = (current?.scenarioTitle ?? '').toLowerCase();
-    if (scenario.contains('supermarket')) {
-      return 'What item are you trying to find, such as $lead?';
+    final aiRole = (current?.aiRole ?? '').trim();
+    final step = (current?.stages.isEmpty ?? true)
+        ? ''
+        : current!.stages[current.currentTurn % current.stages.length];
+    final stepHint = step.isNotEmpty ? ' Right now, let\'s $step.' : '';
+    if (aiRole.isNotEmpty) {
+      return 'As your $aiRole, what can I help you with regarding $lead?$stepHint';
     }
-    if (scenario.contains('cafe')) {
-      return 'Could you confirm your order details for $lead?';
-    }
-    if (scenario.contains('pharmacy')) {
-      return 'What do you need from the pharmacy related to $lead?';
-    }
-    return _buildFocusAlignedFallbackQuestion(focusTerms);
+    return 'What do you need today about $lead?$stepHint';
   }
 }
 

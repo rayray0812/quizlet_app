@@ -23,15 +23,58 @@ class SyncService {
     if (_supabaseService.currentUser == null) return;
 
     try {
+      await _pushUnsyncedFolders();
       await _pushUnsynced();
     } catch (e) {
       debugPrint('SyncService push failed: $e');
     }
     try {
+      await _pullFoldersDelta();
       await _pullDelta();
       await _pullProgressAndLogs();
     } catch (e) {
       debugPrint('SyncService pull failed: $e');
+    }
+  }
+
+  Future<void> _pushUnsyncedFolders() async {
+    final unsynced = _localStorage.getUnsyncedFolders();
+    final pushedIds = <String>[];
+    await _runInBatches(unsynced, (folder) async {
+      try {
+        await _supabaseService.upsertFolder(folder);
+        pushedIds.add(folder.id);
+      } catch (e) {
+        debugPrint('Failed to push folder ${folder.id}: $e');
+      }
+    });
+    for (final id in pushedIds) {
+      await _localStorage.markFolderAsSynced(id);
+    }
+  }
+
+  Future<void> _pullFoldersDelta() async {
+    final manifest = await _supabaseService.fetchFolderManifest();
+    if (manifest.isEmpty) return;
+
+    final idsToDownload = <String>[];
+    for (final entry in manifest) {
+      final local = _localStorage.getFolder(entry.id);
+      if (local == null) {
+        idsToDownload.add(entry.id);
+      } else {
+        final localUpdated = local.updatedAt ?? local.createdAt;
+        if (local.isSynced && entry.updatedAt.isAfter(localUpdated)) {
+          idsToDownload.add(entry.id);
+        }
+      }
+    }
+
+    if (idsToDownload.isNotEmpty) {
+      final remoteFolders = await _supabaseService.fetchFoldersByIds(
+        idsToDownload,
+      );
+      await _localStorage.saveFoldersBatch(remoteFolders);
     }
   }
 

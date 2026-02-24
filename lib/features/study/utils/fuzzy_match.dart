@@ -12,11 +12,25 @@
 /// - Single characters require exact match.
 bool isFuzzyMatch(String input, String expected) {
   final a = _normalizeForFuzzy(input);
-  final b = _normalizeForFuzzy(expected);
+  if (a.isEmpty) return false;
 
+  final candidates = _expandExpectedAnswers(expected)
+      .map(_normalizeForFuzzy)
+      .where((v) => v.isNotEmpty)
+      .toSet()
+      .toList();
+
+  if (candidates.isEmpty) return false;
+
+  for (final b in candidates) {
+    if (_isFuzzyMatchSingleNormalized(a, b)) return true;
+  }
+  return false;
+}
+
+bool _isFuzzyMatchSingleNormalized(String a, String b) {
   if (a == b) return true;
-  if (a.isEmpty || b.isEmpty) return false;
-
+  if (b.isEmpty) return false;
   final cjk = _hasCjk(b);
 
   if (cjk) {
@@ -33,6 +47,25 @@ bool isFuzzyMatch(String input, String expected) {
 
   final maxDist = (b.length * 0.2).ceil().clamp(1, b.length);
   return _levenshtein(a, b) <= maxDist;
+}
+
+List<String> _expandExpectedAnswers(String expected) {
+  final value = expected.trim();
+  if (value.isEmpty) return const <String>[];
+
+  // Common separators for teachers' multi-answer definitions:
+  // "apple / 蘋果", "v.; move", "快速、迅速", "happy, glad"
+  final rawParts = value
+      .split(RegExp(r'\s*(?:/|／|、|；|;|\||，|,)\s*'))
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+
+  if (rawParts.isEmpty) return <String>[value];
+
+  // Keep original full string too, in case separator is part of the expected phrase.
+  final parts = <String>{value, ...rawParts};
+  return parts.toList();
 }
 
 /// Returns true if the string contains any CJK Unified Ideographs,

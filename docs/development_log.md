@@ -1,4 +1,112 @@
-# Development Log
+﻿# Development Log
+## 2026-02-22
+
+### Learn / 刷題闖關 UX 重構（完成一輪）
+
+### Summary
+- 將 `LearnModeScreen` 從資訊堆疊型介面重構為「章節闖關」主線，畫面常駐資訊收斂為：
+  - 章節
+  - 本章進度條（含大百分比）
+  - 題目區
+- 強化台灣高中生在地化文案與情緒價值，整體語氣改為更貼近刷題／段考複習情境。
+- 新增章節進度恢復（退出再進可回到上次章節）。
+- 新增刷題闖關進入前的底部預備視窗，重點呈現：
+  - 章節時間軸
+  - 完成章節
+  - 大進度百分比
+
+### Why（這輪為什麼這樣改）
+- 原本 Learn 介面資訊過多、重複提示太多，使用者注意力被切碎，降低繼續刷下一章意願。
+- 「刷題闖關」的核心價值不是功能完整，而是讓使用者很自然地往下一題、下一章前進。
+- 需要更清楚的進度回饋與更低摩擦的互動節奏（語音自動播、答題回饋、章節結算）。
+
+### Key Changes（依體驗流程）
+
+#### 1) 進入前：刷題闖關預備視窗（Bottom Sheet）
+- 點擊模式卡後先開底部彈出視窗（與測驗模式一致，不再另外插卡片破壞版面節奏）。
+- 重設資訊架構，刪除「建議」區塊，保留最重要內容：
+  - 大進度百分比
+  - 章節時間軸（目前章 / 已完成 / 未來章）
+  - 完成章節列表
+  - 必要統計（卡片數 / 章節數 / 每章張數）
+- 補上時間軸元件與狀態 enum：
+  - `_LearnTimelineNode`
+  - `_LearnTimelineNodeState`
+
+#### 2) LearnModeScreen 主畫面（極簡化 + 遊戲化）
+- 常駐 UI 收斂成「章節 + 進度條 + 題目」。
+- 移除重複資訊：
+  - 底部固定提示列
+  - 章節下方重複連擊/狀態文案
+  - 重複的本章 `%` 文字
+- 教練提示改為 Snackbar 彈出通知，避免常駐佔位。
+- 章節完成改為自訂遊戲化彈窗（亮色、徽章感、動畫、明確 CTA）。
+
+#### 3) 題目與輸入互動（填空題）
+- 將英文填字改成較像 Duolingo 的互動形式，後續再改成更密的「底線填字」版，避免橫向拉太長。
+- 調整填字排版：
+  - 小寫顯示
+  - 底線與字母距離優化
+  - 移除多餘說明行，騰出題目區空間
+  - 題目字體加大
+- 重播題目按鈕移到題目右側，避免額外占一行。
+- 修正鍵盤關閉後無法再開啟（點底線區可重新喚起鍵盤）。
+
+#### 4) 語音、音效、回饋節奏
+- 題目語音改為自動播放（保留重播按鈕）。
+- 移除答案朗讀，避免提示過度與干擾作答。
+- 新增答對 / 答錯音效（本地音檔），並多輪調整成較可愛、遊戲感版本。
+- 新增底部貼底回饋條（答對/答錯）與動畫，改善切題突兀感。
+- 題目卡回饋動畫細化：
+  - 答對：輕微放大回彈
+  - 答錯：小幅左右震動
+
+#### 5) 出題公平性 / 提示策略
+- 限制填空題使用情境：只在「看意思拼英文」出填空，避免定義題多義/詞性爭議。
+- 提示優先顯示例句，並遮罩答案單字避免直接破梗。
+- 多答案容錯（`/`、`、`、`；`、`,`、`|` 等分隔）支援，降低文字比對挫折感。
+
+#### 6) 狀態保存與穩定性修正
+- Learn 模式新增章節級進度暫存（退出再進不從頭開始）。
+- 修正 `dispose()` 使用 `ref.read(...)` 造成 Riverpod `ConsumerStatefulElement._assertNotDisposed` crash：
+  - 改為在 `initState()` 快取 `LocalStorageService`
+  - `dispose()` 不再直接碰 `ref`
+
+### Other Fixes（本日順手修正）
+- `ProfileEditScreen`：儲存後 `context.pop()` 在某些路由狀態 crash，改成 `router.canPop()` 判斷後再 pop。
+- `DashboardScreen`：
+  - 未登入卻顯示 email 的判斷修正（只在 email 非空時視為已登入顯示）
+  - 修正 `hasSignedInEmail` / `userEmail` 作用域錯誤（避免 undefined identifier）
+- `StudyModePickerScreen`：
+  - 補齊時間軸元件定義
+  - 清除 `_StudyModeCard` 未使用的 `onInfoTap/infoTooltip` 參數
+
+### Files Touched（重點）
+- `lib/features/study/screens/learn_mode_screen.dart`
+- `lib/features/study/widgets/text_input_question.dart`
+- `lib/features/study/screens/study_mode_picker_screen.dart`
+- `lib/features/study/utils/fuzzy_match.dart`
+- `lib/services/local_storage_service.dart`
+- `lib/features/profile/screens/profile_edit_screen.dart`
+- `lib/features/home/screens/dashboard_screen.dart`
+- `pubspec.yaml`（音效資產/播放相關調整）
+
+### Verification Status
+- 本地 `dart analyze` / `dart format` 在這個環境多次 timeout，未完成完整靜態驗證。
+- 本日主要靠：
+  - 逐點修 compiler/analyzer 錯誤
+  - 局部檔案檢查
+  - 使用者回報回歸測試（實機/模擬器互動）
+
+### Risks / Follow-ups（下次優先）
+- 仍建議補一輪完整 `flutter analyze` 與 smoke test，尤其是：
+  - `LearnModeScreen` 大量動畫/狀態切換
+  - `TextInputQuestion` 鍵盤與焦點行為
+  - `StudyModePickerScreen` 預備視窗在不同卡片數量下的時間軸顯示
+- 可再做的 UX 強化：
+  - 預備視窗 CTA 固定貼底（內容可捲動、按鈕固定）
+  - 章節內題目位置恢復（目前為章節級恢復）
+  - 音效設定（開關/音量）入口
 
 ## 2026-02-18
 
@@ -156,7 +264,7 @@
     - `lib/features/auth/screens/login_screen.dart`
 
 ### Current Blocker
-- User-reported runtime error: "Supabase 沒有定義" when trying to login.
+- User-reported runtime error: "Supabase 瘝?摰儔" when trying to login.
 - Most likely cause: app started without `--dart-define-from-file=dart_defines.local.json` (or wrong launch command).
 - Secondary expected behavior: unverified new accounts cannot password-login until email confirmation (because `mailer_autoconfirm = false`).
 
@@ -289,3 +397,124 @@
 
 ### Notes
 - Local sandbox analyze commands timed out during this session; full device-side verify is required in next pass.
+
+## 2026-02-21 - Codex 續作（班級系統 + 學習模式 + 穩定性）
+
+### 資料庫與後端（Classroom MVP）
+- 新增 migration：
+  - `supabase/migrations/202602210009_classroom_mvp_foundation.sql`
+- 建立班級相關資料表：
+  - `profiles`
+  - `classes`
+  - `class_members`
+  - `class_sets`
+  - `class_assignments`
+  - `student_assignment_progress`
+- 新增 RLS helper 與存取策略：
+  - `is_class_teacher`
+  - `is_class_member`
+  - `can_access_class`
+  - `is_assignment_teacher`
+  - `is_assignment_student`
+- 新增加入班級 RPC：
+  - `join_class_by_invite_code(code text)`（`security definer`）
+
+### Flutter 端（Classroom 功能）
+- 新增常數與資料層：
+  - `lib/core/constants/supabase_constants.dart`
+  - `lib/models/classroom.dart`
+  - `lib/services/classroom_service.dart`
+  - `lib/providers/classroom_provider.dart`
+- 新增頁面與路由：
+  - `lib/features/classroom/screens/classes_screen.dart`
+  - `lib/features/classroom/screens/class_detail_screen.dart`
+  - `lib/features/classroom/screens/class_student_detail_screen.dart`
+  - `/classes`
+  - `/classes/:classId`
+  - `/classes/:classId/student/:studentId`
+- `dashboard_screen.dart` 已接入 classes 入口。
+
+### 學習進度同步（作業模式）
+- 學生進度狀態支援：
+  - `not_started`
+  - `in_progress`
+  - `completed`
+- 作業題組使用 class 專屬 setId 命名：
+  - `class_<classId>_<classSetId>`
+- Quiz / Match 完成時會回寫 `completed + score`。
+- 相關頁面：
+  - `lib/features/study/screens/quiz_complete_screen.dart`
+  - `lib/features/study/screens/matching_complete_screen.dart`
+
+### 學習模式與提示（Learn/Hint）
+- `learn_mode_screen.dart` 調整：
+  - 支援更穩定的提交流程與 checkpoint 邏輯。
+  - 補強作答狀態與提示次數管理。
+- `TextInputQuestion` 新增可配置提示：
+  - `enableHint`
+  - `maxHints`
+  - `onHintUsed`
+  - `hintBuilder`
+
+### 穩定性修正
+- 修正 conversation practice 的 Riverpod disposed read 問題：
+  - `lib/features/study/screens/conversation_practice_screen.dart`
+- 備註：本次 session 內 `flutter analyze` / `flutter test` 在 sandbox 有 timeout，需在本機再跑完整驗證。
+
+## 2026-02-21 - 管理員後台：切換老師/學生（續）
+
+### 新增
+- 新增 migration：
+  - `supabase/migrations/202602210011_admin_manage_classroom_roles.sql`
+- 新增 admin RPC：
+  - `admin_list_profiles(search_text, row_limit)`：管理員列出 profiles（含 role）
+  - `admin_set_profile_role(target_user_id, new_role, reason)`：管理員設定 teacher/student
+- 管理後台 UI 已新增：
+  - 顯示 `Classroom role`
+  - `Set Teacher` / `Set Student` 按鈕
+
+### 程式碼調整
+- `lib/services/admin_service.dart`
+  - `fetchAccounts()` 改用 `admin_list_profiles`，避免 RLS 看不到他人 profile
+  - 新增 `setUserClassroomRole()` 呼叫 `admin_set_profile_role`
+- `lib/features/admin/screens/admin_management_screen.dart`
+  - 帳號卡片加入角色切換操作
+- `lib/models/admin_account_summary.dart`
+  - 新增 `classroomRole` 欄位
+
+## 2026-02-21 - 啟動自動關閉排查（Android）
+
+### 今日結論（已定位）
+- `F5` 自動關閉的主因不是 Flutter runtime crash，而是 Android 建置期資源編譯失敗。
+- 錯誤點：`launch_background.xml` 使用了不合法語法：
+  - `<item android:drawable="#F4FAF6" />`
+- AAPT 錯誤：`'#F4FAF6' is incompatible with attribute drawable (attr) reference.`
+
+### 今日修正（已完成）
+- 已修正以下檔案為合法寫法（`shape + solid`）：
+  - `android/app/src/main/res/drawable-v21/launch_background.xml`
+  - `android/app/src/main/res/drawable/launch_background.xml`
+- 另外補上啟動保護，避免 plugin 初始化失敗直接在 `runApp` 前退出：
+  - `lib/main.dart`
+  - `lib/services/widget_snapshot_service.dart`
+
+### 你明天的作用（照這份跑即可）
+- 你是「驗證者 + 決策者」，不用重寫程式。
+- 你的任務只有三件事：
+  - 重新 `F5`，確認是否已能啟動。
+  - 若失敗，貼「第一段錯誤」與 `Exited (...)` 前 20 行。
+  - 若成功，回報「已進首頁」並指定下一個要優先收斂的議題（例如 classroom、admin、learn UX）。
+
+### 明天第一輪操作清單（最短路徑）
+1. 在 VS Code 按 `F5`（使用 `Flutter (local defines)`）。
+2. 若失敗：直接回貼 Debug Console 首段錯誤（不要摘要）。
+3. 若成功：做一次冷啟動 + 熱重啟，確認都不會自動退出。
+4. 回報結果，進入下一個修復項目。
+
+### 完成條件（DoD）
+- Android debug 可連續啟動 2 次不自動關閉。
+- 不再出現 `processDebugResources` / `Android resource linking failed`。
+
+
+
+

@@ -102,6 +102,20 @@ class _FakeLocalStorageService extends LocalStorageService {
   }
 
   @override
+  Future<void> saveCardProgressBatch(List<CardProgress> progresses) async {
+    for (final p in progresses) {
+      _progressByCardId[p.cardId] = p;
+    }
+  }
+
+  @override
+  Future<void> deleteCardProgressBatch(List<String> cardIds) async {
+    for (final id in cardIds) {
+      _progressByCardId.remove(id);
+    }
+  }
+
+  @override
   Future<void> saveReviewLog(ReviewLog log) async {
     savedLogs.add(log);
   }

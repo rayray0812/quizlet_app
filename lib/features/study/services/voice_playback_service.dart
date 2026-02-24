@@ -9,7 +9,6 @@ class VoicePlaybackService {
   final FlutterTts _tts = FlutterTts();
   bool _isInitialized = false;
   bool _isSpeechBusy = false;
-  DateTime? _lastSpeechAt;
   List<Map<String, String>>? _ttsVoices;
   String? _aiLikeVoiceName;
   String? _aiLikeVoiceLocale;
@@ -368,14 +367,12 @@ class VoicePlaybackService {
     }
   }
 
-  /// Play AI message with remote TTS cache fallback to local TTS.
-  /// Returns true if playback started.
+  /// Play AI message using the configured TTS engine.
+  /// [useDeviceOnly] forces device TTS regardless of setting.
   Future<bool> playAiMessage(
     String text, {
-    required String firstAiQuestionText,
-    required bool isReplay,
-    required bool allowRemoteGenerateForFirstLine,
     required bool useLocalCoachOnly,
+    required bool useDeviceOnly,
     required String apiKey,
     void Function(VoiceState state, String diagnostic)? onStateChanged,
   }) async {
@@ -383,65 +380,66 @@ class VoicePlaybackService {
     if (value.isEmpty) return false;
     return _speakWithLock(() async {
       onStateChanged?.call(VoiceState.preparing, 'Preparing');
-      final isFirstLine =
-          firstAiQuestionText.isNotEmpty && value == firstAiQuestionText;
 
-      if (isFirstLine) {
-        final playedFromCache = await AiTtsService.speakCached(text: value);
-        if (playedFromCache) {
-          onStateChanged?.call(VoiceState.completed, 'AI cache hit');
-          return;
-        }
-        if (allowRemoteGenerateForFirstLine && !useLocalCoachOnly) {
-          if (apiKey.isNotEmpty) {
-            final prepared = await AiTtsService.prepareFirstLineAudio(
-              apiKey: apiKey,
-              text: value,
-            ).timeout(
-              const Duration(milliseconds: 1800),
-              onTimeout: () => false,
-            );
-            if (prepared) {
-              final playedPrepared =
-                  await AiTtsService.speakCached(text: value);
-              if (playedPrepared) {
-                onStateChanged?.call(
-                    VoiceState.completed, 'AI fetched + played');
-                return;
-              }
-            }
-          }
-        }
+      // Device TTS mode — skip remote entirely
+      if (useDeviceOnly || useLocalCoachOnly || apiKey.isEmpty) {
         final ttsOk = await speakLocal(value, preferAiLikeVoice: true);
         onStateChanged?.call(
           ttsOk ? VoiceState.completed : VoiceState.error,
-          ttsOk
-              ? (isReplay ? 'Replay fallback TTS' : 'Fallback TTS')
-              : 'Fallback TTS failed',
+          ttsOk ? 'Device TTS' : 'TTS failed',
         );
         return;
       }
-      final ttsOk = await speakLocal(value);
+
+      // Remote TTS (Cloud or Gemini, depending on AiTtsService.backend)
+      final playedFromCache = await AiTtsService.speakCached(text: value);
+      if (playedFromCache) {
+        final label = AiTtsService.backend == TtsBackend.geminiTts
+            ? 'Gemini TTS cache' : 'Cloud TTS cache';
+        onStateChanged?.call(VoiceState.completed, label);
+        return;
+      }
+      try {
+        final prepared = await AiTtsService.prepareFirstLineAudio(
+          apiKey: apiKey,
+          text: value,
+        ).timeout(
+          const Duration(milliseconds: 8000),
+          onTimeout: () => false,
+        );
+        if (prepared) {
+          final played = await AiTtsService.speakCached(text: value);
+          if (played) {
+            final label = AiTtsService.backend == TtsBackend.geminiTts
+                ? 'Gemini TTS' : 'Cloud TTS';
+            onStateChanged?.call(VoiceState.completed, label);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback to device TTS
+      final ttsOk = await speakLocal(value, preferAiLikeVoice: true);
       onStateChanged?.call(
         ttsOk ? VoiceState.completed : VoiceState.error,
-        ttsOk ? 'Local TTS' : 'Local TTS failed',
+        ttsOk ? 'Fallback device TTS' : 'TTS failed',
       );
     });
   }
 
   Future<bool> _speakWithLock(Future<void> Function() task) async {
     if (_isDisposed) return false;
-    final now = DateTime.now();
-    final last = _lastSpeechAt;
-    if (last != null && now.difference(last).inMilliseconds < 250) {
-      return false;
+    // If busy, cancel previous and take over
+    if (_isSpeechBusy) {
+      await AiTtsService.stop();
+      await _tts.stop();
+      _isSpeechBusy = false;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
-    if (_isSpeechBusy) return false;
     _isSpeechBusy = true;
-    _lastSpeechAt = now;
     try {
       await task()
-          .timeout(const Duration(seconds: 6), onTimeout: () async {});
+          .timeout(const Duration(seconds: 8), onTimeout: () async {});
       return true;
     } finally {
       _isSpeechBusy = false;
