@@ -14,6 +14,16 @@ class ShareScreen extends ConsumerWidget {
 
   const ShareScreen({super.key, required this.setId});
 
+  /// Try to create a QrCode to validate the data fits.
+  bool _canGenerateQr(String data) {
+    try {
+      QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.L);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final studySet = ref.watch(studySetsProvider)
@@ -30,9 +40,9 @@ class ShareScreen extends ConsumerWidget {
 
     final deepLink = ShareCodec.toDeepLink(studySet);
     final encoded = ShareCodec.encode(studySet);
-    // QR code max ~4296 alphanumeric chars; fall back to link-only if too large
-    final qrFriendly = deepLink.length <= 2953 ? deepLink : encoded;
-    final qrTooLarge = qrFriendly.length > 4296;
+    // Prefer deep link for QR; fall back to raw base64 if too long
+    final qrCandidate = deepLink.length <= 2953 ? deepLink : encoded;
+    final qrOk = _canGenerateQr(qrCandidate);
 
     return Scaffold(
       appBar: AppBar(
@@ -61,7 +71,7 @@ class ShareScreen extends ConsumerWidget {
                     ),
               ),
               const SizedBox(height: 28),
-              if (qrTooLarge)
+              if (!qrOk)
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -92,14 +102,14 @@ class ShareScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: QrImageView(
-                    data: qrFriendly,
+                    data: qrCandidate,
                     version: QrVersions.auto,
                     size: 240,
                     backgroundColor: Colors.white,
                   ),
                 ),
               const SizedBox(height: 24),
-              if (!qrTooLarge)
+              if (qrOk)
                 Text(
                   l10n.scanToImport,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
