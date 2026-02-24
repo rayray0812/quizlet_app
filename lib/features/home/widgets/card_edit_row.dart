@@ -143,13 +143,39 @@ class CardEditRow extends StatelessWidget {
               ),
             ],
 
+            // Part-of-speech quick tags
+            if (onAddTag != null) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final pos in const ['n.', 'v.', 'adj.', 'adv.', 'prep.', 'conj.', 'phr.'])
+                      _PosChip(
+                        label: pos,
+                        isActive: tags.contains(pos),
+                        onTap: () {
+                          if (tags.contains(pos)) {
+                            onRemoveTag?.call(pos);
+                          } else {
+                            onAddTag?.call(pos);
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
+
             // Tags
             if (onAddTag != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: TagChips(
-                  tags: tags,
+                  tags: tags.where((t) => !const {'n.', 'v.', 'adj.', 'adv.', 'prep.', 'conj.', 'phr.'}.contains(t)).toList(),
                   editable: true,
                   onAdd: onAddTag,
                   onRemove: onRemoveTag,
@@ -157,6 +183,48 @@ class CardEditRow extends StatelessWidget {
               ),
             ],
           ],
+      ),
+    );
+  }
+}
+
+class _PosChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _PosChip({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
+                : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: isActive
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              ),
+        ),
       ),
     );
   }

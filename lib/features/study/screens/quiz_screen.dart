@@ -700,6 +700,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           key: ValueKey('text_${question.card.id}_$_currentIndex'),
           definition: prompt,
           correctAnswer: answer,
+          exactMatch: question.reversed, // def→term(中填英) = exact; term→def(英填中) = fuzzy
           onAnswered: _onTextInputAnswered,
         ),
       ],

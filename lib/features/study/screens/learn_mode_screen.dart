@@ -988,6 +988,7 @@ class _LearnModeScreenState extends ConsumerState<LearnModeScreen> {
           ),
           definition: prompt,
           correctAnswer: answer,
+          exactMatch: !askDefinition, // 中填英(def→term) = exact; 英填中(term→def) = fuzzy
           headerTrailing: _buildPromptAudioIconButton(
             promptText: prompt,
             tooltip: askDefinition ? '重播單字' : '重播題目',
@@ -1072,6 +1073,8 @@ class _LearnModeScreenState extends ConsumerState<LearnModeScreen> {
   }) {
     final chapterPercent = (chapterProgress * 100).round();
     final accent = weakCount >= 3 ? AppTheme.orange : AppTheme.green;
+    final chapterMastered = _stageByCardId.values.where((v) => v >= _masteryStage).length;
+    final chapterTotal = _activeChapterIds.length;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -1120,6 +1123,13 @@ class _LearnModeScreenState extends ConsumerState<LearnModeScreen> {
                     ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '\u5DF2\u638C\u63E1 $chapterMastered/$chapterTotal',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
           ),
         ],
       ),

@@ -14,6 +14,10 @@ class TextInputQuestion extends StatefulWidget {
   final void Function(int usedHints)? onHintUsed;
   final String Function(String correctAnswer, int usedHints)? hintBuilder;
 
+  /// When true, require exact match (case-insensitive) instead of fuzzy match.
+  /// Use for English answers (中填英) where typo tolerance is misleading.
+  final bool exactMatch;
+
   const TextInputQuestion({
     super.key,
     required this.definition,
@@ -24,6 +28,7 @@ class TextInputQuestion extends StatefulWidget {
     this.maxHints = 2,
     this.onHintUsed,
     this.hintBuilder,
+    this.exactMatch = false,
   });
 
   @override
@@ -60,7 +65,13 @@ class _TextInputQuestionState extends State<TextInputQuestion> {
     final input = _controller.text.trim();
     if (input.isEmpty) return;
 
-    final correct = isFuzzyMatch(input, widget.correctAnswer);
+    final bool correct;
+    if (widget.exactMatch) {
+      // Exact match (case-insensitive) for English answers
+      correct = input.toLowerCase() == widget.correctAnswer.trim().toLowerCase();
+    } else {
+      correct = isFuzzyMatch(input, widget.correctAnswer);
+    }
     setState(() => _isCorrect = correct);
     widget.onAnswered(correct);
   }

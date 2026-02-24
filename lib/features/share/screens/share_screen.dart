@@ -30,7 +30,9 @@ class ShareScreen extends ConsumerWidget {
 
     final deepLink = ShareCodec.toDeepLink(studySet);
     final encoded = ShareCodec.encode(studySet);
-    final qrData = deepLink.length <= 2953 ? deepLink : encoded;
+    // QR code max ~4296 alphanumeric chars; fall back to link-only if too large
+    final qrFriendly = deepLink.length <= 2953 ? deepLink : encoded;
+    final qrTooLarge = qrFriendly.length > 4296;
 
     return Scaffold(
       appBar: AppBar(
@@ -59,26 +61,51 @@ class ShareScreen extends ConsumerWidget {
                     ),
               ),
               const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+              if (qrTooLarge)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.qrTooLarge,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: QrImageView(
+                    data: qrFriendly,
+                    version: QrVersions.auto,
+                    size: 240,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 240,
-                  backgroundColor: Colors.white,
-                ),
-              ),
               const SizedBox(height: 24),
-              Text(
-                l10n.scanToImport,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
+              if (!qrTooLarge)
+                Text(
+                  l10n.scanToImport,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -96,7 +123,13 @@ class ShareScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: () {
-                      Share.share(deepLink);
+                      try {
+                        Share.share(deepLink);
+                      } catch (_) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l10n.shareError)),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.share_rounded, size: 18),
                     label: Text(l10n.share),

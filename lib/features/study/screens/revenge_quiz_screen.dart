@@ -463,6 +463,7 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
           key: ValueKey('revenge_text_${question.card.id}_$_currentIndex'),
           definition: question.card.definition,
           correctAnswer: question.card.term,
+          exactMatch: true, // 中填英 = exact match
           onAnswered: _onTextInputAnswered,
         ),
       ],

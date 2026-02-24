@@ -42,6 +42,10 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   // Key to force-rebuild CardEditRow after undo/redo
   int _rebuildKey = 0;
 
+  // Search filter
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +64,9 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     }
     if (_termControllers.isEmpty) {
       _addEmptyCard();
+    } else {
+      // Add auto-add listener to the last card's term field
+      _termControllers.last.addListener(_autoAddNextCard);
     }
 
     _addListenersToAll();
@@ -68,6 +75,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchController.dispose();
     for (final c in _termControllers) {
       c.dispose();
     }
@@ -185,13 +193,32 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   void _addEmptyCard() {
     _history.pushState(_currentSnapshot());
+    _appendEmptyCardNoHistory();
+  }
+
+  /// Appends a new empty card row without pushing to undo history.
+  void _appendEmptyCardNoHistory() {
     setState(() {
       _addCardControllers();
       final i = _termControllers.length - 1;
       _termControllers[i].addListener(_onTextChanged);
       _defControllers[i].addListener(_onTextChanged);
       _exampleControllers[i].addListener(_onTextChanged);
+      _termControllers[i].addListener(_autoAddNextCard);
     });
+  }
+
+  /// When the user starts typing in the last card's term field, auto-add a new
+  /// empty card below so they can keep typing without pressing "+".
+  void _autoAddNextCard() {
+    if (_termControllers.isEmpty) return;
+    final lastIndex = _termControllers.length - 1;
+    final lastTerm = _termControllers[lastIndex].text.trim();
+    if (lastTerm.isNotEmpty) {
+      // Remove this listener so it doesn't fire again
+      _termControllers[lastIndex].removeListener(_autoAddNextCard);
+      _appendEmptyCardNoHistory();
+    }
   }
 
   void _removeCard(int index) {
@@ -215,13 +242,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     });
   }
 
-  Future<bool> _confirmDeleteOneCard() async {
+  Future<bool> _confirmDeleteOneCard(int index) async {
     final l10n = AppLocalizations.of(context);
+    final term = _termControllers[index].text.trim();
+    final def = _defControllers[index].text.trim();
+    final preview = term.isNotEmpty
+        ? (def.isNotEmpty ? '$term \u2014 $def' : term)
+        : (def.isNotEmpty ? def : '\u7B2C ${index + 1} \u5F35');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.deleteCard),
-        content: const Text('確定要刪除這張卡片嗎？'),
+        content: Text('\u78BA\u5B9A\u8981\u522A\u9664\u300C$preview\u300D\u55CE\uFF1F'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -397,7 +429,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   }
 
   void _deleteOneCardWithConfirm(int index) async {
-    final confirmed = await _confirmDeleteOneCard();
+    final confirmed = await _confirmDeleteOneCard(index);
     if (!mounted || !confirmed) return;
     _removeCard(index);
   }
@@ -542,7 +574,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       }
     }
 
-    ref
+    await ref
         .read(studySetsProvider.notifier)
         .update(studySet.copyWith(cards: cards));
 
@@ -553,12 +585,65 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     context.pop();
   }
 
+  bool get _hasUnsavedChanges => _history.canUndo;
+
+  Future<bool> _confirmDiscard() async {
+    if (!_hasUnsavedChanges) return true;
+    final l10n = AppLocalizations.of(context);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.unsavedChanges),
+        content: Text(l10n.unsavedChangesMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            child: Text(l10n.discard),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 'save'),
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+    if (result == 'save') {
+      await _save();
+      return false; // _save already pops
+    }
+    return result == 'discard';
+  }
+
+  List<int> get _filteredIndices {
+    if (_searchQuery.isEmpty) {
+      return List.generate(_termControllers.length, (i) => i);
+    }
+    final q = _searchQuery.toLowerCase();
+    return [
+      for (var i = 0; i < _termControllers.length; i++)
+        if (_termControllers[i].text.toLowerCase().contains(q) ||
+            _defControllers[i].text.toLowerCase().contains(q))
+          i,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
+    final visibleIndices = _filteredIndices;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscard();
+        if (shouldPop && mounted) context.pop();
+      },
+      child: Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),
+        leading: AppBackButton(onPressed: () async {
+          final shouldPop = await _confirmDiscard();
+          if (shouldPop && mounted) context.pop();
+        }),
         title: Text(l10n.editCards),
         actions: [
           if (_history.canUndo)
@@ -599,11 +684,38 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: l10n.searchCards,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                ),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.only(top: 8, bottom: 80),
-              itemCount: _termControllers.length,
-              itemBuilder: (context, index) {
+              itemCount: visibleIndices.length,
+              itemBuilder: (context, vi) {
+                final index = visibleIndices[vi];
                 return CardEditRow(
                   key: ValueKey('card_${_cardIds[index]}_$_rebuildKey'),
                   index: index,
@@ -656,6 +768,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               onPressed: _addEmptyCard,
               child: const Icon(Icons.add),
             ),
+    ),
     );
   }
 }

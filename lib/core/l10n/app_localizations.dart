@@ -147,6 +147,9 @@ class AppLocalizations {
   String importFailed(String error) => '';
   String get reviewImport => '';
   String get save => '';
+  String get discard => '';
+  String get unsavedChanges => '';
+  String get unsavedChangesMessage => '';
   String get setTitle => '';
   String get addAtLeastOneCard => '';
   String get importedSet => '';
@@ -230,6 +233,7 @@ class AppLocalizations {
   String get tags => '';
   String get addTag => '';
   String get search => '';
+  String get searchCards => '';
   String get customStudy => '';
   String get selectTags => '';
   String nMatchingCards(int count) => '';
@@ -379,6 +383,8 @@ class AppLocalizations {
   String get share => '';
   String get pointCameraAtQr => '';
   String get qrInvalidData => '';
+  String get qrTooLarge => '';
+  String get shareError => '';
 
   // -- Achievements (F11) --
   String get achievements => '';
@@ -871,6 +877,12 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get save => '\u5132\u5B58';
   @override
+  String get discard => '\u4E0D\u5132\u5B58';
+  @override
+  String get unsavedChanges => '\u672A\u5132\u5B58\u7684\u8B8A\u66F4';
+  @override
+  String get unsavedChangesMessage => '\u4F60\u6709\u672A\u5132\u5B58\u7684\u8B8A\u66F4\uFF0C\u8981\u5132\u5B58\u9084\u662F\u6368\u68C4\uFF1F';
+  @override
   String get setTitle => '\u5B78\u7FD2\u96C6\u6A19\u984C';
   @override
   String get addAtLeastOneCard =>
@@ -1036,6 +1048,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addTag => '\u65B0\u589E\u6A19\u7C64';
   @override
   String get search => '\u641C\u5C0B';
+  @override
+  String get searchCards => '\u641C\u5C0B\u5361\u7247...';
   @override
   String get customStudy => '\u81EA\u8A02\u5B78\u7FD2';
   @override
@@ -1349,6 +1363,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pointCameraAtQr => '\u5C07\u93E1\u982D\u5C0D\u6E96 QR Code';
   @override
   String get qrInvalidData => 'QR Code \u7121\u6CD5\u8FA8\u8B58';
+  @override
+  String get qrTooLarge =>
+      '\u5361\u7247\u6578\u91CF\u904E\u591A\uFF0C\u7121\u6CD5\u7522\u751F QR Code\u3002\u8ACB\u4F7F\u7528\u300C\u8907\u88FD\u9023\u7D50\u300D\u6216\u300C\u5206\u4EAB\u300D\u529F\u80FD';
+  @override
+  String get shareError => '\u5206\u4EAB\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66';
 
   // -- Achievements (F11) --
   @override
@@ -2081,6 +2100,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get save => 'Save';
   @override
+  String get discard => 'Discard';
+  @override
+  String get unsavedChanges => 'Unsaved Changes';
+  @override
+  String get unsavedChangesMessage => 'You have unsaved changes. Save or discard?';
+  @override
   String get setTitle => 'Set Title';
   @override
   String get addAtLeastOneCard => 'Add at least one card';
@@ -2237,6 +2262,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addTag => 'Add Tag';
   @override
   String get search => 'Search';
+  @override
+  String get searchCards => 'Search cards...';
   @override
   String get customStudy => 'Custom Study';
   @override
@@ -2531,6 +2558,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pointCameraAtQr => 'Point camera at QR code';
   @override
   String get qrInvalidData => 'Invalid QR code data';
+  @override
+  String get qrTooLarge =>
+      'Too many cards for QR code. Use "Copy Link" or "Share" instead';
+  @override
+  String get shareError => 'Share failed, please try again';
 
   // -- Achievements (F11) --
   @override
