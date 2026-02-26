@@ -83,7 +83,9 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
       await ref.read(classroomServiceProvider).markInProgressFromLocalSetId(
             localSetId: widget.setId,
           );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Classroom sync (in-progress) failed: $e');
+    }
   }
 
   String _pickLanguage(String text) {

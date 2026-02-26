@@ -33,11 +33,13 @@ class LocalStorageService {
   }
 
   List<String> getDeletedStudySetIds() {
-    final raw = (_settingsBox.get(
-              AppConstants.settingDeletedStudySetIdsKey,
-              defaultValue: <dynamic>[],
-            ) as List)
-        .cast<dynamic>();
+    final raw =
+        (_settingsBox.get(
+                  AppConstants.settingDeletedStudySetIdsKey,
+                  defaultValue: <dynamic>[],
+                )
+                as List)
+            .cast<dynamic>();
     return raw.map((e) => e.toString()).toList();
   }
 
@@ -87,7 +89,10 @@ class LocalStorageService {
   }
 
   List<CardProgress> getCardProgressForSet(String setId) {
-    return getAllCardProgress().where((p) => p.setId == setId).toList();
+    return _progressBox.values
+        .whereType<CardProgress>()
+        .where((p) => p.setId == setId)
+        .toList();
   }
 
   List<CardProgress> getDueCardProgress({DateTime? now}) {
@@ -322,13 +327,18 @@ class LocalStorageService {
     required int chapterIndex,
     required int totalChapters,
     required List<bool> chapterCompleted,
+    Map<String, dynamic>? chapterSession,
   }) async {
-    await _settingsBox.put('$_learnModeResumePrefix$setId', <String, dynamic>{
+    final payload = <String, dynamic>{
       'chapterIndex': chapterIndex,
       'totalChapters': totalChapters,
       'chapterCompleted': chapterCompleted,
       'savedAt': DateTime.now().toUtc().toIso8601String(),
-    });
+    };
+    if (chapterSession != null) {
+      payload['chapterSession'] = chapterSession;
+    }
+    await _settingsBox.put('$_learnModeResumePrefix$setId', payload);
   }
 
   Future<void> clearLearnModeResume(String setId) async {
@@ -336,13 +346,16 @@ class LocalStorageService {
   }
 
   Future<void> saveConversationTranscript(
-      ConversationTranscript transcript) async {
+    ConversationTranscript transcript,
+  ) async {
     final all = getAllConversationTranscripts();
     all.insert(0, transcript);
     // Keep at most 50 transcripts
     final trimmed = all.take(50).toList();
     await _settingsBox.put(
-        _transcriptsKey, ConversationTranscript.encodeList(trimmed));
+      _transcriptsKey,
+      ConversationTranscript.encodeList(trimmed),
+    );
   }
 
   List<ConversationTranscript> getAllConversationTranscripts() {
@@ -355,6 +368,8 @@ class LocalStorageService {
     final all = getAllConversationTranscripts();
     all.removeWhere((t) => t.id == id);
     await _settingsBox.put(
-        _transcriptsKey, ConversationTranscript.encodeList(all));
+      _transcriptsKey,
+      ConversationTranscript.encodeList(all),
+    );
   }
 }

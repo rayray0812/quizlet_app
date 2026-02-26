@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/models/flashcard.dart';
@@ -8,6 +8,7 @@ class ImportPreviewCard extends StatelessWidget {
   final int index;
   final ValueChanged<Flashcard>? onEdit;
   final VoidCallback? onDelete;
+  final String? warningLabel;
 
   const ImportPreviewCard({
     super.key,
@@ -15,6 +16,7 @@ class ImportPreviewCard extends StatelessWidget {
     required this.index,
     this.onEdit,
     this.onDelete,
+    this.warningLabel,
   });
 
   @override
@@ -24,61 +26,89 @@ class ImportPreviewCard extends StatelessWidget {
       fillColor: Theme.of(context).cardColor,
       padding: const EdgeInsets.all(14),
       child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 15,
-              child: Text(
-                '${index + 1}',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-            const SizedBox(width: 14),
-            if (flashcard.imageUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: flashcard.imageUrl,
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 15,
+            child: Text('${index + 1}', style: const TextStyle(fontSize: 12)),
+          ),
+          const SizedBox(width: 14),
+          if (flashcard.imageUrl.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: flashcard.imageUrl,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    flashcard.term,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        flashcard.term,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    flashcard.definition,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (warningLabel != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
                         ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.errorContainer.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          warningLabel!,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onErrorContainer,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  flashcard.definition,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          if (onDelete != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: onDelete,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ),
-            if (onDelete != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  onPressed: onDelete,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ),
-          ],
+        ],
       ),
     );
   }

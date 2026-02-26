@@ -3,10 +3,8 @@ import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/services/local_storage_service.dart';
 
-final LocalStorageService _localStorageSingleton = LocalStorageService();
-
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
-  return _localStorageSingleton;
+  return LocalStorageService();
 });
 
 final studySetsProvider =
@@ -172,4 +170,13 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
     return sorted;
   }
 }
+
+/// Efficient single-set lookup by ID — avoids watching the full list.
+final studySetByIdProvider = Provider.family<StudySet?, String>((ref, id) {
+  final sets = ref.watch(studySetsProvider);
+  for (final s in sets) {
+    if (s.id == id) return s;
+  }
+  return null;
+});
 

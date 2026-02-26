@@ -176,13 +176,18 @@ GoRouter createAppRouter({
     refreshListenable: refreshListenable,
     redirect: (context, state) async {
       // Onboarding redirect
-      final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
-      final hasSeenOnboarding =
-          settingsBox.get(
-                AppConstants.settingHasSeenOnboarding,
-                defaultValue: false,
-              )
-              as bool;
+      bool hasSeenOnboarding = true;
+      try {
+        final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+        hasSeenOnboarding =
+            settingsBox.get(
+                  AppConstants.settingHasSeenOnboarding,
+                  defaultValue: false,
+                )
+                as bool;
+      } catch (_) {
+        // Hive box not available — skip onboarding to avoid a crash loop.
+      }
       if (!hasSeenOnboarding &&
           state.matchedLocation == '/' &&
           state.matchedLocation != '/onboarding') {

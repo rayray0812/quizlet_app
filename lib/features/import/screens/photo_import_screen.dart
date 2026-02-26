@@ -37,6 +37,93 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   int _photoCount = 0;
   late final AnimationController _scanLineController;
 
+  String _normalizeKey(String value) {
+    final s = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'^[\-\–\—•·\d\.\)\(]+'), '')
+        .replaceAll(RegExp(r'[\s:：;；,.，。]+$'), '');
+    return s;
+  }
+
+  bool _looksLikeNoise(String term, String definition) {
+    final t = term.trim();
+    final d = definition.trim();
+    if (t.isEmpty || d.isEmpty) return true;
+
+    final tNorm = _normalizeKey(t);
+    final dNorm = _normalizeKey(d);
+    if (tNorm.isEmpty || dNorm.isEmpty) return true;
+    if (tNorm == dNorm) return true;
+
+    // OCR often captures page headings / labels / numbering as "cards".
+    final combined = '$tNorm $dNorm';
+    const blocked = <String>{
+      'unit',
+      'lesson',
+      'chapter',
+      'page',
+      'vocabulary',
+      'word list',
+      'exercise',
+      'name',
+      'class',
+      'date',
+    };
+    if (blocked.any((w) => combined == w || combined.startsWith('$w '))) {
+      return true;
+    }
+
+    if (tNorm.length <= 1 && dNorm.length <= 1) return true;
+    if (RegExp(r'^[\d\W_]+$').hasMatch(tNorm)) return true;
+    if (RegExp(r'^[\d\W_]+$').hasMatch(dNorm)) return true;
+
+    return false;
+  }
+
+  ({List<Flashcard> cards, int droppedNoise, int droppedDuplicates})
+  _sanitizeExtractedCards(List<Flashcard> rawCards) {
+    final existingKeys = <String>{
+      for (final c in _accumulatedCards)
+        '${_normalizeKey(c.term)}|${_normalizeKey(c.definition)}',
+    };
+    final batchSeen = <String>{};
+    final sanitized = <Flashcard>[];
+    var droppedNoise = 0;
+    var droppedDuplicates = 0;
+
+    for (final card in rawCards) {
+      final term = card.term.trim();
+      final definition = card.definition.trim();
+      final example = card.exampleSentence.trim();
+      final cleaned = card.copyWith(
+        term: term,
+        definition: definition,
+        exampleSentence: example,
+      );
+
+      if (_looksLikeNoise(term, definition)) {
+        droppedNoise++;
+        continue;
+      }
+
+      final key = '${_normalizeKey(term)}|${_normalizeKey(definition)}';
+      if (key == '|' || existingKeys.contains(key) || !batchSeen.add(key)) {
+        droppedDuplicates++;
+        continue;
+      }
+
+      sanitized.add(cleaned);
+    }
+
+    return (
+      cards: sanitized,
+      droppedNoise: droppedNoise,
+      droppedDuplicates: droppedDuplicates,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -76,9 +163,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     final apiKey = ref.read(geminiKeyProvider);
 
     if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.geminiApiKeyNotSet)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.geminiApiKeyNotSet)));
       return;
     }
 
@@ -98,21 +185,26 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
       if (!mounted || _cancelled) return;
 
       if (results.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.noCardsExtracted)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.noCardsExtracted)));
         setState(() => _stage = _Stage.pickMode);
         return;
       }
 
-      final cards = results
-          .map((r) => Flashcard(
-                id: const Uuid().v4(),
-                term: r['term']!,
-                definition: r['definition']!,
-                exampleSentence: (r['exampleSentence'] ?? '').trim(),
-              ))
+      final rawCards = results
+          .map(
+            (r) => Flashcard(
+              id: const Uuid().v4(),
+              term: r['term']!,
+              definition: r['definition']!,
+              exampleSentence: (r['exampleSentence'] ?? '').trim(),
+            ),
+          )
           .toList();
+
+      final sanitized = _sanitizeExtractedCards(rawCards);
+      final cards = sanitized.cards;
 
       setState(() {
         _accumulatedCards.addAll(cards);
@@ -124,7 +216,15 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.photoAdded(cards.length)),
+            content: Text(
+              [
+                l10n.photoAdded(cards.length),
+                if (sanitized.droppedNoise > 0)
+                  '略過雜訊 ${sanitized.droppedNoise} 筆',
+                if (sanitized.droppedDuplicates > 0)
+                  '略過重複 ${sanitized.droppedDuplicates} 筆',
+              ].join('｜'),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -157,9 +257,12 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     return switch (reason) {
       ScanFailureReason.timeout => l10n.scanTimeout,
       ScanFailureReason.quotaExceeded => l10n.scanQuotaExceeded,
-      ScanFailureReason.authError => 'API authentication failed. Please check your Gemini API key.',
-      ScanFailureReason.invalidRequest => 'Image request was invalid. Try another image or mode.',
-      ScanFailureReason.serverError => 'AI service is temporarily unavailable. Please retry shortly.',
+      ScanFailureReason.authError =>
+        'API authentication failed. Please check your Gemini API key.',
+      ScanFailureReason.invalidRequest =>
+        'Image request was invalid. Try another image or mode.',
+      ScanFailureReason.serverError =>
+        'AI service is temporarily unavailable. Please retry shortly.',
       ScanFailureReason.parseError => l10n.scanParseError,
       ScanFailureReason.networkError => l10n.scanNetworkError,
       ScanFailureReason.unknown => l10n.photoScanFailed,
@@ -225,7 +328,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
               padding: const EdgeInsets.all(12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surface.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(DS.r24),
                   boxShadow: DS.cardShadow,
                 ),
@@ -302,7 +407,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Chip(
-                avatar: Icon(Icons.photo_library_rounded, size: 16, color: AppTheme.orange),
+                avatar: Icon(
+                  Icons.photo_library_rounded,
+                  size: 16,
+                  color: AppTheme.orange,
+                ),
                 label: Text(
                   l10n.cardsFromPhotos(_accumulatedCards.length, _photoCount),
                   style: const TextStyle(fontSize: 12),
@@ -352,9 +461,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
             Expanded(
               child: Text(
                 l10n.cardsFromPhotos(_accumulatedCards.length, _photoCount),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             FilledButton.icon(
@@ -518,10 +627,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
             ],
           ),
           const SizedBox(height: 24),
-          Text(
-            l10n.analyzing,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text(l10n.analyzing, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 24),
           TextButton(
             onPressed: _cancelAnalysis,
@@ -574,10 +680,7 @@ class _ModeCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 4),
                   Text(
                     description,
@@ -588,10 +691,7 @@ class _ModeCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
           ],
         ),
       ),

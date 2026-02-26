@@ -67,24 +67,20 @@ class ConversationReplySuggestion {
 }
 
 class GeminiService {
-  static const _models = [
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-  ];
-  static const _chatModels = [
-    'gemini-2.0-flash-lite',
-  ];
+  static const _models = ['gemini-2.0-flash-lite', 'gemini-2.0-flash'];
+  static const _chatModels = ['gemini-2.0-flash-lite'];
   static List<String> get chatModels => List<String>.unmodifiable(_chatModels);
   static const _timeout = Duration(seconds: 30);
   static const maxCards = 300;
-  static const _lightweightModels = [
-    'gemini-2.0-flash-lite',
-  ];
+  static const _lightweightModels = ['gemini-2.0-flash-lite'];
 
   static const _vocabularyPrompt =
       'Extract all term-definition pairs from this vocabulary list/word table image. '
       'Keep original language. For bilingual content, use one language as term and the other as definition. '
-      'Skip headers and page numbers. '
+      'Skip headers, page numbers, section titles, numbering-only rows, and decorative text. '
+      'Do NOT output items where term and definition are the same text. '
+      'Do NOT guess when text is unreadable; skip uncertain rows. '
+      'Preserve row pairing strictly (same row left/right). '
       'Also include an example sentence for each term in the same language when possible. '
       'If no clear sentence is available, return empty string for exampleSentence.';
 
@@ -92,11 +88,15 @@ class GeminiService {
       'Extract 5-15 key concepts from this textbook/study material image as flashcard pairs. '
       'Create concise term (question/concept) and definition (answer/explanation). '
       'Keep original language. Focus on testable knowledge points. '
+      'Skip page titles, headers/footers, page numbers, labels, and standalone fragments. '
+      'Do NOT output duplicate concepts or same-text term/definition pairs. '
+      'If uncertain, skip the item instead of guessing. '
       'Also provide an example sentence in the same language when possible; otherwise use empty string.';
 
   static const _jsonOnlySuffix =
       'Return ONLY valid JSON array. Do not use markdown fences. '
-      'Each item must be: {"term":"...","definition":"...","exampleSentence":"..."}';
+      'Each item must be: {"term":"...","definition":"...","exampleSentence":"..."} '
+      'Exclude duplicates and invalid/noisy rows.';
 
   static final _responseSchema = Schema.array(
     items: Schema.object(

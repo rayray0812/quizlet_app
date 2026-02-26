@@ -302,11 +302,6 @@ class _SpeakingPracticeScreenState extends ConsumerState<SpeakingPracticeScreen>
   }
 
   void _goHomeSmooth() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-      return;
-    }
     context.go('/');
   }
 

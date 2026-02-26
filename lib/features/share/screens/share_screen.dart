@@ -17,7 +17,10 @@ class ShareScreen extends ConsumerWidget {
   /// Try to create a QrCode to validate the data fits.
   bool _canGenerateQr(String data) {
     try {
-      final qr = QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.L);
+      final qr = QrCode.fromData(
+        data: data,
+        errorCorrectLevel: QrErrorCorrectLevel.L,
+      );
       // Force computation — fromData is lazy; accessing moduleCount triggers _createData
       qr.moduleCount; // ignore: unnecessary_statements
       return true;
@@ -28,9 +31,7 @@ class ShareScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final studySet = ref.watch(studySetsProvider)
-        .where((s) => s.id == setId)
-        .firstOrNull;
+    final studySet = ref.watch(studySetByIdProvider(setId));
     final l10n = AppLocalizations.of(context);
 
     if (studySet == null) {
@@ -59,39 +60,42 @@ class ShareScreen extends ConsumerWidget {
             children: [
               Text(
                 studySet.title,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 l10n.nCards(studySet.cards.length),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
               const SizedBox(height: 28),
               if (!qrOk)
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.info_outline_rounded,
-                          size: 48,
-                          color: Theme.of(context).colorScheme.outline),
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         l10n.qrTooLarge,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ],
                   ),
@@ -115,8 +119,8 @@ class ShareScreen extends ConsumerWidget {
                 Text(
                   l10n.scanToImport,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
               const SizedBox(height: 24),
               Row(
@@ -125,19 +129,20 @@ class ShareScreen extends ConsumerWidget {
                   ElevatedButton.icon(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: deepLink));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.linkCopied)),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l10n.linkCopied)));
                     },
                     icon: const Icon(Icons.copy_rounded, size: 18),
                     label: Text(l10n.copyLink),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       try {
-                        Share.share(deepLink);
+                        await Share.share(deepLink);
                       } catch (_) {
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l10n.shareError)),
                         );

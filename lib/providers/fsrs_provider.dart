@@ -57,30 +57,30 @@ final dueCountForSetProvider = Provider.family<int, String>((ref, setId) {
   return ref.watch(dueCardsForSetProvider(setId)).length;
 });
 
+({int newCount, int learning, int review}) breakdownFromCards(
+  List<CardProgress> cards,
+) {
+  int newCount = 0;
+  int learning = 0;
+  int review = 0;
+  for (final p in cards) {
+    switch (p.state) {
+      case 0:
+        newCount++;
+      case 1:
+        learning++;
+      case 2:
+      case 3:
+        review++;
+    }
+  }
+  return (newCount: newCount, learning: learning, review: review);
+}
+
 /// Breakdown of due cards: new / learning / review.
 final dueBreakdownProvider =
     Provider<({int newCount, int learning, int review})>((ref) {
-      final due = ref.watch(dueCardsProvider);
-      int newCount = 0;
-      int learning = 0;
-      int review = 0;
-
-      for (final p in due) {
-        switch (p.state) {
-          case 0:
-            newCount++;
-            break;
-          case 1:
-            learning++;
-            break;
-          case 2:
-          case 3:
-            review++;
-            break;
-        }
-      }
-
-      return (newCount: newCount, learning: learning, review: review);
+      return breakdownFromCards(ref.watch(dueCardsProvider));
     });
 
 /// Breakdown for a specific set.
@@ -89,25 +89,5 @@ final dueBreakdownForSetProvider =
       ref,
       setId,
     ) {
-      final due = ref.watch(dueCardsForSetProvider(setId));
-      int newCount = 0;
-      int learning = 0;
-      int review = 0;
-
-      for (final p in due) {
-        switch (p.state) {
-          case 0:
-            newCount++;
-            break;
-          case 1:
-            learning++;
-            break;
-          case 2:
-          case 3:
-            review++;
-            break;
-        }
-      }
-
-      return (newCount: newCount, learning: learning, review: review);
+      return breakdownFromCards(ref.watch(dueCardsForSetProvider(setId)));
     });

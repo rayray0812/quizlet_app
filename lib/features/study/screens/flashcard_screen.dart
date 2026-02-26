@@ -1,4 +1,4 @@
-﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/core/services/study_haptics.dart';
@@ -30,6 +30,8 @@ class FlashcardScreen extends ConsumerStatefulWidget {
 
 class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
     with TickerProviderStateMixin {
+  final GlobalKey<SwipeCardStackState> _stackKey =
+      GlobalKey<SwipeCardStackState>();
   late List<Flashcard> _currentCards;
   final List<Flashcard> _knownCards = [];
   final List<Flashcard> _unknownCards = [];
@@ -66,9 +68,10 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
 
   void _onSwiped(int index, bool remembered) {
     final card = _currentCards[index];
-    StudyHaptics.onSwipe();
     if (remembered) {
-      final earned = ref.read(sessionXpProvider.notifier).onFlashcardRemembered();
+      final earned = ref
+          .read(sessionXpProvider.notifier)
+          .onFlashcardRemembered();
       _xpToastKey.currentState?.showXp(earned);
     } else {
       ref.read(sessionXpProvider.notifier).onFlashcardForgot();
@@ -103,11 +106,6 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
   }
 
   void _goHomeSmooth() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-      return;
-    }
     context.go('/');
   }
 
@@ -149,82 +147,64 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
       body: Stack(
         children: [
           Column(
-        children: [
-          RoundedProgressBar(
-            value: progress,
-            counterText: '$_swipedCount / ${_currentCards.length}',
-          ),
-          // Score row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.red.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppTheme.red.withValues(alpha: 0.18),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: Text(
-                    '${_unknownCards.length}',
-                    style: GoogleFonts.notoSerifTc(
+            children: [
+              RoundedProgressBar(
+                value: progress,
+                counterText: '$_swipedCount / ${_currentCards.length}',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+                child: Row(
+                  children: [
+                    _CountPill(
                       color: AppTheme.red,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      icon: CupertinoIcons.xmark_circle,
+                      label: l10n.dontKnow,
+                      count: _unknownCards.length,
                     ),
-                  ),
-                ),
-                Text(
-                  l10n.swipeToSort,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.green.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppTheme.green.withValues(alpha: 0.18),
-                      width: 0.5,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Text(
+                          '左滑 ${l10n.dontKnow}・右滑 ${l10n.know}・點卡片翻面',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    '${_knownCards.length}',
-                    style: GoogleFonts.notoSerifTc(
+                    const SizedBox(width: 8),
+                    _CountPill(
                       color: AppTheme.green,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      icon: CupertinoIcons.check_mark_circled,
+                      label: l10n.know,
+                      count: _knownCards.length,
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Expanded(
+                child: _roundDone ? _buildRoundEnd(context) : _buildCardStack(),
+              ),
+              if (!_roundDone) _buildSwipeActionBar(context, l10n),
+            ],
           ),
-          // Card stack or round-end summary
-          Expanded(
-            child: _roundDone ? _buildRoundEnd(context) : _buildCardStack(),
-          ),
-        ],
-      ),
           // Combo indicator
-          const Positioned(
-            top: 60,
-            right: 16,
-            child: ComboIndicator(),
-          ),
+          const Positioned(top: 60, right: 16, child: ComboIndicator()),
           // XP toast
           Positioned(
             top: 100,
@@ -241,7 +221,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                   _currentCards.isEmpty
                       ? 0
                       : (_knownCards.length / _currentCards.length * 100)
-                          .round(),
+                            .round(),
                 ),
               ),
             ),
@@ -262,11 +242,61 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
         .toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 46),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
       child: SwipeCardStack(
-        key: ValueKey(_currentCards.hashCode),
+        key: _stackKey,
         cards: swipeCards,
         onSwiped: _onSwiped,
+      ),
+    );
+  }
+
+  Widget _buildSwipeActionBar(BuildContext context, AppLocalizations l10n) {
+    final canTapActions =
+        _stackKey.currentState?.canSwipeProgrammatically ?? true;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: canTapActions
+                    ? () => _stackKey.currentState?.swipeForgot()
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.red.withValues(alpha: 0.92),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(CupertinoIcons.xmark, size: 18),
+                label: Text(l10n.dontKnow),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: canTapActions
+                    ? () => _stackKey.currentState?.swipeRemembered()
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.green.withValues(alpha: 0.94),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(CupertinoIcons.check_mark, size: 18),
+                label: Text(l10n.know),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -315,9 +345,9 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                 EncouragementLines.pick(percent),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: Theme.of(context).colorScheme.outline,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 22),
               if (_unknownCards.isNotEmpty)
@@ -360,6 +390,50 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
   }
 }
 
+class _CountPill extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String label;
+  final int count;
+
+  const _CountPill({
+    required this.color,
+    required this.icon,
+    required this.label,
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '$label: $count',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              '$count',
+              style: GoogleFonts.notoSerifTc(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StatBox extends StatelessWidget {
   final String label;
   final int count;
@@ -381,6 +455,3 @@ class _StatBox extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -59,7 +59,35 @@ class SwipeCardStackState extends State<SwipeCardStack>
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant SwipeCardStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.cards, widget.cards)) {
+      _animController.stop();
+      _entryController.stop();
+      _entryController.value = 1;
+      _topIndex = 0;
+      _dragOffset = Offset.zero;
+      _isAnimating = false;
+      _isDragging = false;
+      _isTopCardFlipping = false;
+    }
+  }
+
   bool get isDone => _topIndex >= widget.cards.length;
+
+  bool get canSwipeProgrammatically =>
+      !isDone && !_isAnimating && !_isTopCardFlipping;
+
+  void swipeRemembered() {
+    if (!canSwipeProgrammatically) return;
+    _animateOut(true);
+  }
+
+  void swipeForgot() {
+    if (!canSwipeProgrammatically) return;
+    _animateOut(false);
+  }
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (_isAnimating) return;
@@ -91,15 +119,16 @@ class SwipeCardStackState extends State<SwipeCardStack>
     _isAnimating = true;
     _animController.duration = const Duration(milliseconds: 290);
     final currentIndex = _topIndex;
-    _animOffset = Tween<Offset>(
-      begin: _dragOffset,
-      end: Offset(
-        remembered ? _screenWidth * 1.5 : -_screenWidth * 1.5,
-        _dragOffset.dy,
-      ),
-    ).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-    );
+    _animOffset =
+        Tween<Offset>(
+          begin: _dragOffset,
+          end: Offset(
+            remembered ? _screenWidth * 1.5 : -_screenWidth * 1.5,
+            _dragOffset.dy,
+          ),
+        ).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
     _animController.forward(from: 0).then((_) {
       StudyHaptics.onSwipe();
       widget.onSwiped(currentIndex, remembered);
@@ -120,10 +149,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
   void _animateBack() {
     _isAnimating = true;
     _animController.duration = const Duration(milliseconds: 250);
-    _animOffset = Tween<Offset>(
-      begin: _dragOffset,
-      end: Offset.zero,
-    ).animate(
+    _animOffset = Tween<Offset>(begin: _dragOffset, end: Offset.zero).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
     _animController.forward(from: 0).then((_) {
@@ -162,8 +188,8 @@ class SwipeCardStackState extends State<SwipeCardStack>
         // Only move back-card progression while the finger is actively dragging.
         final t = _isDragging
             ? (_dragOffset.dx.abs() / (_screenWidth * 0.45))
-                .clamp(0.0, 1.0)
-                .toDouble()
+                  .clamp(0.0, 1.0)
+                  .toDouble()
             : 0.0;
 
         final baseScale = 1.0 - offset * 0.04;
@@ -211,7 +237,9 @@ class SwipeCardStackState extends State<SwipeCardStack>
           final entryScale = lerpDouble(0.985, 1.0, entryT) ?? 1.0;
           final entryYOffset = lerpDouble(8.0, 0.0, entryT) ?? 0.0;
           final entryOpacity = lerpDouble(0.92, 1.0, entryT) ?? 1.0;
-          final overlayOpacity = (ratio.abs() * 0.5).clamp(0.0, 0.36).toDouble();
+          final overlayOpacity = (ratio.abs() * 0.5)
+              .clamp(0.0, 0.36)
+              .toDouble();
           final labelOpacity = (ratio.abs() * 2).clamp(0.0, 1.0).toDouble();
           final isRight = ratio > 0.05;
           final isLeft = ratio < -0.05;
@@ -239,7 +267,9 @@ class SwipeCardStackState extends State<SwipeCardStack>
                             child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
-                                color: AppTheme.green.withValues(alpha: overlayOpacity),
+                                color: AppTheme.green.withValues(
+                                  alpha: overlayOpacity,
+                                ),
                               ),
                               alignment: Alignment.center,
                               child: Text(
@@ -248,7 +278,9 @@ class SwipeCardStackState extends State<SwipeCardStack>
                                   fontSize: 28,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 2,
-                                  color: Colors.white.withValues(alpha: labelOpacity),
+                                  color: Colors.white.withValues(
+                                    alpha: labelOpacity,
+                                  ),
                                 ),
                               ),
                             ),
@@ -258,7 +290,9 @@ class SwipeCardStackState extends State<SwipeCardStack>
                             child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
-                                color: AppTheme.red.withValues(alpha: overlayOpacity),
+                                color: AppTheme.red.withValues(
+                                  alpha: overlayOpacity,
+                                ),
                               ),
                               alignment: Alignment.center,
                               child: Text(
@@ -267,7 +301,9 @@ class SwipeCardStackState extends State<SwipeCardStack>
                                   fontSize: 28,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 2,
-                                  color: Colors.white.withValues(alpha: labelOpacity),
+                                  color: Colors.white.withValues(
+                                    alpha: labelOpacity,
+                                  ),
                                 ),
                               ),
                             ),

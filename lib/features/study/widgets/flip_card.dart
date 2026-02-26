@@ -44,30 +44,55 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
   bool _isSpeaking = false;
   DateTime? _lastSpeakRequestedAt;
 
+  TextStyle _adaptiveCardTextStyle(String text, Color textColor) {
+    final normalized = text.trim();
+    final lineBreaks = '\n'.allMatches(normalized).length;
+    final length = normalized.length;
+    double fontSize = 24;
+    double height = 1.45;
+    if (lineBreaks >= 2 || length > 120) {
+      fontSize = 18;
+      height = 1.5;
+    } else if (lineBreaks >= 1 || length > 70) {
+      fontSize = 20;
+      height = 1.48;
+    } else if (length > 36) {
+      fontSize = 22;
+      height = 1.46;
+    }
+    return GoogleFonts.notoSerifTc(
+      textStyle: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w800,
+        color: textColor,
+        height: height,
+        letterSpacing: 0.25,
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: StudyConstants.flipDuration,
-      reverseDuration: StudyConstants.flipDuration,
-      vsync: this,
-    )..addStatusListener((status) {
-      final animating =
-          status == AnimationStatus.forward ||
-          status == AnimationStatus.reverse;
-      if (animating != _isFlipAnimating) {
-        _isFlipAnimating = animating;
-        widget.onFlipStateChanged?.call(animating);
-      }
-      if (status == AnimationStatus.completed ||
-          status == AnimationStatus.dismissed) {
-        widget.onFlipStateChanged?.call(false);
-      }
-    });
-    _animation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(
+    _controller =
+        AnimationController(
+          duration: StudyConstants.flipDuration,
+          reverseDuration: StudyConstants.flipDuration,
+          vsync: this,
+        )..addStatusListener((status) {
+          final animating =
+              status == AnimationStatus.forward ||
+              status == AnimationStatus.reverse;
+          if (animating != _isFlipAnimating) {
+            _isFlipAnimating = animating;
+            widget.onFlipStateChanged?.call(animating);
+          }
+          if (status == AnimationStatus.completed ||
+              status == AnimationStatus.dismissed) {
+            widget.onFlipStateChanged?.call(false);
+          }
+        });
+    _animation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeInOutCubic,
@@ -329,10 +354,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
             child: Stack(
               alignment: Alignment.center,
               clipBehavior: Clip.none,
-              children: [
-                if (frontVisible) front,
-                if (!frontVisible) back,
-              ],
+              children: [if (frontVisible) front, if (!frontVisible) back],
             ),
           );
         },
@@ -349,6 +371,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     Color? bgColorEnd,
   }) {
     final hasImage = showImage && widget.imageUrl.isNotEmpty;
+    final longText = text.trim().length > 90 || text.contains('\n');
     final screenHeight = MediaQuery.of(context).size.height;
     final cardHeight = screenHeight * 0.55;
     final imageHeight = (screenHeight * 0.16).clamp(92.0, 138.0);
@@ -473,26 +496,90 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 20,
-                    ),
-                    child: Text(
-                      text,
-                      style: GoogleFonts.notoSerifTc(
-                        textStyle: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                          height: 1.45,
-                          letterSpacing: 0.3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: longText
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.22),
+                              ),
+                            ),
+                            child: Scrollbar(
+                              thumbVisibility: false,
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: Text(
+                                  text,
+                                  style: _adaptiveCardTextStyle(
+                                    text,
+                                    textColor,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            text,
+                            style: _adaptiveCardTextStyle(text, textColor),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                child: Row(
+                  children: [
+                    if (longText)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '可上下滑動閱讀',
+                          style: GoogleFonts.notoSerifTc(
+                            textStyle: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: textColor.withValues(alpha: 0.72),
+                            ),
+                          ),
                         ),
                       ),
-                      textAlign: TextAlign.center,
+                    const Spacer(),
+                    Text(
+                      _controller.isCompleted ? '再點一下下一張' : '點一下翻面',
+                      style: GoogleFonts.notoSerifTc(
+                        textStyle: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: textColor.withValues(alpha: 0.68),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -507,10 +594,7 @@ class _PaperTexturePainter extends CustomPainter {
   final Color tone;
   final Color shadowTone;
 
-  const _PaperTexturePainter({
-    required this.tone,
-    required this.shadowTone,
-  });
+  const _PaperTexturePainter({required this.tone, required this.shadowTone});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -529,11 +613,7 @@ class _PaperTexturePainter extends CustomPainter {
 
     for (var i = 0; i < 34; i++) {
       final y = (size.height / 34) * i + ((i % 2) * 1.2);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y + 1.4),
-        linePaint,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y + 1.4), linePaint);
     }
 
     for (var i = 0; i < 210; i++) {

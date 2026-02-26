@@ -225,10 +225,6 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   }
 
   Future<void> _playCelebrationAndNavigate(VoidCallback navigate) async {
-    final percent = (_goodCount + _easyCount) /
-        (_againCount + _hardCount + _goodCount + _easyCount).clamp(1, 999) *
-        100;
-    celebrationTierFromPercent(percent.round());
     final controller = AnimationController(
       vsync: this,
       duration: StudyConstants.celebrationDuration,
@@ -346,11 +342,6 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
   }
 
   void _goHomeSmooth() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-      return;
-    }
     context.go('/');
   }
 
@@ -714,7 +705,7 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
     double shadowBoost = 0,
   }) {
     final hasImage = imageUrl.isNotEmpty;
-    final cardWidth = MediaQuery.of(context).size.width - 44;
+    final cardWidth = MediaQuery.sizeOf(context).width - 44;
     final cardHeight = cardWidth * 1.25;
 
     return Container(

@@ -19,6 +19,12 @@ import 'package:recall_app/models/adapters/folder_adapter.dart';
 import 'package:recall_app/services/notification_service.dart';
 import 'package:recall_app/services/widget_snapshot_service.dart';
 
+/// True when Hive fell back to unencrypted storage.
+bool hiveEncryptionFailed = false;
+
+/// Provider so UI can show a warning banner when encryption is degraded.
+final hiveEncryptionFailedProvider = Provider<bool>((ref) => false);
+
 /// Pending deep link URI from widget tap before router is ready.
 Uri? _pendingWidgetUri;
 
@@ -100,6 +106,7 @@ void main() async {
       } catch (e2) {
         debugPrint('Hive fallback also failed for $boxName: $e2');
         // Last resort: open without encryption so the app can at least start.
+        hiveEncryptionFailed = true;
         await Hive.openBox(boxName);
       }
     }
@@ -174,5 +181,12 @@ void main() async {
     );
   }
 
-  runApp(const ProviderScope(child: RecallApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        hiveEncryptionFailedProvider.overrideWithValue(hiveEncryptionFailed),
+      ],
+      child: const RecallApp(),
+    ),
+  );
 }

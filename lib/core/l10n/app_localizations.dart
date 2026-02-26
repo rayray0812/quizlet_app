@@ -626,6 +626,38 @@ class AppLocalizations {
   String get changeAvatar => '';
   String get profileSaved => '';
   String get profileSyncNote => '';
+
+  // -- Security Settings --
+  String get securitySection => '';
+  String get dataManagement => '';
+  String get syncConflicts => '';
+  String get syncConflictsSubtitle => '';
+  String get noSyncConflicts => '';
+  String get encryptedBackup => '';
+  String get encryptedBackupSubtitle => '';
+  String get encryptedBackupDesc => '';
+  String get deleteAccountTitle => '';
+  String get deleteAccountSubtitle => '';
+  String get deleteAccountWarning => '';
+  String get signOutDevice => '';
+  String get signOutAll => '';
+  String get signOutAllWarning => '';
+  String get passphrase => '';
+  String get passphraseHint => '';
+  String get passphraseMinLength => '';
+  String get exportBackup => '';
+  String get importBackup => '';
+  String get backupExported => '';
+  String backupImported(int setCount) => '';
+  String get keepLocal => '';
+  String get keepRemote => '';
+  String get merge => '';
+  String get passwordForReauth => '';
+  String get accountDeleted => '';
+  String get biometricEnabled => '';
+  String get biometricUnavailable => '';
+  String get biometricFailed => '';
+  String nConflicts(int count) => '';
 }
 
 class AppLocalizationsZh extends AppLocalizations {
@@ -1862,6 +1894,68 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileSaved => '\u500B\u4EBA\u6A94\u6848\u5DF2\u5132\u5B58';
   @override
   String get profileSyncNote => '\u8A2A\u5BA2\u6A21\u5F0F\u4E0B\u7684\u500B\u4EBA\u6A94\u6848\u50C5\u5132\u5B58\u5728\u672C\u6A5F\uFF0C\u767B\u5165\u5F8C\u53EF\u540C\u6B65\u81F3\u96F2\u7AEF';
+
+  // -- Security Settings --
+  @override
+  String get securitySection => '安全';
+  @override
+  String get dataManagement => '資料管理';
+  @override
+  String get syncConflicts => '同步衝突';
+  @override
+  String get syncConflictsSubtitle => '處理雲端資料衝突';
+  @override
+  String get noSyncConflicts => '目前沒有同步衝突';
+  @override
+  String get encryptedBackup => '加密備份';
+  @override
+  String get encryptedBackupSubtitle => '匯出/匯入加密資料';
+  @override
+  String get encryptedBackupDesc => '使用密碼短語加密您的學習資料，安全地備份或轉移到其他裝置。';
+  @override
+  String get deleteAccountTitle => '刪除帳號';
+  @override
+  String get deleteAccountSubtitle => '永久刪除所有資料';
+  @override
+  String get deleteAccountWarning => '此操作無法復原。所有資料將被永久刪除。';
+  @override
+  String get signOutDevice => '登出此裝置';
+  @override
+  String get signOutAll => '登出所有裝置';
+  @override
+  String get signOutAllWarning => '所有裝置將被強制登出';
+  @override
+  String get passphrase => '密碼短語';
+  @override
+  String get passphraseHint => '至少 8 個字元';
+  @override
+  String get passphraseMinLength => '密碼短語至少需要 8 個字元';
+  @override
+  String get exportBackup => '匯出備份';
+  @override
+  String get importBackup => '匯入備份';
+  @override
+  String get backupExported => '已匯出加密備份';
+  @override
+  String backupImported(int setCount) => '已匯入 $setCount 個學習集';
+  @override
+  String get keepLocal => '保留本地';
+  @override
+  String get keepRemote => '保留雲端';
+  @override
+  String get merge => '合併';
+  @override
+  String get passwordForReauth => '密碼（OAuth 使用者可留空）';
+  @override
+  String get accountDeleted => '帳號已成功刪除';
+  @override
+  String get biometricEnabled => '已啟用生物辨識快速解鎖';
+  @override
+  String get biometricUnavailable => '此裝置不支援生物辨識';
+  @override
+  String get biometricFailed => '生物辨識驗證失敗';
+  @override
+  String nConflicts(int count) => '$count 個衝突待處理';
 }
 
 class AppLocalizationsEn extends AppLocalizations {
@@ -3031,6 +3125,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileSaved => 'Profile saved';
   @override
   String get profileSyncNote => 'Guest profile is saved locally only. Log in to sync to the cloud.';
+
+  // -- Security Settings --
+  @override
+  String get securitySection => 'Security';
+  @override
+  String get dataManagement => 'Data Management';
+  @override
+  String get syncConflicts => 'Sync Conflicts';
+  @override
+  String get syncConflictsSubtitle => 'Resolve cloud data conflicts';
+  @override
+  String get noSyncConflicts => 'No sync conflicts';
+  @override
+  String get encryptedBackup => 'Encrypted Backup';
+  @override
+  String get encryptedBackupSubtitle => 'Export/import encrypted data';
+  @override
+  String get encryptedBackupDesc => 'Encrypt your study data with a passphrase to securely back up or transfer to another device.';
+  @override
+  String get deleteAccountTitle => 'Delete Account';
+  @override
+  String get deleteAccountSubtitle => 'Permanently delete all data';
+  @override
+  String get deleteAccountWarning => 'This action cannot be undone. All data will be permanently deleted.';
+  @override
+  String get signOutDevice => 'Sign Out This Device';
+  @override
+  String get signOutAll => 'Sign Out All Devices';
+  @override
+  String get signOutAllWarning => 'All devices will be signed out';
+  @override
+  String get passphrase => 'Passphrase';
+  @override
+  String get passphraseHint => 'At least 8 characters';
+  @override
+  String get passphraseMinLength => 'Passphrase must be at least 8 characters';
+  @override
+  String get exportBackup => 'Export Backup';
+  @override
+  String get importBackup => 'Import Backup';
+  @override
+  String get backupExported => 'Encrypted backup exported';
+  @override
+  String backupImported(int setCount) => 'Imported $setCount study sets';
+  @override
+  String get keepLocal => 'Keep Local';
+  @override
+  String get keepRemote => 'Keep Remote';
+  @override
+  String get merge => 'Merge';
+  @override
+  String get passwordForReauth => 'Password (leave blank for OAuth)';
+  @override
+  String get accountDeleted => 'Account deleted successfully';
+  @override
+  String get biometricEnabled => 'Biometric quick unlock enabled';
+  @override
+  String get biometricUnavailable => 'Biometric not available on this device';
+  @override
+  String get biometricFailed => 'Biometric verification failed';
+  @override
+  String nConflicts(int count) => '$count conflicts pending';
 }
 
 class _AppLocalizationsDelegate

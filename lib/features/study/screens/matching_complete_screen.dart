@@ -89,7 +89,9 @@ class _MatchingCompleteScreenState
             localSetId: widget.setId,
             score: _computeFinalScore().toDouble(),
           );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Classroom sync (matching complete) failed: $e');
+    }
   }
 
   String _computeGrade(int score) {

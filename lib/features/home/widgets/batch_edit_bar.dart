@@ -4,6 +4,7 @@ import 'package:recall_app/core/l10n/app_localizations.dart';
 class BatchEditBar extends StatelessWidget {
   final int selectedCount;
   final VoidCallback onDelete;
+  final VoidCallback? onMerge;
   final VoidCallback onAddTag;
   final VoidCallback onRemoveTag;
   final VoidCallback onAiGenerate;
@@ -12,6 +13,7 @@ class BatchEditBar extends StatelessWidget {
     super.key,
     required this.selectedCount,
     required this.onDelete,
+    this.onMerge,
     required this.onAddTag,
     required this.onRemoveTag,
     required this.onAiGenerate,
@@ -41,6 +43,12 @@ class BatchEditBar extends StatelessWidget {
               ),
             ),
             const Spacer(),
+            if (onMerge != null)
+              IconButton(
+                onPressed: onMerge,
+                icon: const Icon(Icons.merge_type_rounded),
+                tooltip: '合併同字卡',
+              ),
             IconButton(
               onPressed: onAddTag,
               icon: const Icon(Icons.label_outline),

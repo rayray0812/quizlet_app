@@ -18,6 +18,21 @@ import 'package:recall_app/core/widgets/app_back_button.dart';
 
 enum _QuestionType { multipleChoice, textInput, trueFalse }
 
+({int totalReviewed, int wrongCount, int correctCount})
+computeRevengeSummaryCounts({
+  required int mainQuestionCount,
+  required int mainScore,
+}) {
+  final totalReviewed = mainQuestionCount.clamp(0, 1 << 30);
+  final correctCount = mainScore.clamp(0, totalReviewed);
+  final wrongCount = (totalReviewed - correctCount).clamp(0, totalReviewed);
+  return (
+    totalReviewed: totalReviewed,
+    wrongCount: wrongCount,
+    correctCount: correctCount,
+  );
+}
+
 class _QuizQuestion {
   final Flashcard card;
   final _QuestionType type;
@@ -50,6 +65,7 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
   int? _selectedOption;
   late List<Flashcard> _allCards;
   late List<_QuizQuestion> _questions;
+  int _mainQuestionCount = 0;
   final List<int> _wrongIndices = [];
   bool _isReinforcementRound = false;
   int _reinforcementScore = 0;
@@ -89,6 +105,7 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
 
     final shuffled = List.of(revengeCards)..shuffle(_random);
     _questions = _generateMixedQuestions(shuffled);
+    _mainQuestionCount = _questions.length;
     _currentIndex = 0;
     _score = 0;
     _selectedOption = null;
@@ -244,17 +261,17 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
   }
 
   void _navigateToSummary() {
-    final mainTotal = _isReinforcementRound
-        ? _wrongIndices.length
-        : _questions.length;
-    final wrongCount = mainTotal - _score;
+    final summary = computeRevengeSummaryCounts(
+      mainQuestionCount: _mainQuestionCount,
+      mainScore: _score,
+    );
     context.pushReplacement(
       '/review/summary',
       extra: {
-        'totalReviewed': mainTotal,
-        'againCount': wrongCount,
+        'totalReviewed': summary.totalReviewed,
+        'againCount': summary.wrongCount,
         'hardCount': 0,
-        'goodCount': _score,
+        'goodCount': summary.correctCount,
         'easyCount': 0,
         'isRevengeMode': true,
         'revengeCardCount': widget.cardIds.length,
@@ -263,11 +280,6 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
   }
 
   void _goHomeSmooth() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-      return;
-    }
     context.go('/');
   }
 
@@ -314,73 +326,76 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
       body: Stack(
         children: [
           Column(
-        children: [
-          RoundedProgressBar(
-            value: progress,
-            counterText: '${_currentIndex + 1} / ${_questions.length}',
-          ),
-          if (_isReinforcementRound)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              color: AppTheme.cyan.withValues(alpha: 0.08),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
-                    color: AppTheme.cyan,
+            children: [
+              RoundedProgressBar(
+                value: progress,
+                counterText: '${_currentIndex + 1} / ${_questions.length}',
+              ),
+              if (_isReinforcementRound)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${l10n.reinforcementRound} \u2014 ${l10n.reinforcementDesc}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.cyan.withValues(alpha: 0.08),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.refresh_rounded,
+                        size: 18,
                         color: AppTheme.cyan,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${l10n.reinforcementRound} \u2014 ${l10n.reinforcementDesc}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppTheme.cyan,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // Revenge mode banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                color: AppTheme.purple.withValues(alpha: 0.08),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.replay_rounded,
+                      size: 16,
+                      color: AppTheme.purple,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n.revengeMode,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.purple,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          // Revenge mode banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            color: AppTheme.purple.withValues(alpha: 0.08),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.replay_rounded,
-                  size: 16,
-                  color: AppTheme.purple,
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: _buildQuestionBody(question, l10n),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  l10n.revengeMode,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.purple,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              child: _buildQuestionBody(question, l10n),
-            ),
-          ),
-        ],
-      ),
           // Combo indicator
-          const Positioned(
-            top: 60,
-            right: 16,
-            child: ComboIndicator(),
-          ),
+          const Positioned(top: 60, right: 16, child: ComboIndicator()),
           // XP toast
           Positioned(
             top: 100,
@@ -461,9 +476,9 @@ class _RevengeQuizScreenState extends ConsumerState<RevengeQuizScreen> {
         const SizedBox(height: 16),
         TextInputQuestion(
           key: ValueKey('revenge_text_${question.card.id}_$_currentIndex'),
-          definition: question.card.definition,
-          correctAnswer: question.card.term,
-          exactMatch: true, // 中填英 = exact match
+          definition: question.card.term,
+          correctAnswer: question.card.definition,
+          exactMatch: true, // 現行填空題一律精確比對，避免誤套容錯率
           onAnswered: _onTextInputAnswered,
         ),
       ],

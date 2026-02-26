@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:recall_app/core/services/study_haptics.dart';
@@ -121,7 +122,7 @@ List<Flashcard> selectQuizCards({
   for (var i = 0; i < targetCount; i++) {
     final totalWeight = remainingWeights.fold(0.0, (a, b) => a + b);
     var roll = random.nextDouble() * totalWeight;
-    int pickedIdx = 0;
+    int pickedIdx = remaining.length - 1;
 
     for (var j = 0; j < remaining.length; j++) {
       roll -= remainingWeights[j];
@@ -159,6 +160,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     with SingleTickerProviderStateMixin {
   final _random = Random();
   late final AnimationController _completionController;
+  Timer? _advanceTimer;
   int _currentIndex = 0;
   int _score = 0;
   int? _selectedOption;
@@ -193,6 +195,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void dispose() {
+    _advanceTimer?.cancel();
     _completionController.dispose();
     super.dispose();
   }
@@ -382,7 +385,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _advanceAfterDelay(int ms) {
-    Future.delayed(Duration(milliseconds: ms), () {
+    _advanceTimer?.cancel();
+    _advanceTimer = Timer(Duration(milliseconds: ms), () {
       if (!mounted) return;
       if (_currentIndex < _questions.length - 1) {
         setState(() {
@@ -466,11 +470,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   void _goHomeSmooth() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-      return;
-    }
     context.go('/');
   }
 
@@ -594,11 +593,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             ],
           ),
           // Combo indicator
-          const Positioned(
-            top: 60,
-            right: 16,
-            child: ComboIndicator(),
-          ),
+          const Positioned(top: 60, right: 16, child: ComboIndicator()),
           // XP toast
           Positioned(
             top: 100,
@@ -700,7 +695,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           key: ValueKey('text_${question.card.id}_$_currentIndex'),
           definition: prompt,
           correctAnswer: answer,
-          exactMatch: question.reversed, // def→term(中填英) = exact; term→def(英填中) = fuzzy
+          exactMatch: true, // 現行填空題一律精確比對，避免誤套容錯率
           onAnswered: _onTextInputAnswered,
         ),
       ],

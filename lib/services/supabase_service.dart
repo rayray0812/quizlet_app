@@ -72,7 +72,7 @@ class SupabaseService {
     final client = _clientOrNull;
     final user = currentUser;
     if (client == null || user == null) {
-      debugPrint('[Admin] client=$client user=$user → false (null)');
+      if (kDebugMode) debugPrint('[Admin] client=$client user=$user → false (null)');
       return false;
     }
     try {
@@ -80,7 +80,7 @@ class SupabaseService {
         'is_global_admin',
         params: {'uid': user.id},
       );
-      debugPrint('[Admin] RPC is_global_admin returned: $rpcResult (${rpcResult.runtimeType})');
+      if (kDebugMode) debugPrint('[Admin] RPC is_global_admin returned: $rpcResult (${rpcResult.runtimeType})');
       if (rpcResult is bool) return rpcResult;
       if (rpcResult is num) return rpcResult != 0;
       if (rpcResult is String) {
@@ -88,9 +88,9 @@ class SupabaseService {
         if (value == 'true' || value == 't' || value == '1') return true;
         if (value == 'false' || value == 'f' || value == '0') return false;
       }
-      debugPrint('[Admin] RPC returned unhandled type, falling through');
+      if (kDebugMode) debugPrint('[Admin] RPC returned unhandled type, falling through');
     } catch (e) {
-      debugPrint('[Admin] RPC failed: $e — trying table query');
+      if (kDebugMode) debugPrint('[Admin] RPC failed: $e — trying table query');
     }
     try {
       final rows = await client
@@ -101,10 +101,10 @@ class SupabaseService {
           .inFilter('role_key', ['super_admin', 'org_admin'])
           .limit(1);
       final result = (rows as List).isNotEmpty;
-      debugPrint('[Admin] Table query rows=$rows → $result');
+      if (kDebugMode) debugPrint('[Admin] Table query rows=$rows → $result');
       return result;
     } catch (e) {
-      debugPrint('[Admin] Table query failed: $e → false');
+      if (kDebugMode) debugPrint('[Admin] Table query failed: $e → false');
       return false;
     }
   }
@@ -203,7 +203,9 @@ class SupabaseService {
     } catch (_) {
       try {
         await client.auth.signOut();
-      } catch (_) {}
+      } catch (signOutError) {
+        debugPrint('signOut during session validation failed: $signOutError');
+      }
       return false;
     }
   }

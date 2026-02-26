@@ -20,15 +20,23 @@ class SortOptionNotifier extends StateNotifier<SortOption> {
   }
 
   void _load() {
-    final box = Hive.box(AppConstants.hiveSettingsBox);
-    final index = box.get('sort_option', defaultValue: 0) as int;
-    if (index >= 0 && index < SortOption.values.length) {
-      state = SortOption.values[index];
+    try {
+      final box = Hive.box(AppConstants.hiveSettingsBox);
+      final index = box.get('sort_option', defaultValue: 0) as int;
+      if (index >= 0 && index < SortOption.values.length) {
+        state = SortOption.values[index];
+      }
+    } catch (_) {
+      // Box not available — keep default.
     }
   }
 
   void setOption(SortOption option) {
     state = option;
-    Hive.box(AppConstants.hiveSettingsBox).put('sort_option', option.index);
+    try {
+      Hive.box(AppConstants.hiveSettingsBox).put('sort_option', option.index);
+    } catch (_) {
+      // Persist failed — in-memory state still updated.
+    }
   }
 }
