@@ -12,6 +12,7 @@
   static const String settingAuthEventsKey = 'auth_events';
   static const String settingSyncConflictsKey = 'sync_conflicts';
   static const String settingDeletedStudySetIdsKey = 'deleted_study_set_ids';
+  static const String settingDeletedFolderIdsKey = 'deleted_folder_ids';
   static const String settingTtsEngineKey = 'tts_engine';
 
   static const int maxCardsPerSet = 2000;

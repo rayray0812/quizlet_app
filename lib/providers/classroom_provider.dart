@@ -115,3 +115,13 @@ final studentAssignmentDetailsProvider =
         studentId: query.studentId,
       );
     });
+
+final matchingLeaderboardForLocalSetProvider =
+    FutureProvider.family<List<ClassroomMatchLeaderboardEntry>, String>((
+      ref,
+      localSetId,
+    ) async {
+      ref.watch(currentUserProvider);
+      final service = ref.watch(classroomServiceProvider);
+      return service.fetchMatchLeaderboardForLocalSetId(localSetId);
+    });

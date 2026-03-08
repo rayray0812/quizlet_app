@@ -81,6 +81,14 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
     box.put(_kAvatarUrl, profile.avatarUrl);
   }
 
+  Future<void> clearCachedProfile() async {
+    final box = Hive.box(AppConstants.hiveSettingsBox);
+    await box.delete(_kDisplayName);
+    await box.delete(_kBio);
+    await box.delete(_kAvatarUrl);
+    state = const AsyncData(UserProfile());
+  }
+
   Future<void> updateDisplayName(String name) async {
     final current = state.valueOrNull ?? const UserProfile();
     final updated = current.copyWith(displayName: name);

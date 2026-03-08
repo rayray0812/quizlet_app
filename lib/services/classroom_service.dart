@@ -140,6 +140,27 @@ class ClassroomService {
     await client.rpc('join_class_by_invite_code', params: {'code': code});
   }
 
+  Future<void> updateClassArchiveStatus({
+    required String classId,
+    required bool isArchived,
+  }) async {
+    final client = _requireClient();
+    await client
+        .from(SupabaseConstants.classesTable)
+        .update({'is_archived': isArchived})
+        .eq('id', classId);
+  }
+
+  Future<void> leaveClass(String classId) async {
+    final client = _requireClient();
+    final userId = _requireUserId();
+    await client
+        .from(SupabaseConstants.classMembersTable)
+        .update({'status': 'left'})
+        .eq('class_id', classId)
+        .eq('student_id', userId);
+  }
+
   Future<List<ClassroomMember>> fetchClassMembers(String classId) async {
     final client = _supabaseService.clientOrNull;
     if (client == null) return const [];
@@ -355,6 +376,121 @@ class ClassroomService {
       score: normalizedScore,
     );
     return true;
+  }
+
+  Future<bool> upsertMatchingResultFromLocalSetId({
+    required String localSetId,
+    required int elapsedSeconds,
+    required int accuracy,
+    required int attempts,
+  }) async {
+    final context = _parseLocalClassSetId(localSetId);
+    final client = _supabaseService.clientOrNull;
+    final userId = currentUserId;
+    if (context == null || client == null || userId == null) return false;
+    final assignmentId = await _resolveAssignmentId(
+      classId: context.classId,
+      classSetId: context.classSetId,
+    );
+    if (assignmentId == null) return false;
+
+    final existingRows = await client
+        .from(SupabaseConstants.classMatchingResultsTable)
+        .select('best_time_seconds')
+        .eq('assignment_id', assignmentId)
+        .eq('student_id', userId)
+        .limit(1);
+    final existingBest = (existingRows as List).isEmpty
+        ? null
+        : (existingRows.first['best_time_seconds'] as num?)?.toInt();
+    final normalizedElapsed = elapsedSeconds <= 0 ? 1 : elapsedSeconds;
+    final bestTime = existingBest == null
+        ? normalizedElapsed
+        : min(existingBest, normalizedElapsed);
+
+    await client.from(SupabaseConstants.classMatchingResultsTable).upsert({
+      'assignment_id': assignmentId,
+      'class_id': context.classId,
+      'student_id': userId,
+      'best_time_seconds': bestTime,
+      'latest_time_seconds': normalizedElapsed,
+      'accuracy': accuracy.clamp(0, 100),
+      'attempts': attempts < 0 ? 0 : attempts,
+    });
+    return true;
+  }
+
+  Future<List<ClassroomMatchLeaderboardEntry>> fetchMatchLeaderboardForLocalSetId(
+    String localSetId, {
+    int limit = 10,
+  }) async {
+    final context = _parseLocalClassSetId(localSetId);
+    if (context == null) return const [];
+    final assignmentId = await _resolveAssignmentId(
+      classId: context.classId,
+      classSetId: context.classSetId,
+    );
+    if (assignmentId == null) return const [];
+    return fetchMatchLeaderboardForAssignment(
+      classId: context.classId,
+      assignmentId: assignmentId,
+      limit: limit,
+    );
+  }
+
+  Future<List<ClassroomMatchLeaderboardEntry>> fetchMatchLeaderboardForAssignment({
+    required String classId,
+    required String assignmentId,
+    int limit = 10,
+  }) async {
+    final client = _supabaseService.clientOrNull;
+    if (client == null) return const [];
+
+    final rows = await client
+        .from(SupabaseConstants.classMatchingResultsTable)
+        .select('*')
+        .eq('class_id', classId)
+        .eq('assignment_id', assignmentId)
+        .order('best_time_seconds', ascending: true)
+        .order('accuracy', ascending: false)
+        .order('updated_at', ascending: true)
+        .limit(limit);
+    if ((rows as List).isEmpty) return const [];
+
+    final studentIds = rows
+        .map((row) => row['student_id'] as String?)
+        .whereType<String>()
+        .toList();
+    final profileRows = studentIds.isEmpty
+        ? const <dynamic>[]
+        : await client
+              .from(SupabaseConstants.profilesTable)
+              .select('user_id, display_name')
+              .inFilter('user_id', studentIds);
+    final displayNameById = <String, String>{
+      for (final row in profileRows)
+        (row['user_id'] as String? ?? ''): (row['display_name'] as String? ?? ''),
+    };
+
+    return rows.map((row) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final studentId = map['student_id'] as String? ?? '';
+      return ClassroomMatchLeaderboardEntry(
+        assignmentId: map['assignment_id'] as String? ?? '',
+        classId: map['class_id'] as String? ?? '',
+        studentId: studentId,
+        studentDisplayName: displayNameById[studentId]?.trim().isNotEmpty == true
+            ? displayNameById[studentId]!
+            : studentId,
+        bestTimeSeconds: (map['best_time_seconds'] as num?)?.toInt() ?? 0,
+        latestTimeSeconds: (map['latest_time_seconds'] as num?)?.toInt() ?? 0,
+        accuracy: (map['accuracy'] as num?)?.toInt() ?? 0,
+        attempts: (map['attempts'] as num?)?.toInt() ?? 0,
+        updatedAt:
+            DateTime.tryParse(map['updated_at'] as String? ?? '') ??
+            DateTime.now().toUtc(),
+      );
+    }).toList();
   }
 
   Future<bool> markInProgressFromLocalSetId({

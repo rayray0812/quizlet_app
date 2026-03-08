@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>驗證你的信箱｜拾憶 Grasp</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f6f3ec;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC',
+        'PingFang TC', 'Microsoft JhengHei', Arial, sans-serif;
+      color: #1f2420;
+    "
+  >
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #f6f3ec; margin: 0; padding: 24px 12px"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            style="max-width: 620px"
+          >
+            <tr>
+              <td style="padding: 8px 8px 16px 8px; text-align: center">
+                <div
+                  style="
+                    display: inline-block;
+                    padding: 6px 12px;
+                    border: 1px solid #d8d2c6;
+                    border-radius: 999px;
+                    background: #fbf9f4;
+                    color: #55604a;
+                    font-size: 12px;
+                    letter-spacing: 0.08em;
+                  "
+                >
+                  拾憶 GRASP
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="
+                    background: #fffdf9;
+                    border: 1px solid #e6e0d4;
+                    border-radius: 20px;
+                    overflow: hidden;
+                  "
+                >
+                  <tr>
+                    <td
+                      style="
+                        background: linear-gradient(135deg, #edf2e2 0%, #e3ead4 55%, #d6dfc2 100%);
+                        padding: 32px 28px 24px 28px;
+                        border-bottom: 1px solid #e6e0d4;
+                      "
+                    >
+                      <div
+                        style="
+                          width: 46px;
+                          height: 46px;
+                          line-height: 46px;
+                          text-align: center;
+                          border-radius: 14px;
+                          background: #ffffff;
+                          border: 1px solid #dbe3ce;
+                          font-size: 22px;
+                          margin-bottom: 14px;
+                        "
+                      >
+                        ✓
+                      </div>
+                      <div
+                        style="
+                          font-size: 26px;
+                          line-height: 1.25;
+                          font-weight: 700;
+                          color: #243021;
+                          margin: 0 0 8px 0;
+                        "
+                      >
+                        驗證你的信箱
+                      </div>
+                      <div
+                        style="
+                          font-size: 14px;
+                          line-height: 1.6;
+                          color: #4f5b49;
+                        "
+                      >
+                        完成這一步後，你就可以登入拾憶 Grasp，開始同步學習集與複習進度。
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding: 28px">
+                      <p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.7; color: #2c322c">
+                        嗨，{{ .Email }}：
+                      </p>
+                      <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.8; color: #4c544b">
+                        感謝你註冊 <strong>拾憶 Grasp</strong>。請點擊下方按鈕完成信箱驗證。
+                      </p>
+
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 20px 0">
+                        <tr>
+                          <td align="center" style="border-radius: 12px; background: #7c8762">
+                            <a
+                              href="{{ .ConfirmationURL }}"
+                              style="
+                                display: inline-block;
+                                padding: 14px 24px;
+                                color: #ffffff;
+                                text-decoration: none;
+                                font-size: 15px;
+                                font-weight: 700;
+                                border-radius: 12px;
+                                border: 1px solid #7c8762;
+                              "
+                            >
+                              驗證信箱並開始使用
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div
+                        style="
+                          margin: 0 0 18px 0;
+                          padding: 14px 16px;
+                          border-radius: 12px;
+                          background: #f7f4ec;
+                          border: 1px solid #e9e2d4;
+                          font-size: 13px;
+                          line-height: 1.7;
+                          color: #5e655c;
+                        "
+                      >
+                        如果按鈕無法點擊，請複製以下連結到瀏覽器開啟：
+                        <br />
+                        <a
+                          href="{{ .ConfirmationURL }}"
+                          style="color: #5c6a49; word-break: break-all"
+                          >{{ .ConfirmationURL }}</a
+                        >
+                      </div>
+
+                      <p style="margin: 0; font-size: 13px; line-height: 1.7; color: #7a7b74">
+                        若你沒有註冊拾憶 Grasp，可直接忽略這封信。
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 16px 10px 4px 10px; text-align: center">
+                <div style="font-size: 12px; color: #8b8a83; line-height: 1.7">
+                  此信件由系統自動寄出，請勿直接回覆。<br />
+                  {{ .SiteURL }}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

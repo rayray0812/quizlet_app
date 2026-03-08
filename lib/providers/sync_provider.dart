@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/models/sync_conflict.dart';
 import 'package:recall_app/providers/auth_provider.dart';
+import 'package:recall_app/providers/folder_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/services/sync_conflict_service.dart';
 import 'package:recall_app/services/sync_service.dart';
@@ -27,6 +28,7 @@ final syncProvider = FutureProvider<void>((ref) async {
     await syncService.syncAll();
     Future<void>(() {
       ref.read(studySetsProvider.notifier).refresh();
+      ref.read(foldersProvider.notifier).refresh();
       ref.invalidate(syncConflictsProvider);
     });
   }

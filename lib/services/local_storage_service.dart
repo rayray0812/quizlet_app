@@ -56,6 +56,30 @@ class LocalStorageService {
     await _settingsBox.put(AppConstants.settingDeletedStudySetIdsKey, ids);
   }
 
+  List<String> getDeletedFolderIds() {
+    final raw =
+        (_settingsBox.get(
+                  AppConstants.settingDeletedFolderIdsKey,
+                  defaultValue: <dynamic>[],
+                )
+                as List)
+            .cast<dynamic>();
+    return raw.map((e) => e.toString()).toList();
+  }
+
+  Future<void> markFolderDeleted(String id) async {
+    final ids = getDeletedFolderIds();
+    if (!ids.contains(id)) {
+      ids.add(id);
+      await _settingsBox.put(AppConstants.settingDeletedFolderIdsKey, ids);
+    }
+  }
+
+  Future<void> clearDeletedFolderId(String id) async {
+    final ids = getDeletedFolderIds()..removeWhere((item) => item == id);
+    await _settingsBox.put(AppConstants.settingDeletedFolderIdsKey, ids);
+  }
+
   List<StudySet> getUnsyncedSets() {
     return _box.values.whereType<StudySet>().where((s) => !s.isSynced).toList();
   }
@@ -188,6 +212,13 @@ class LocalStorageService {
     await _box.clear();
   }
 
+  Future<void> clearAllUserData() async {
+    await clearAllStudyData();
+    await _foldersBox.clear();
+    await _settingsBox.delete(AppConstants.settingDeletedStudySetIdsKey);
+    await _settingsBox.delete(AppConstants.settingDeletedFolderIdsKey);
+  }
+
   Future<void> restoreAllStudyData({
     required List<StudySet> sets,
     required List<CardProgress> progresses,
@@ -309,6 +340,25 @@ class LocalStorageService {
     if (folders.isEmpty) return;
     final payload = <String, Folder>{for (final f in folders) f.id: f};
     await _foldersBox.putAll(payload);
+  }
+
+  Future<void> clearFolderReference(
+    String folderId, {
+    bool markUnsynced = true,
+  }) async {
+    final payload = <String, StudySet>{};
+    final now = DateTime.now().toUtc();
+    for (final set in getAllStudySets()) {
+      if (set.folderId != folderId) continue;
+      payload[set.id] = set.copyWith(
+        folderId: null,
+        updatedAt: markUnsynced ? now : set.updatedAt,
+        isSynced: markUnsynced ? false : set.isSynced,
+      );
+    }
+    if (payload.isNotEmpty) {
+      await _box.putAll(payload);
+    }
   }
 
   // — Conversation Transcripts —

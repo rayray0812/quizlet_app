@@ -10,6 +10,8 @@ import 'package:recall_app/features/home/widgets/dashboard_helpers.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/auth_analytics_provider.dart';
 import 'package:recall_app/providers/biometric_provider.dart';
+import 'package:recall_app/providers/folder_provider.dart';
+import 'package:recall_app/providers/profile_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
 import 'package:recall_app/services/import_export_service.dart';
@@ -750,7 +752,10 @@ class SecurityDialogs {
                               final fullDeleted = await supabase.deleteCurrentAccount(
                                 passwordForReauth: passwordForReauth,
                               );
-                              await localStorage.clearAllStudyData();
+                              await localStorage.clearAllUserData();
+                              await ref
+                                  .read(profileProvider.notifier)
+                                  .clearCachedProfile();
                               await analytics.logAuthEvent(
                                 action: 'delete_account',
                                 provider: 'session',
@@ -758,8 +763,17 @@ class SecurityDialogs {
                               );
                               if (!context.mounted) return;
                               ref.read(studySetsProvider.notifier).refresh();
+                              ref.read(foldersProvider.notifier).refresh();
+                              ref.invalidate(profileProvider);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(l10n.accountDeleted)),
+                                SnackBar(
+                                  content: Text(
+                                    fullDeleted
+                                        ? l10n.accountDeleted
+                                        : '已刪除雲端學習資料並登出，但帳號本身未完全刪除。請確認後端 delete_my_account RPC 是否已部署。',
+                                  ),
+                                  duration: const Duration(seconds: 6),
+                                ),
                               );
                             } catch (e) {
                               if (!context.mounted) return;

@@ -7,6 +7,50 @@ import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+typedef AccountCleanupTarget = ({String table, String userIdColumn});
+
+const List<AccountCleanupTarget> accountDeletionFallbackTargets = [
+  (
+    table: SupabaseConstants.reviewLogsTable,
+    userIdColumn: 'user_id',
+  ),
+  (
+    table: SupabaseConstants.cardProgressTable,
+    userIdColumn: 'user_id',
+  ),
+  (
+    table: SupabaseConstants.studySetsTable,
+    userIdColumn: 'user_id',
+  ),
+  (
+    table: SupabaseConstants.foldersTable,
+    userIdColumn: 'user_id',
+  ),
+  (
+    table: SupabaseConstants.studentAssignmentProgressTable,
+    userIdColumn: 'student_id',
+  ),
+  (
+    table: SupabaseConstants.classMembersTable,
+    userIdColumn: 'student_id',
+  ),
+  (
+    table: SupabaseConstants.classesTable,
+    userIdColumn: 'teacher_id',
+  ),
+  (
+    table: SupabaseConstants.profilesTable,
+    userIdColumn: 'user_id',
+  ),
+];
+
+const List<String> accountDeletionAvatarCandidates = [
+  'avatar.jpg',
+  'avatar.jpeg',
+  'avatar.png',
+  'avatar.webp',
+];
+
 class SupabaseService {
   SupabaseClient? get _clientOrNull {
     if (!SupabaseConstants.isConfigured) return null;
@@ -168,20 +212,18 @@ class SupabaseService {
     try {
       await client.rpc('delete_my_account');
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('delete_my_account RPC unavailable, falling back: $e');
       final userId = user.id;
-      await client
-          .from(SupabaseConstants.reviewLogsTable)
-          .delete()
-          .eq('user_id', userId);
-      await client
-          .from(SupabaseConstants.cardProgressTable)
-          .delete()
-          .eq('user_id', userId);
-      await client
-          .from(SupabaseConstants.studySetsTable)
-          .delete()
-          .eq('user_id', userId);
+      for (final target in accountDeletionFallbackTargets) {
+        await _bestEffortDeleteTableRows(
+          client,
+          target.table,
+          target.userIdColumn,
+          userId,
+        );
+      }
+      await _bestEffortDeleteAvatar(client, userId);
       return false;
     } finally {
       await client.auth.signOut(scope: SignOutScope.global);
@@ -591,6 +633,35 @@ class SupabaseService {
       );
     }
     return client;
+  }
+
+  Future<void> _bestEffortDeleteTableRows(
+    SupabaseClient client,
+    String table,
+    String column,
+    String userId,
+  ) async {
+    try {
+      await client.from(table).delete().eq(column, userId);
+    } catch (e) {
+      debugPrint('Best-effort delete failed for $table.$column=$userId: $e');
+    }
+  }
+
+  Future<void> _bestEffortDeleteAvatar(
+    SupabaseClient client,
+    String userId,
+  ) async {
+    try {
+      final paths = accountDeletionAvatarCandidates
+          .map((name) => '$userId/$name')
+          .toList();
+      await client.storage.from('avatars').remove(paths);
+    } on StorageException catch (e) {
+      debugPrint('Best-effort avatar delete failed: $e');
+    } catch (e) {
+      debugPrint('Best-effort avatar delete failed: $e');
+    }
   }
 }
 

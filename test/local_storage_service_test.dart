@@ -3,8 +3,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
+import 'package:recall_app/models/adapters/folder_adapter.dart';
+import 'package:recall_app/models/adapters/study_set_adapter.dart';
+import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/services/local_storage_service.dart';
 
 void main() {
@@ -17,10 +22,17 @@ void main() {
     if (!Hive.isAdapterRegistered(3)) {
       Hive.registerAdapter(ReviewLogAdapter());
     }
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(StudySetAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(FolderAdapter());
+    }
     await Hive.openBox(AppConstants.hiveStudySetsBox);
     await Hive.openBox(AppConstants.hiveCardProgressBox);
     await Hive.openBox(AppConstants.hiveReviewLogsBox);
     await Hive.openBox(AppConstants.hiveSettingsBox);
+    await Hive.openBox(AppConstants.hiveFoldersBox);
   });
 
   tearDownAll(() async {
@@ -28,6 +40,7 @@ void main() {
     await Hive.box(AppConstants.hiveCardProgressBox).clear();
     await Hive.box(AppConstants.hiveStudySetsBox).clear();
     await Hive.box(AppConstants.hiveSettingsBox).clear();
+    await Hive.box(AppConstants.hiveFoldersBox).clear();
     await Hive.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
@@ -37,7 +50,9 @@ void main() {
   setUp(() async {
     service = LocalStorageService();
     await Hive.box(AppConstants.hiveReviewLogsBox).clear();
+    await Hive.box(AppConstants.hiveStudySetsBox).clear();
     await Hive.box(AppConstants.hiveSettingsBox).clear();
+    await Hive.box(AppConstants.hiveFoldersBox).clear();
   });
 
   test('getReviewLogsForDate includes exact start-of-day boundary', () async {
@@ -121,6 +136,55 @@ void main() {
 
     final ids = service.getDeletedStudySetIds();
     expect(ids, ['set_1', 'set_2']);
+  });
+
+  test('markFolderDeleted stores unique tombstone ids', () async {
+    await service.markFolderDeleted('folder_1');
+    await service.markFolderDeleted('folder_1');
+    await service.markFolderDeleted('folder_2');
+
+    final ids = service.getDeletedFolderIds();
+    expect(ids, ['folder_1', 'folder_2']);
+  });
+
+  test('clearFolderReference removes folderId and marks sets unsynced', () async {
+    final linked = StudySet(
+      id: 'set_1',
+      title: 'Linked',
+      createdAt: DateTime.utc(2026, 3, 7),
+      cards: const [
+        Flashcard(id: 'c1', term: 'a', definition: 'b'),
+      ],
+      folderId: 'folder_1',
+      isSynced: true,
+    );
+    final untouched = StudySet(
+      id: 'set_2',
+      title: 'Other',
+      createdAt: DateTime.utc(2026, 3, 7),
+      cards: const [
+        Flashcard(id: 'c2', term: 'c', definition: 'd'),
+      ],
+      folderId: 'folder_2',
+      isSynced: true,
+    );
+
+    await service.saveStudySet(linked);
+    await service.saveStudySet(untouched);
+
+    await service.clearFolderReference('folder_1');
+
+    final updatedLinked = service.getStudySet('set_1');
+    final updatedUntouched = service.getStudySet('set_2');
+
+    expect(updatedLinked, isNotNull);
+    expect(updatedLinked!.folderId, isNull);
+    expect(updatedLinked.isSynced, isFalse);
+    expect(updatedLinked.updatedAt, isNotNull);
+
+    expect(updatedUntouched, isNotNull);
+    expect(updatedUntouched!.folderId, 'folder_2');
+    expect(updatedUntouched.isSynced, isTrue);
   });
 
   test('deleteReviewLogsForSet removes only target set logs', () async {

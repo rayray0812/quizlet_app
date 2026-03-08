@@ -12,6 +12,7 @@ import 'package:recall_app/features/home/screens/security_dialogs.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/admin_provider.dart';
 import 'package:recall_app/providers/biometric_provider.dart';
+import 'package:recall_app/providers/ai_provider_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/locale_provider.dart';
 import 'package:recall_app/providers/notification_provider.dart';
@@ -85,8 +86,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final supabase = ref.read(supabaseServiceProvider);
-    final user = supabase.currentUser;
+    final user = ref.watch(currentUserProvider);
     final userEmail = user?.email?.trim();
     final hasSignedInEmail = userEmail != null && userEmail.isNotEmpty;
     final reminderEnabled = ref.watch(notificationProvider);
@@ -284,7 +284,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                 minLeadingWidth: 24,
                 leading: const Icon(CupertinoIcons.sparkles),
                 title: serifSettingTitle(context, l10n.aiSettings),
-                subtitle: Text(l10n.aiSettingsSubtitle),
+                subtitle: Text(
+                  ref.watch(aiProviderProvider) == AiProvider.groq
+                      ? 'Groq (Llama 4 Scout)'
+                      : l10n.aiSettingsSubtitle,
+                ),
                 trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () => _showGeminiKeyDialog(context: context, ref: ref),
               ),
@@ -423,47 +427,117 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     required WidgetRef ref,
   }) async {
     final l10n = AppLocalizations.of(context);
-    final currentKey = ref.read(geminiKeyProvider);
-    final controller = TextEditingController(text: currentKey);
+    final currentProvider = ref.read(aiProviderProvider);
+    final geminiKey = ref.read(geminiKeyProvider);
+    final groqKey = ref.read(groqKeyProvider);
+    final geminiController = TextEditingController(text: geminiKey);
+    final groqController = TextEditingController(text: groqKey);
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(l10n.aiSettings),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: l10n.geminiApiKey,
-                  hintText: l10n.geminiApiKeyHint,
-                  isDense: true,
+        var selectedProvider = currentProvider;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(l10n.aiSettings),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // -- AI Provider selector --
+                    Text(
+                      l10n.aiProvider,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<AiProvider>(
+                      segments: [
+                        ButtonSegment<AiProvider>(
+                          value: AiProvider.gemini,
+                          label: const Text('Gemini'),
+                          icon: const Icon(Icons.auto_awesome, size: 16),
+                        ),
+                        ButtonSegment<AiProvider>(
+                          value: AiProvider.groq,
+                          label: const Text('Groq'),
+                          icon: const Icon(Icons.bolt, size: 16),
+                        ),
+                      ],
+                      selected: {selectedProvider},
+                      onSelectionChanged: (s) {
+                        setDialogState(() => selectedProvider = s.first);
+                      },
+                    ),
+                    if (selectedProvider == AiProvider.groq)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          l10n.groqFreeLabel,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    // -- API Key input (show the relevant one) --
+                    if (selectedProvider == AiProvider.gemini)
+                      TextField(
+                        controller: geminiController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: l10n.geminiApiKey,
+                          hintText: l10n.geminiApiKeyHint,
+                          isDense: true,
+                        ),
+                      )
+                    else
+                      TextField(
+                        controller: groqController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: l10n.groqApiKey,
+                          hintText: l10n.groqApiKeyHint,
+                          isDense: true,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    const TtsEnginePicker(),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              const TtsEnginePicker(),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                final key = controller.text.trim();
-                ref.read(geminiKeyProvider.notifier).setApiKey(key);
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.geminiApiKeySaved)),
-                );
-              },
-              child: Text(l10n.save),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(l10n.cancel),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    // Save provider selection
+                    ref
+                        .read(aiProviderProvider.notifier)
+                        .setProvider(selectedProvider);
+                    // Save the API key for the selected provider
+                    if (selectedProvider == AiProvider.gemini) {
+                      ref
+                          .read(geminiKeyProvider.notifier)
+                          .setApiKey(geminiController.text.trim());
+                    } else {
+                      ref
+                          .read(groqKeyProvider.notifier)
+                          .setApiKey(groqController.text.trim());
+                    }
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.geminiApiKeySaved)),
+                    );
+                  },
+                  child: Text(l10n.save),
+                ),
+              ],
+            );
+          },
         );
       },
     );

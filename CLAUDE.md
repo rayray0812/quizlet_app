@@ -92,6 +92,15 @@
 - [x] QuizOptionTile widget test（4 個）
 - [x] Deep-link routing test（7 個）
 
+### Groq Cloud Vision 整合（2026-02-28）✅
+- [x] GroqVisionService（Llama 4 Scout, http POST, base64 image）
+- [x] AiProvider enum + AiProviderNotifier（Hive settings box）
+- [x] GroqKeyNotifier（FlutterSecureStorage）
+- [x] photo_import_screen 依 AI Provider 切換 Gemini/Groq
+- [x] settings_tab AI Provider 選擇器 + Groq API Key 輸入
+- [x] l10n 字串（中/英 groqApiKey, groqFreeLabel, aiProvider 等）
+- [x] 8 個 Groq service tests 全過
+
 ### 待辦 / 下一步
 - [ ] 在 `supabase_constants.dart` 填入真實 Supabase URL 和 anon key
 - [ ] 在 Supabase 建立資料表 + RLS 政策
@@ -137,6 +146,7 @@ recall_app/lib/
 │   ├── sync_service.dart             # 離線優先同步邏輯
 │   ├── import_export_service.dart    # JSON/CSV 匯出入（F3）
 │   ├── gemini_service.dart           # Gemini Flash API 多模態（F6）
+│   ├── groq_vision_service.dart     # Groq Cloud Vision API（Llama 4 Scout）
 │   ├── badge_definitions.dart       # 12 個成就徽章定義（F11）
 │   └── badge_checker.dart           # 徽章解鎖條件判斷（F11）
 ├── providers/
@@ -148,7 +158,8 @@ recall_app/lib/
 │   ├── auth_provider.dart            # 驗證狀態串流
 │   ├── sync_provider.dart            # 登入後觸發同步
 │   ├── locale_provider.dart          # 語言切換
-│   ├── gemini_key_provider.dart      # Gemini API Key（Hive-backed）（F6）
+│   ├── gemini_key_provider.dart      # Gemini API Key（SecureStorage）（F6）
+│   ├── ai_provider_provider.dart    # AI Provider 選擇 + Groq Key（Gemini/Groq）
 │   ├── folder_provider.dart         # FoldersNotifier + selectedFolderProvider（F7）
 │   ├── sort_provider.dart           # SortOption enum + StateNotifier（F8）
 │   ├── badge_provider.dart          # BadgeNotifier（F11）
@@ -216,7 +227,8 @@ recall_app/lib/
 - **多重 JS 選擇器**：Quizlet 經常改 DOM，4 種備援策略提高穩定性
 - **Tinder 風格翻卡**：快速瀏覽模式，SRS 複習模式有獨立畫面
 - **題數自選**：測驗和配對模式透過 `state.extra` 傳遞數量參數
-- **Gemini API Key 本地存**：使用者自行在設定頁輸入，存於 Hive settings box，不上傳雲端
+- **Gemini API Key 本地存**：使用者自行在設定頁輸入，存於 FlutterSecureStorage，不上傳雲端
+- **Groq 作為免費替代方案**：Llama 4 Scout Vision API，不需信用卡，使用者可在設定頁切換 Gemini/Groq
 - **CardProgress 獨立儲存**：SRS 不綁定 Flashcard，獨立 Hive box 追蹤複習進度
 - **FSRS-5 標準實作**：直接引用 `fsrs` Dart 套件（2.0.1），不自己實作演算法
 - **ReviewLog 獨立 box**：append-only 記錄方便後續統計和分析

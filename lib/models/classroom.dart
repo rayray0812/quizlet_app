@@ -290,3 +290,27 @@ class ClassroomStudentAssignmentDetail {
     required this.updatedAt,
   });
 }
+
+class ClassroomMatchLeaderboardEntry {
+  final String assignmentId;
+  final String classId;
+  final String studentId;
+  final String studentDisplayName;
+  final int bestTimeSeconds;
+  final int latestTimeSeconds;
+  final int accuracy;
+  final int attempts;
+  final DateTime updatedAt;
+
+  const ClassroomMatchLeaderboardEntry({
+    required this.assignmentId,
+    required this.classId,
+    required this.studentId,
+    required this.studentDisplayName,
+    required this.bestTimeSeconds,
+    required this.latestTimeSeconds,
+    required this.accuracy,
+    required this.attempts,
+    required this.updatedAt,
+  });
+}

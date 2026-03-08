@@ -70,6 +70,9 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.5.2
 
+  # OCR (on-device text recognition)
+  google_mlkit_text_recognition: ^0.14.0
+
   # Notifications
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.0

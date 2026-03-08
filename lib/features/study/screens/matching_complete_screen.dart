@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/features/study/utils/encouragement_lines.dart';
+import 'package:recall_app/models/classroom.dart';
+import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/classroom_provider.dart';
 
 class MatchingCompleteScreen extends ConsumerStatefulWidget {
@@ -54,6 +56,7 @@ class _MatchingCompleteScreenState
     )..forward();
     _encouragement = EncouragementLines.pick(_computeFinalScore());
     Future<void>(() => _syncClassAssignmentCompletion());
+    Future<void>(() => _syncClassMatchingResult());
   }
 
   @override
@@ -94,6 +97,23 @@ class _MatchingCompleteScreenState
     }
   }
 
+  Future<void> _syncClassMatchingResult() async {
+    if (!_isClassroomSet) return;
+    try {
+      final saved = await ref.read(classroomServiceProvider).upsertMatchingResultFromLocalSetId(
+            localSetId: widget.setId,
+            elapsedSeconds: widget.elapsedSeconds,
+            accuracy: widget.accuracy,
+            attempts: widget.attempts,
+          );
+      if (saved) {
+        ref.invalidate(matchingLeaderboardForLocalSetProvider(widget.setId));
+      }
+    } catch (e) {
+      debugPrint('Classroom sync (matching leaderboard) failed: $e');
+    }
+  }
+
   String _computeGrade(int score) {
     if (score >= 95) return 'S';
     if (score >= 85) return 'A';
@@ -102,11 +122,16 @@ class _MatchingCompleteScreenState
     return 'D';
   }
 
+  bool get _isClassroomSet => widget.setId.startsWith('class_');
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final score = _computeFinalScore();
     final grade = _computeGrade(score);
+    final leaderboardAsync = _isClassroomSet
+        ? ref.watch(matchingLeaderboardForLocalSetProvider(widget.setId))
+        : null;
 
     return Scaffold(
       backgroundColor: _bgLight,
@@ -299,6 +324,17 @@ class _MatchingCompleteScreenState
                               ),
                             ),
                           ],
+                          if (leaderboardAsync != null) ...[
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: _panelWidth,
+                              child: _LeaderboardPanel(
+                                asyncEntries: leaderboardAsync,
+                                currentSetId: widget.setId,
+                                currentElapsedSeconds: widget.elapsedSeconds,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           SizedBox(
                             width: _panelWidth,
@@ -437,6 +473,191 @@ class _StatLine extends StatelessWidget {
       height: 44,
       margin: const EdgeInsets.symmetric(horizontal: 6),
       color: const Color(0xFFE9E5DB),
+    );
+  }
+}
+
+class _LeaderboardPanel extends ConsumerWidget {
+  final AsyncValue<List<ClassroomMatchLeaderboardEntry>> asyncEntries;
+  final String currentSetId;
+  final int currentElapsedSeconds;
+
+  const _LeaderboardPanel({
+    required this.asyncEntries,
+    required this.currentSetId,
+    required this.currentElapsedSeconds,
+  });
+
+  String _formatTime(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserId = ref.watch(currentUserProvider)?.id;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDE9DF)),
+      ),
+      child: asyncEntries.when(
+        data: (entries) {
+          if (entries.isEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '教室秒數排行榜',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: _MatchingCompleteScreenState._charcoal,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '你是這份作業第一個完成配對的人，成為今天的榜首。',
+                  style: TextStyle(
+                    color: _MatchingCompleteScreenState._charcoal.withValues(alpha: 0.72),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.emoji_events_rounded, color: _MatchingCompleteScreenState._primary, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '教室秒數排行榜',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: _MatchingCompleteScreenState._charcoal,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '本次 ${_formatTime(currentElapsedSeconds)}',
+                    style: TextStyle(
+                      color: _MatchingCompleteScreenState._primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '只取同一份教室作業的最佳秒數，秒數越短排名越前。',
+                style: TextStyle(
+                  color: _MatchingCompleteScreenState._charcoal.withValues(alpha: 0.68),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...entries.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final isMe = item.studentId == currentUserId;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isMe
+                        ? _MatchingCompleteScreenState._primary.withValues(alpha: 0.08)
+                        : const Color(0xFFF8F4E8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isMe
+                          ? _MatchingCompleteScreenState._primary.withValues(alpha: 0.28)
+                          : const Color(0xFFEDE9DF),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        child: Text(
+                          '#${index + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: _MatchingCompleteScreenState._charcoal,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isMe ? '${item.studentDisplayName}（你）' : item.studentDisplayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: _MatchingCompleteScreenState._charcoal,
+                              ),
+                            ),
+                            Text(
+                              '最佳 ${_formatTime(item.bestTimeSeconds)} · 正確率 ${item.accuracy}%',
+                              style: TextStyle(
+                                color: _MatchingCompleteScreenState._charcoal.withValues(alpha: 0.64),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _formatTime(item.bestTimeSeconds),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: _MatchingCompleteScreenState._primary,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 10),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, __) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '教室秒數排行榜',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: _MatchingCompleteScreenState._charcoal,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '排行榜暫時無法載入，但你的秒數已經完成本地結算。',
+              style: TextStyle(
+                color: _MatchingCompleteScreenState._charcoal.withValues(alpha: 0.68),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

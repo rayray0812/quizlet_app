@@ -126,7 +126,11 @@ class StudySetsNotifier extends StateNotifier<List<StudySet>> {
   Future<void> moveToFolder(String setId, String? folderId) async {
     final set = _localStorage.getStudySet(setId);
     if (set == null) return;
-    final updated = set.copyWith(folderId: folderId);
+    final updated = set.copyWith(
+      folderId: folderId,
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
     await _localStorage.saveStudySet(updated);
     state = _sortSets(
       state

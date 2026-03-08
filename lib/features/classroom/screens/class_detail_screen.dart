@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:recall_app/models/classroom.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
@@ -9,55 +10,119 @@ import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/classroom_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 
-class ClassDetailScreen extends ConsumerWidget {
+enum _AssignmentFilter { all, pending, completed, overdue }
+
+String _formatClassDate(DateTime? date) {
+  if (date == null) return 'Not set';
+  return DateFormat('yyyy/MM/dd').format(date.toLocal());
+}
+
+class ClassDetailScreen extends ConsumerStatefulWidget {
   final String classId;
 
   const ClassDetailScreen({super.key, required this.classId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final classAsync = ref.watch(classByIdProvider(classId));
+  ConsumerState<ClassDetailScreen> createState() => _ClassDetailScreenState();
+}
+
+class _ClassDetailScreenState extends ConsumerState<ClassDetailScreen> {
+  _AssignmentFilter _assignmentFilter = _AssignmentFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
+    final classId = widget.classId;
+    final classroomAsync = ref.watch(classByIdProvider(classId));
     final setsAsync = ref.watch(classroomSetsProvider(classId));
     final assignmentsAsync = ref.watch(classAssignmentsProvider(classId));
     final membersAsync = ref.watch(classMembersProvider(classId));
     final progressAsync = ref.watch(myClassProgressProvider(classId));
-    final classProgressAsync = ref.watch(classProgressRowsProvider(classId));
     final reportAsync = ref.watch(classAssignmentReportsProvider(classId));
     final studentReportAsync = ref.watch(classStudentReportsProvider(classId));
-    final userId = ref.watch(currentUserProvider)?.id ?? '';
     final myStudySets = ref.watch(studySetsProvider);
-    final messenger = ScaffoldMessenger.of(context);
+    final userId = ref.watch(currentUserProvider)?.id ?? '';
 
-    return classAsync.when(
+    return classroomAsync.when(
       data: (classroom) {
         if (classroom == null) {
-          return const Scaffold(
-            body: Center(child: Text('Class not found')),
-          );
+          return const Scaffold(body: Center(child: Text('Class not found')));
         }
+
         final isTeacher = classroom.teacherId == userId;
+        final sets = setsAsync.valueOrNull ?? const <ClassroomSet>[];
+        final assignments = assignmentsAsync.valueOrNull ?? const <ClassroomAssignment>[];
+        final members = membersAsync.valueOrNull ?? const <ClassroomMember>[];
+        final progresses = progressAsync.valueOrNull ?? const <StudentAssignmentProgress>[];
+        final reports = reportAsync.valueOrNull ?? const <ClassroomAssignmentReport>[];
+        final studentReports = studentReportAsync.valueOrNull ?? const <ClassroomStudentReport>[];
+
+        final filteredAssignments = assignments.where((assignment) {
+          final progress = _findProgress(progresses, assignment.id);
+          final isCompleted = progress?.status == 'completed';
+          final isOverdue = assignment.dueAt != null && assignment.dueAt!.isBefore(DateTime.now()) && !isCompleted;
+          switch (_assignmentFilter) {
+            case _AssignmentFilter.pending:
+              return !isCompleted;
+            case _AssignmentFilter.completed:
+              return isCompleted;
+            case _AssignmentFilter.overdue:
+              return isOverdue;
+            case _AssignmentFilter.all:
+              return true;
+          }
+        }).toList();
+
+        final completedCount = progresses.where((item) => item.status == 'completed').length;
+        final inProgressCount = progresses.where((item) => item.status == 'in_progress').length;
+        final pendingCount = assignments.where((assignment) => _findProgress(progresses, assignment.id)?.status != 'completed').length;
+        DateTime? nearestDue;
+        for (final assignment in assignments) {
+          if (assignment.dueAt == null) continue;
+          if (_findProgress(progresses, assignment.id)?.status == 'completed') continue;
+          if (nearestDue == null || assignment.dueAt!.isBefore(nearestDue)) {
+            nearestDue = assignment.dueAt;
+          }
+        }
+
         return Scaffold(
           appBar: AppBar(
             title: Text(classroom.name),
             actions: [
               IconButton(
-                tooltip: 'Copy invite code',
                 onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: classroom.inviteCode),
-                  );
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Invite code copied')),
-                  );
+                  await Clipboard.setData(ClipboardData(text: classroom.inviteCode));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite code copied')));
                 },
                 icon: const Icon(Icons.key_rounded),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'archive') {
+                    await ref.read(classroomServiceProvider).updateClassArchiveStatus(classId: classId, isArchived: !classroom.isArchived);
+                    ref.invalidate(classByIdProvider(classId));
+                    ref.invalidate(myClassesProvider);
+                  }
+                  if (value == 'leave') {
+                    await ref.read(classroomServiceProvider).leaveClass(classId);
+                    ref.invalidate(myClassesProvider);
+                    if (context.mounted) context.pop();
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (isTeacher)
+                    PopupMenuItem(value: 'archive', child: Text(classroom.isArchived ? 'Restore class' : 'Archive class')),
+                  if (!isTeacher)
+                    const PopupMenuItem(value: 'leave', child: Text('Leave class')),
+                ],
               ),
             ],
           ),
           floatingActionButton: isTeacher
-              ? FloatingActionButton(
-                  onPressed: () => _showCreateSetDialog(context, ref, classId),
-                  child: const Icon(Icons.library_add_rounded),
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showCreateSetDialog(context, classId),
+                  icon: const Icon(Icons.library_add_rounded),
+                  label: const Text('New set'),
                 )
               : null,
           body: RefreshIndicator(
@@ -67,393 +132,117 @@ class ClassDetailScreen extends ConsumerWidget {
               ref.invalidate(classAssignmentsProvider(classId));
               ref.invalidate(classMembersProvider(classId));
               ref.invalidate(myClassProgressProvider(classId));
-              ref.invalidate(classProgressRowsProvider(classId));
               ref.invalidate(classAssignmentReportsProvider(classId));
               ref.invalidate(classStudentReportsProvider(classId));
             },
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 Card(
                   child: ListTile(
                     title: Text(classroom.name),
-                    subtitle: Text(
-                      'Invite: ${classroom.inviteCode}\n${classroom.subject} ${classroom.grade}',
-                    ),
-                    isThreeLine: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (isTeacher)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () async => _showAssignDialog(
-                          context: context,
-                          ref: ref,
-                          classId: classId,
-                          classSets: setsAsync.valueOrNull ?? const [],
-                        ),
-                        icon: const Icon(Icons.assignment_add),
-                        label: const Text('Assign Existing Class Set'),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => _showImportFromMySetDialog(
-                          context: context,
-                          ref: ref,
-                          classId: classId,
-                          myStudySets: myStudySets,
-                        ),
-                        icon: const Icon(Icons.download_for_offline_outlined),
-                        label: const Text('Import From My Study Sets'),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-                Text(
-                  'Assignments',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                assignmentsAsync.when(
-                  data: (assignments) {
-                    final progressByAssignment = <String, StudentAssignmentProgress>{
-                      for (final p in (progressAsync.valueOrNull ?? const []))
-                        p.assignmentId: p,
-                    };
-                    if (assignments.isEmpty) {
-                      return const Card(
-                        child: ListTile(title: Text('No assignments yet')),
-                      );
-                    }
-                    return Column(
-                      children: assignments.map((assignment) {
-                        final progress = progressByAssignment[assignment.id];
-                        return Card(
-                          child: ListTile(
-                            title: Text(assignment.setTitle),
-                            subtitle: Text(
-                              'Cards: ${assignment.setCardCount} | Due: ${assignment.dueAt?.toLocal().toString().split(' ').first ?? 'No due date'}'
-                              '\nStatus: ${progress?.status ?? 'not_started'}',
-                            ),
-                            isThreeLine: true,
-                            trailing: isTeacher
-                                ? IconButton(
-                                    tooltip: 'Preview set',
-                                    onPressed: () async {
-                                      await _startAssignmentStudy(
-                                        context: context,
-                                        ref: ref,
-                                        classId: classId,
-                                        assignment: assignment,
-                                        classSets: setsAsync.valueOrNull ?? const [],
-                                        markInProgress: false,
-                                      );
-                                    },
-                                    icon: const Icon(Icons.play_arrow_rounded),
-                                  )
-                                : Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Start',
-                                        onPressed: () async {
-                                          await _startAssignmentStudy(
-                                            context: context,
-                                            ref: ref,
-                                            classId: classId,
-                                            assignment: assignment,
-                                            classSets:
-                                                setsAsync.valueOrNull ?? const [],
-                                            markInProgress: true,
-                                          );
-                                        },
-                                        icon: const Icon(Icons.play_arrow_rounded),
-                                      ),
-                                      PopupMenuButton<String>(
-                                        onSelected: (value) async {
-                                          await ref
-                                              .read(classroomServiceProvider)
-                                              .upsertMyProgress(
-                                                assignmentId: assignment.id,
-                                                status: value,
-                                              );
-                                          ref.invalidate(
-                                            myClassProgressProvider(classId),
-                                          );
-                                          ref.invalidate(
-                                            classProgressRowsProvider(classId),
-                                          );
-                                          ref.invalidate(
-                                            classAssignmentReportsProvider(classId),
-                                          );
-                                          ref.invalidate(
-                                            classStudentReportsProvider(classId),
-                                          );
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  value == 'completed'
-                                                      ? 'Marked completed'
-                                                      : 'Marked in progress',
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        itemBuilder: (_) => const [
-                                          PopupMenuItem(
-                                            value: 'in_progress',
-                                            child: Text('Mark In Progress'),
-                                          ),
-                                          PopupMenuItem(
-                                            value: 'completed',
-                                            child: Text('Mark Completed'),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                  error: (e, _) => Text('Failed to load assignments: $e'),
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
+                    subtitle: Text(isTeacher
+                        ? 'Invite: ${classroom.inviteCode} | Sets: ${sets.length} | Assignments: ${assignments.length}'
+                        : 'Completed: $completedCount | In progress: $inProgressCount | Pending: $pendingCount${nearestDue == null ? '' : ' | Next due: ${_formatClassDate(nearestDue)}'}'),
                   ),
                 ),
                 if (isTeacher) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Progress Overview',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  classProgressAsync.when(
-                    data: (rows) {
-                      if (rows.isEmpty) {
-                        return const Card(
-                          child: ListTile(
-                            title: Text('No student progress submitted yet'),
-                          ),
-                        );
-                      }
-                      return Column(
-                        children: rows
-                            .map(
-                              (row) => Card(
-                                child: ListTile(
-                                  leading: const Icon(Icons.insights_rounded),
-                                  title: Text(
-                                    '${row.studentDisplayName} - ${row.assignmentTitle}',
-                                  ),
-                                  subtitle: Text(
-                                    'Status: ${row.status} | Score: ${row.score?.toStringAsFixed(1) ?? '-'}',
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
-                    error: (e, _) => Text('Failed to load progress: $e'),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
                   const SizedBox(height: 12),
-                  reportAsync.when(
-                    data: (reports) {
-                      if (reports.isEmpty) return const SizedBox.shrink();
-                      return Column(
-                        children: reports
-                            .map(
-                              (report) => Card(
-                                child: ListTile(
-                                  leading: const Icon(Icons.analytics_rounded),
-                                  title: Text(report.assignmentTitle),
-                                  subtitle: Text(
-                                    'Completion: ${(report.completionRate * 100).round()}% | Avg score: ${report.averageScore.toStringAsFixed(1)}'
-                                    '\nCompleted: ${report.completedCount} | In progress: ${report.inProgressCount} | Not started: ${report.notStartedCount}',
-                                  ),
-                                  isThreeLine: true,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
-                    error: (e, _) => Text('Failed to load report: $e'),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: LinearProgressIndicator(minHeight: 2),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Student Overview',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  studentReportAsync.when(
-                    data: (reports) {
-                      if (reports.isEmpty) {
-                        return const Card(
-                          child: ListTile(title: Text('No students to report')),
-                        );
-                      }
-                      return Column(
-                        children: reports
-                            .map(
-                              (report) => Card(
-                                child: ListTile(
-                                  leading: const Icon(Icons.person_pin_rounded),
-                                  title: Text(report.studentDisplayName),
-                                  subtitle: Text(
-                                    'Completion: ${(report.completionRate * 100).round()}% | Avg score: ${report.averageScore.toStringAsFixed(1)}'
-                                    '\nCompleted: ${report.completedCount} | In progress: ${report.inProgressCount} | Not started: ${report.notStartedCount}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: const Icon(Icons.chevron_right_rounded),
-                                  onTap: () => context.push(
-                                    '/classes/$classId/student/${report.studentId}',
-                                    extra: <String, dynamic>{
-                                      'studentName': report.studentDisplayName,
-                                    },
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
-                    error: (e, _) => Text('Failed to load student overview: $e'),
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: LinearProgressIndicator(minHeight: 2),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _showAssignDialog(context, classId, sets),
+                          icon: const Icon(Icons.post_add_rounded),
+                          label: const Text('Assign set'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showImportDialog(context, classId, myStudySets),
+                          icon: const Icon(Icons.download_for_offline_outlined),
+                          label: const Text('Import set'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text(
-                  'Class Sets',
-                  style: Theme.of(context).textTheme.titleMedium,
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(label: const Text('All'), selected: _assignmentFilter == _AssignmentFilter.all, onSelected: (_) => setState(() => _assignmentFilter = _AssignmentFilter.all)),
+                    ChoiceChip(label: const Text('Pending'), selected: _assignmentFilter == _AssignmentFilter.pending, onSelected: (_) => setState(() => _assignmentFilter = _AssignmentFilter.pending)),
+                    ChoiceChip(label: const Text('Completed'), selected: _assignmentFilter == _AssignmentFilter.completed, onSelected: (_) => setState(() => _assignmentFilter = _AssignmentFilter.completed)),
+                    ChoiceChip(label: const Text('Overdue'), selected: _assignmentFilter == _AssignmentFilter.overdue, onSelected: (_) => setState(() => _assignmentFilter = _AssignmentFilter.overdue)),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                setsAsync.when(
-                  data: (sets) {
-                    if (sets.isEmpty) {
-                      return const Card(
-                        child: ListTile(title: Text('No class sets yet')),
-                      );
-                    }
-                    return Column(
-                      children: sets
-                          .map(
-                            (set) => Card(
-                              child: ListTile(
-                                title: Text(set.title),
-                                subtitle: Text('Cards: ${set.cards.length}'),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
-                  error: (e, _) => Text('Failed to load sets: $e'),
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
+                ...filteredAssignments.map((assignment) {
+                  final progress = _findProgress(progresses, assignment.id);
+                  final report = _findAssignmentReport(reports, assignment.id);
+                  final status = progress?.status ?? 'not_started';
+                  return Card(
+                    child: ListTile(
+                      title: Text(assignment.setTitle),
+                      subtitle: Text('Due: ${_formatClassDate(assignment.dueAt)} | Cards: ${assignment.setCardCount} | Status: $status${report == null ? '' : ' | Done: ${report.completedCount}/${report.studentCount}'}'),
+                      trailing: TextButton(
+                        onPressed: () => _startAssignmentStudy(context, classId, assignment, sets, !isTeacher),
+                        child: Text(isTeacher ? 'Preview' : 'Start'),
+                      ),
+                    ),
+                  );
+                }),
+                if (filteredAssignments.isEmpty)
+                  const Card(child: ListTile(title: Text('No assignments found'))),
                 const SizedBox(height: 16),
-                Text(
-                  'Students',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                const Text('Class sets'),
                 const SizedBox(height: 8),
-                membersAsync.when(
-                  data: (members) {
-                    if (members.isEmpty) {
-                      return const Card(
-                        child: ListTile(title: Text('No students yet')),
-                      );
-                    }
-                    return Column(
-                      children: members
-                          .where((item) => item.status == 'active')
-                          .map(
-                            (member) => Card(
-                              child: ListTile(
-                                leading: const Icon(Icons.person_outline),
-                                title: Text(member.displayName),
-                                subtitle: Text(member.studentId),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
-                  error: (e, _) => Text('Failed to load members: $e'),
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
+                ...sets.map((set) => Card(child: ListTile(title: Text(set.title), subtitle: Text('${set.cards.length} cards | Updated ${_formatClassDate(set.updatedAt)}')))),
+                if (sets.isEmpty)
+                  const Card(child: ListTile(title: Text('No class sets yet'))),
+                const SizedBox(height: 16),
+                Text(isTeacher ? 'Members' : 'Classmates'),
+                const SizedBox(height: 8),
+                ...members.where((member) => member.status == 'active').map((member) {
+                  final report = _findStudentReport(studentReports, member.studentId);
+                  return Card(
+                    child: ListTile(
+                      title: Text(member.displayName),
+                      subtitle: Text(report == null ? member.studentId : 'Completed ${report.completedCount}/${report.assignmentCount} | Avg ${report.averageScore.toStringAsFixed(1)}'),
+                      trailing: isTeacher ? const Icon(Icons.chevron_right_rounded) : null,
+                      onTap: isTeacher
+                          ? () => context.push('/classes/$classId/student/${member.studentId}', extra: <String, dynamic>{'studentName': member.displayName})
+                          : null,
+                    ),
+                  );
+                }),
+                if (members.where((member) => member.status == 'active').isEmpty)
+                  const Card(child: ListTile(title: Text('No active members'))),
               ],
             ),
           ),
         );
       },
-      error: (error, _) => Scaffold(
-        appBar: AppBar(),
-        body: Center(child: Text('Failed to load class: $error')),
-      ),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      error: (error, _) => Scaffold(body: Center(child: Text('Failed to load class: $error'))),
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
     );
   }
 
-  Future<void> _startAssignmentStudy({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String classId,
-    required ClassroomAssignment assignment,
-    required List<ClassroomSet> classSets,
-    required bool markInProgress,
-  }) async {
-    final linkedSet = classSets.where((set) => set.id == assignment.setId).firstOrNull;
-    if (linkedSet == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Linked class set not found')),
-        );
-      }
-      return;
+  Future<void> _startAssignmentStudy(BuildContext context, String classId, ClassroomAssignment assignment, List<ClassroomSet> classSets, bool markInProgress) async {
+    ClassroomSet? linkedSet;
+    for (final item in classSets) {
+      if (item.id == assignment.setId) linkedSet = item;
     }
-
+    if (linkedSet == null) return;
     final localSetId = 'class_${classId}_${linkedSet.id}';
-    final cards = linkedSet.cards.map((row) {
-      final id = row['id']?.toString().trim();
-      return Flashcard(
-        id: (id != null && id.isNotEmpty)
-            ? id
-            : '${localSetId}_${row['term'] ?? ''}_${DateTime.now().microsecondsSinceEpoch}',
-        term: row['term']?.toString() ?? '',
-        definition: row['definition']?.toString() ?? '',
-        exampleSentence: row['exampleSentence']?.toString() ?? '',
-      );
-    }).toList();
-
+    final cards = linkedSet.cards.map((row) => Flashcard(
+      id: row['id']?.toString() ?? '${DateTime.now().microsecondsSinceEpoch}',
+      term: row['term']?.toString() ?? '',
+      definition: row['definition']?.toString() ?? '',
+      exampleSentence: row['exampleSentence']?.toString() ?? '',
+    )).toList();
     final notifier = ref.read(studySetsProvider.notifier);
     final existing = notifier.getById(localSetId);
     final payload = StudySet(
@@ -473,84 +262,42 @@ class ClassDetailScreen extends ConsumerWidget {
     } else {
       await notifier.update(payload);
     }
-
     if (markInProgress) {
-      await ref.read(classroomServiceProvider).upsertMyProgress(
-            assignmentId: assignment.id,
-            status: 'in_progress',
-          );
+      await ref.read(classroomServiceProvider).upsertMyProgress(assignmentId: assignment.id, status: 'in_progress');
       ref.invalidate(myClassProgressProvider(classId));
-      ref.invalidate(classProgressRowsProvider(classId));
       ref.invalidate(classAssignmentReportsProvider(classId));
       ref.invalidate(classStudentReportsProvider(classId));
     }
-
-    if (context.mounted) {
-      context.push('/study/$localSetId');
-    }
+    if (context.mounted) context.push('/study/$localSetId');
   }
 
-  Future<void> _showCreateSetDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String classId,
-  ) async {
+  Future<void> _showCreateSetDialog(BuildContext context, String classId) async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     final cardsController = TextEditingController();
-    final messenger = ScaffoldMessenger.of(context);
-
     final created = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Class Set'),
+        title: const Text('Create class set'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
               const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
+              TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
               const SizedBox(height: 8),
-              TextField(
-                controller: cardsController,
-                minLines: 6,
-                maxLines: 10,
-                decoration: const InputDecoration(
-                  labelText: 'Cards (term|definition, one per line)',
-                ),
-              ),
+              TextField(controller: cardsController, minLines: 6, maxLines: 10, decoration: const InputDecoration(labelText: 'Cards', hintText: 'term|definition')),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
           FilledButton(
             onPressed: () async {
-              final title = titleController.text.trim();
-              if (title.isEmpty) return;
               final cards = _parseCards(cardsController.text);
-              if (cards.isEmpty) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Please add at least 1 card.')),
-                );
-                return;
-              }
-              await ref.read(classroomServiceProvider).createClassSet(
-                classId: classId,
-                title: title,
-                description: descriptionController.text,
-                cards: cards,
-              );
+              if (titleController.text.trim().isEmpty || cards.isEmpty) return;
+              await ref.read(classroomServiceProvider).createClassSet(classId: classId, title: titleController.text, description: descriptionController.text, cards: cards);
               if (context.mounted) Navigator.of(context).pop(true);
             },
             child: const Text('Create'),
@@ -561,84 +308,49 @@ class ClassDetailScreen extends ConsumerWidget {
     titleController.dispose();
     descriptionController.dispose();
     cardsController.dispose();
-    if (created == true) {
-      ref.invalidate(classroomSetsProvider(classId));
-    }
+    if (created == true) ref.invalidate(classroomSetsProvider(classId));
   }
 
-  Future<void> _showAssignDialog({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String classId,
-    required List<ClassroomSet> classSets,
-  }) async {
-    if (classSets.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create class sets first.')),
-      );
-      return;
-    }
-
+  Future<void> _showAssignDialog(BuildContext context, String classId, List<ClassroomSet> classSets) async {
+    if (classSets.isEmpty) return;
     String selectedSetId = classSets.first.id;
     DateTime? dueAt;
     final assigned = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Assign Set'),
+          title: const Text('Assign class set'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
                 value: selectedSetId,
-                isExpanded: true,
-                items: classSets
-                    .map(
-                      (set) => DropdownMenuItem(
-                        value: set.id,
-                        child: Text(set.title),
-                      ),
-                    )
-                    .toList(),
+                items: classSets.map((set) => DropdownMenuItem(value: set.id, child: Text(set.title))).toList(),
                 onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => selectedSetId = value);
+                  if (value != null) setState(() => selectedSetId = value);
                 },
-                decoration: const InputDecoration(labelText: 'Class set'),
+                decoration: const InputDecoration(labelText: 'Set'),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final selected = await showDatePicker(
-                    context: context,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (selected != null) {
-                    setState(() => dueAt = selected);
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Due date'),
+                subtitle: Text(dueAt == null ? 'No due date' : _formatClassDate(dueAt)),
+                trailing: const Icon(Icons.calendar_month_rounded),
+                onTap: () async {
+                  final picked = await showDatePicker(context: context, firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: dueAt ?? DateTime.now().add(const Duration(days: 7)));
+                  if (picked != null) {
+                    setState(() => dueAt = DateTime(picked.year, picked.month, picked.day, 23, 59));
                   }
                 },
-                icon: const Icon(Icons.event_rounded),
-                label: Text(
-                  dueAt == null
-                      ? 'Set due date (optional)'
-                      : 'Due: ${dueAt!.toLocal().toString().split(' ').first}',
-                ),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
             FilledButton(
               onPressed: () async {
-                await ref.read(classroomServiceProvider).createAssignment(
-                  classId: classId,
-                  setId: selectedSetId,
-                  dueAt: dueAt,
-                );
+                await ref.read(classroomServiceProvider).createAssignment(classId: classId, setId: selectedSetId, dueAt: dueAt);
                 if (context.mounted) Navigator.of(context).pop(true);
               },
               child: const Text('Assign'),
@@ -647,73 +359,45 @@ class ClassDetailScreen extends ConsumerWidget {
         ),
       ),
     );
-
     if (assigned == true) {
       ref.invalidate(classAssignmentsProvider(classId));
+      ref.invalidate(classAssignmentReportsProvider(classId));
+      ref.invalidate(classStudentReportsProvider(classId));
     }
   }
 
-  Future<void> _showImportFromMySetDialog({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String classId,
-    required List<StudySet> myStudySets,
-  }) async {
-    if (myStudySets.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No local study sets to import.')),
-      );
-      return;
-    }
-
-    final sets = myStudySets;
-    String selectedId = sets.first.id;
+  Future<void> _showImportDialog(BuildContext context, String classId, List<StudySet> myStudySets) async {
+    if (myStudySets.isEmpty) return;
+    String selectedId = myStudySets.first.id;
     final imported = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Import My Study Set'),
+          title: const Text('Import from my study sets'),
           content: DropdownButtonFormField<String>(
             value: selectedId,
-            isExpanded: true,
-            items: sets
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.id,
-                    child: Text(item.title),
-                  ),
-                )
-                .toList(),
+            items: myStudySets.map((item) => DropdownMenuItem(value: item.id, child: Text(item.title))).toList(),
             onChanged: (value) {
-              if (value == null) return;
-              setState(() => selectedId = value);
+              if (value != null) setState(() => selectedId = value);
             },
             decoration: const InputDecoration(labelText: 'Study set'),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
             FilledButton(
               onPressed: () async {
-                final selected = sets.where((item) => item.id == selectedId);
-                if (selected.isEmpty) return;
-                final set = selected.first;
-                final cards = set.cards
-                    .map((card) => {
-                          'id': card.id,
-                          'term': card.term,
-                          'definition': card.definition,
-                          'exampleSentence': card.exampleSentence,
-                        })
-                    .toList();
+                final set = myStudySets.firstWhere((item) => item.id == selectedId);
                 await ref.read(classroomServiceProvider).createClassSet(
-                      classId: classId,
-                      title: set.title,
-                      description: set.description,
-                      cards: cards,
-                    );
+                  classId: classId,
+                  title: set.title,
+                  description: set.description,
+                  cards: set.cards.map((card) => <String, dynamic>{
+                    'id': card.id,
+                    'term': card.term,
+                    'definition': card.definition,
+                    'exampleSentence': card.exampleSentence,
+                  }).toList(),
+                );
                 if (context.mounted) Navigator.of(context).pop(true);
               },
               child: const Text('Import'),
@@ -722,30 +406,45 @@ class ClassDetailScreen extends ConsumerWidget {
         ),
       ),
     );
-
-    if (imported == true) {
-      ref.invalidate(classroomSetsProvider(classId));
-    }
+    if (imported == true) ref.invalidate(classroomSetsProvider(classId));
   }
 
   List<Map<String, dynamic>> _parseCards(String raw) {
-    final lines = raw.split('\n');
     final cards = <Map<String, dynamic>>[];
-    for (final line in lines) {
+    var index = 0;
+    for (final line in raw.split('\n')) {
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
-      final split = trimmed.split('|');
-      final term = split.first.trim();
-      final definition = split.length > 1
-          ? split.sublist(1).join('|').trim()
-          : '';
-      if (term.isEmpty || definition.isEmpty) continue;
-      cards.add({
-        'id': DateTime.now().microsecondsSinceEpoch.toString() + term,
-        'term': term,
-        'definition': definition,
+      final parts = trimmed.split('|');
+      if (parts.length < 2) continue;
+      cards.add(<String, dynamic>{
+        'id': 'card_${DateTime.now().microsecondsSinceEpoch}_$index',
+        'term': parts[0].trim(),
+        'definition': parts.sublist(1).join('|').trim(),
       });
+      index++;
     }
     return cards;
+  }
+
+  StudentAssignmentProgress? _findProgress(List<StudentAssignmentProgress> items, String assignmentId) {
+    for (final item in items) {
+      if (item.assignmentId == assignmentId) return item;
+    }
+    return null;
+  }
+
+  ClassroomAssignmentReport? _findAssignmentReport(List<ClassroomAssignmentReport> items, String assignmentId) {
+    for (final item in items) {
+      if (item.assignmentId == assignmentId) return item;
+    }
+    return null;
+  }
+
+  ClassroomStudentReport? _findStudentReport(List<ClassroomStudentReport> items, String studentId) {
+    for (final item in items) {
+      if (item.studentId == studentId) return item;
+    }
+    return null;
   }
 }

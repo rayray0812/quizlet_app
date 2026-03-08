@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Magic Link 登入｜拾憶 Grasp</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f6f3ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans TC','PingFang TC','Microsoft JhengHei',Arial,sans-serif;color:#1f2420;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f6f3ec;margin:0;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:620px;">
+            <tr>
+              <td style="padding:8px 8px 16px 8px;text-align:center;">
+                <div style="display:inline-block;padding:6px 12px;border:1px solid #d8d2c6;border-radius:999px;background:#fbf9f4;color:#55604a;font-size:12px;letter-spacing:.08em;">拾憶 GRASP</div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fffdf9;border:1px solid #e6e0d4;border-radius:20px;overflow:hidden;">
+                  <tr>
+                    <td style="background:linear-gradient(135deg,#eef1f5 0%,#e5ebef 55%,#d9e2e8 100%);padding:32px 28px 24px 28px;border-bottom:1px solid #e6e0d4;">
+                      <div style="width:46px;height:46px;line-height:46px;text-align:center;border-radius:14px;background:#ffffff;border:1px solid #d9e2e8;font-size:22px;margin-bottom:14px;">→</div>
+                      <div style="font-size:26px;line-height:1.25;font-weight:700;color:#243021;margin:0 0 8px 0;">一鍵登入拾憶 Grasp</div>
+                      <div style="font-size:14px;line-height:1.6;color:#4f5b49;">不需要輸入密碼，點擊連結即可安全登入。</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:28px;">
+                      <p style="margin:0 0 12px 0;font-size:15px;line-height:1.7;color:#2c322c;">嗨，{{ .Email }}：</p>
+                      <p style="margin:0 0 20px 0;font-size:15px;line-height:1.8;color:#4c544b;">請使用下方 Magic Link 登入 <strong>拾憶 Grasp</strong>。</p>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
+                        <tr>
+                          <td align="center" style="border-radius:12px;background:#7f9098;">
+                            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:12px;border:1px solid #7f9098;">使用 Magic Link 登入</a>
+                          </td>
+                        </tr>
+                      </table>
+                      <div style="margin:0 0 18px 0;padding:14px 16px;border-radius:12px;background:#f7f4ec;border:1px solid #e9e2d4;font-size:13px;line-height:1.7;color:#5e655c;">
+                        如果按鈕無法點擊，請複製以下連結到瀏覽器開啟：<br />
+                        <a href="{{ .ConfirmationURL }}" style="color:#5c6a49;word-break:break-all;">{{ .ConfirmationURL }}</a>
+                      </div>
+                      <p style="margin:0;font-size:13px;line-height:1.7;color:#7a7b74;">若這不是你本人操作，請忽略此信。此登入連結會自動失效。</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 10px 4px 10px;text-align:center;">
+                <div style="font-size:12px;color:#8b8a83;line-height:1.7;">此信件由系統自動寄出，請勿直接回覆。<br />{{ .SiteURL }}</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

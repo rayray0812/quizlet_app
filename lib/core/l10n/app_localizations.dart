@@ -252,6 +252,10 @@ class AppLocalizations {
   String get geminiApiKeyHint => '';
   String get geminiApiKeyNotSet => '';
   String get geminiApiKeySaved => '';
+  String get groqApiKey => '';
+  String get groqApiKeyHint => '';
+  String get groqFreeLabel => '';
+  String get aiProvider => '';
   String get ttsEngine => '';
   String get ttsCloudTts => '';
   String get ttsCloudTtsDesc => '';
@@ -1120,6 +1124,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '\u8ACB\u5148\u5728\u8A2D\u5B9A\u9801\u8F38\u5165 Gemini API Key';
   @override
   String get geminiApiKeySaved => 'API Key \u5DF2\u5132\u5B58';
+  @override
+  String get groqApiKey => 'Groq API Key';
+  @override
+  String get groqApiKeyHint => '\u8F38\u5165\u4F60\u7684 Groq API Key';
+  @override
+  String get groqFreeLabel => '\u2705 \u514D\u8CBB\uFF0C\u4E0D\u9700\u4FE1\u7528\u5361';
+  @override
+  String get aiProvider => 'AI \u63D0\u4F9B\u8005';
   @override
   String get ttsEngine => '\u8A9E\u97F3\u5F15\u64CE';
   @override
@@ -2394,6 +2406,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please set Gemini API Key in Settings first';
   @override
   String get geminiApiKeySaved => 'API Key saved';
+  @override
+  String get groqApiKey => 'Groq API Key';
+  @override
+  String get groqApiKeyHint => 'Enter your Groq API Key';
+  @override
+  String get groqFreeLabel => '\u2705 Free, no credit card required';
+  @override
+  String get aiProvider => 'AI Provider';
   @override
   String get ttsEngine => 'Voice Engine';
   @override

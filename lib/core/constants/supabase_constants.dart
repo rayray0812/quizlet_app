@@ -33,6 +33,7 @@ class SupabaseConstants {
   static const String classAssignmentsTable = 'class_assignments';
   static const String studentAssignmentProgressTable =
       'student_assignment_progress';
+  static const String classMatchingResultsTable = 'class_matching_results';
   static const String adminRolesTable = 'admin_roles';
   static const String adminRoleBindingsTable = 'admin_role_bindings';
   static const String adminAuditLogsTable = 'admin_audit_logs';

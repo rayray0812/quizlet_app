@@ -1,41 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
-import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/models/folder.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/services/local_storage_service.dart';
 
 final foldersProvider =
     StateNotifierProvider<FoldersNotifier, List<Folder>>((ref) {
-  return FoldersNotifier();
+  final localStorage = ref.watch(localStorageServiceProvider);
+  return FoldersNotifier(localStorage);
 });
 
 class FoldersNotifier extends StateNotifier<List<Folder>> {
-  FoldersNotifier() : super([]) {
+  FoldersNotifier(this._localStorage) : super([]) {
     _load();
   }
 
-  Box get _box => Hive.box(AppConstants.hiveFoldersBox);
+  final LocalStorageService _localStorage;
 
   void _load() {
-    final folders = <Folder>[];
-    for (int i = 0; i < _box.length; i++) {
-      final value = _box.getAt(i);
-      if (value is Folder) folders.add(value);
-    }
-    state = folders;
+    state = _localStorage.getAllFolders();
   }
 
   Future<void> add(Folder folder) async {
-    await _box.put(folder.id, folder);
+    final stamped = folder.copyWith(
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+    await _localStorage.saveFolder(stamped);
     _load();
   }
 
   Future<void> update(Folder folder) async {
-    await _box.put(folder.id, folder);
+    final stamped = folder.copyWith(
+      updatedAt: DateTime.now().toUtc(),
+      isSynced: false,
+    );
+    await _localStorage.saveFolder(stamped);
     _load();
   }
 
   Future<void> remove(String id) async {
-    await _box.delete(id);
+    await _localStorage.markFolderDeleted(id);
+    await _localStorage.deleteFolder(id);
+    await _localStorage.clearFolderReference(id);
+    _load();
+  }
+
+  void refresh() {
     _load();
   }
 }

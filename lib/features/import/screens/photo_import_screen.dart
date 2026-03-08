@@ -1,20 +1,40 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
-import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
+import 'package:recall_app/providers/ai_provider_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/services/gemini_service.dart';
+import 'package:recall_app/services/groq_vision_service.dart';
+import 'package:recall_app/services/ocr_parser_service.dart';
+import 'package:recall_app/services/ocr_service.dart';
+
+String activeAiProviderLabel(AiProvider provider) {
+  return provider == AiProvider.groq ? 'Groq' : 'Gemini';
+}
+
+String missingApiKeyMessageForProvider(
+  AiProvider provider,
+  AppLocalizations l10n,
+) {
+  return provider == AiProvider.groq ? 'Groq API Key is not set.' : l10n.geminiApiKeyNotSet;
+}
+
+String authErrorMessageForProvider(AiProvider provider) {
+  return provider == AiProvider.groq
+      ? 'API authentication failed. Please check your Groq API Key.'
+      : 'API authentication failed. Please check your Gemini API key.';
+}
 
 class PhotoImportScreen extends ConsumerStatefulWidget {
   const PhotoImportScreen({super.key});
@@ -32,6 +52,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   String _mimeType = 'image/jpeg';
   _Stage _stage = _Stage.pickImage;
   bool _cancelled = false;
+  OcrResult? _ocrResult;
 
   final List<Flashcard> _accumulatedCards = [];
   int _photoCount = 0;
@@ -42,8 +63,8 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
         .trim()
         .toLowerCase()
         .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'^[\-\–\—•·\d\.\)\(]+'), '')
-        .replaceAll(RegExp(r'[\s:：;；,.，。]+$'), '');
+        .replaceAll(RegExp(r'^[\-\??Ⅹ愧d\.\)\(]+'), '')
+        .replaceAll(RegExp(r'[\s:嚗?嚗?.嚗+$'), '');
     return s;
   }
 
@@ -142,8 +163,8 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   Future<void> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
       source: source,
-      maxWidth: 1280,
-      imageQuality: 75,
+      maxWidth: 2200,
+      imageQuality: 92,
     );
     if (picked == null) return;
 
@@ -151,21 +172,104 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     final mime = picked.mimeType ?? 'image/jpeg';
 
     if (!mounted) return;
+
+    // Run on-device OCR for offline parsing + hybrid accuracy boost.
+    OcrResult? ocrResult;
+    try {
+      ocrResult = await OcrService.recognizeFromPath(picked.path);
+      if (kDebugMode && ocrResult != null) {
+        debugPrint(
+          'OCR pre-scan: ${ocrResult.lineCount} lines, '
+          '${ocrResult.blockCount} blocks, '
+          '${ocrResult.fullText.length} chars',
+        );
+      }
+    } catch (e) {
+      debugPrint('OCR pre-scan skipped: $e');
+    }
+
+    if (!mounted) return;
     setState(() {
       _imageBytes = bytes;
       _mimeType = mime;
+      _ocrResult = ocrResult;
       _stage = _Stage.pickMode;
     });
   }
 
+  /// Call the selected AI provider's extractFlashcards method.
+  ///
+  /// For Groq: prefers **text-only mode** (OCR text ??AI formatting) when
+  /// sufficient OCR text is available. This is faster, cheaper, and more
+  /// accurate than sending the image to Vision API. Falls back to Vision
+  /// only when OCR text is insufficient.
+  Future<List<Map<String, String>>> _callAiExtract({
+    required String apiKey,
+    required PhotoScanMode mode,
+  }) async {
+    final provider = ref.read(aiProviderProvider);
+    if (provider == AiProvider.groq) {
+      // Prefer text-only mode: OCR reads, AI formats.
+      final ocrText = _ocrResult?.fullText;
+      if (GroqVisionService.canUseTextOnly(ocrText)) {
+        if (kDebugMode) {
+          debugPrint('Groq: using text-only mode (OCR + AI formatting)');
+        }
+        return GroqVisionService.extractFlashcardsFromText(
+          apiKey: apiKey,
+          ocrText: ocrText!,
+          mode: mode,
+        );
+      }
+      // Fallback: send image to Vision API.
+      if (kDebugMode) {
+        debugPrint('Groq: OCR text insufficient, falling back to Vision API');
+      }
+      return GroqVisionService.extractFlashcards(
+        apiKey: apiKey,
+        imageBytes: _imageBytes!,
+        mimeType: _mimeType,
+        mode: mode,
+        ocrHintText: ocrText,
+      );
+    }
+    return GeminiService.extractFlashcards(
+      apiKey: apiKey,
+      imageBytes: _imageBytes!,
+      mimeType: _mimeType,
+      mode: mode,
+    );
+  }
+
+  /// Get the active API key based on the selected AI provider.
+  String _activeApiKey() {
+    final provider = ref.read(aiProviderProvider);
+    if (provider == AiProvider.groq) {
+      return ref.read(groqKeyProvider);
+    }
+    return ref.read(geminiKeyProvider);
+  }
+
+  bool _hasActiveApiKey() => _activeApiKey().isNotEmpty;
+
+  String _missingApiKeyMessage(AppLocalizations l10n) {
+    return missingApiKeyMessageForProvider(ref.read(aiProviderProvider), l10n);
+  }
+
+  String _authErrorMessage() {
+    return authErrorMessageForProvider(ref.read(aiProviderProvider));
+  }
+
   Future<void> _analyze(PhotoScanMode mode) async {
     final l10n = AppLocalizations.of(context);
-    final apiKey = ref.read(geminiKeyProvider);
+    final apiKey = _activeApiKey();
+    final hasApiKey = apiKey.isNotEmpty;
 
-    if (apiKey.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.geminiApiKeyNotSet)));
+    // Textbook mode always requires AI.
+    if (mode == PhotoScanMode.textbookPage && !hasApiKey) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_missingApiKeyMessage(l10n))),
+      );
       return;
     }
 
@@ -175,19 +279,66 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     setState(() => _stage = _Stage.analyzing);
 
     try {
-      final results = await GeminiService.extractFlashcards(
-        apiKey: apiKey,
-        imageBytes: _imageBytes!,
-        mimeType: _mimeType,
-        mode: mode,
-      );
+      List<Map<String, String>> results;
+      var usedOcrOnly = false;
+
+      if (mode == PhotoScanMode.vocabularyList) {
+        // --- Vocabulary list: try OCR-only first, then AI ---
+        results = _tryOcrOnlyParse();
+
+        if (results.length >= 2 && !hasApiKey) {
+          // OCR-only succeeded and no API key ??use these results.
+          usedOcrOnly = true;
+        } else if (hasApiKey) {
+          // API key available ??try AI for better results.
+          try {
+            final aiResults = await _callAiExtract(
+              apiKey: apiKey,
+              mode: mode,
+            );
+            // Use AI results if they're better than OCR-only.
+            if (aiResults.length >= results.length) {
+              results = aiResults;
+            } else {
+              usedOcrOnly = true;
+            }
+          } on ScanException catch (e) {
+            // API failed ??fall back to OCR-only results.
+            if (results.length >= 2) {
+              usedOcrOnly = true;
+              if (kDebugMode) {
+                debugPrint('AI failed, using OCR-only: ${e.message}');
+              }
+            } else {
+              // Both OCR and API failed.
+              rethrow;
+            }
+          }
+        } else if (results.isEmpty) {
+          // No API key and OCR found nothing.
+          if (!mounted || _cancelled) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.noCardsExtracted)),
+          );
+          setState(() => _stage = _Stage.pickMode);
+          return;
+        } else {
+          usedOcrOnly = true;
+        }
+      } else {
+        // --- Textbook mode: always use AI ---
+        results = await _callAiExtract(
+          apiKey: apiKey,
+          mode: mode,
+        );
+      }
 
       if (!mounted || _cancelled) return;
 
       if (results.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.noCardsExtracted)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.noCardsExtracted)),
+        );
         setState(() => _stage = _Stage.pickMode);
         return;
       }
@@ -210,6 +361,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
         _accumulatedCards.addAll(cards);
         _photoCount++;
         _imageBytes = null;
+        _ocrResult = null;
         _stage = _Stage.pickImage;
       });
 
@@ -219,11 +371,12 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
             content: Text(
               [
                 l10n.photoAdded(cards.length),
+                if (usedOcrOnly) '(OCR)',
                 if (sanitized.droppedNoise > 0)
-                  '略過雜訊 ${sanitized.droppedNoise} 筆',
+                  '\u7565\u904e\u96dc\u8a0a ${sanitized.droppedNoise} \u7b46',
                 if (sanitized.droppedDuplicates > 0)
-                  '略過重複 ${sanitized.droppedDuplicates} 筆',
-              ].join('｜'),
+                  '\u7565\u904e\u91cd\u8907 ${sanitized.droppedDuplicates} \u7b46',
+              ].join('\uff5c'),
             ),
             duration: const Duration(seconds: 2),
           ),
@@ -253,12 +406,23 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     }
   }
 
+  /// Try to extract term-definition pairs using OCR spatial analysis only.
+  List<Map<String, String>> _tryOcrOnlyParse() {
+    final ocr = _ocrResult;
+    if (ocr == null || !ocr.hasEnoughText) return [];
+    try {
+      return OcrParserService.parseVocabularyTable(ocr);
+    } catch (e) {
+      debugPrint('OCR parse failed: $e');
+      return [];
+    }
+  }
+
   String _errorMessage(AppLocalizations l10n, ScanFailureReason reason) {
     return switch (reason) {
       ScanFailureReason.timeout => l10n.scanTimeout,
       ScanFailureReason.quotaExceeded => l10n.scanQuotaExceeded,
-      ScanFailureReason.authError =>
-        'API authentication failed. Please check your Gemini API key.',
+      ScanFailureReason.authError => _authErrorMessage(),
       ScanFailureReason.invalidRequest =>
         'Image request was invalid. Try another image or mode.',
       ScanFailureReason.serverError =>
@@ -277,6 +441,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   void _reset() {
     setState(() {
       _imageBytes = null;
+      _ocrResult = null;
       _stage = _Stage.pickImage;
     });
   }
@@ -315,6 +480,10 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   }
 
   Future<void> _showScanModeBottomSheet(AppLocalizations l10n) async {
+    final hasApiKey = _hasActiveApiKey();
+    final provider = ref.read(aiProviderProvider);
+    final providerLabel = activeAiProviderLabel(provider);
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -331,8 +500,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                   color: Theme.of(
                     context,
                   ).colorScheme.surface.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(DS.r24),
-                  boxShadow: DS.cardShadow,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppTheme.softCardDecoration(
+                    fillColor: Colors.transparent,
+                    borderRadius: 24,
+                  ).boxShadow,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -342,7 +514,9 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: DS.text2.withValues(alpha: 0.3),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outline.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -351,9 +525,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                       child: _ModeCard(
                         icon: Icons.list_alt_rounded,
-                        iconColor: DS.primary,
+                        iconColor: AppTheme.indigo,
                         title: l10n.vocabularyList,
-                        description: l10n.vocabularyListDesc,
+                        description: hasApiKey
+                            ? l10n.vocabularyListDesc
+                            : '${l10n.vocabularyListDesc}\n\u2705 \u96e2\u7dda OCR \u53ef\u7528\uff0c\u4e0d\u9700 API Key',
                         onTap: () {
                           Navigator.pop(sheetContext);
                           _analyze(PhotoScanMode.vocabularyList);
@@ -364,9 +540,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                       child: _ModeCard(
                         icon: Icons.menu_book_rounded,
-                        iconColor: AppTheme.purple,
+                        iconColor: hasApiKey ? AppTheme.purple : Colors.grey,
                         title: l10n.textbookPage,
-                        description: l10n.textbookPageDesc,
+                        description: hasApiKey
+                            ? l10n.textbookPageDesc
+                            : '${l10n.textbookPageDesc}\n\ud83d\udd12 \u9700\u8981 $providerLabel API Key',
                         onTap: () {
                           Navigator.pop(sheetContext);
                           _analyze(PhotoScanMode.textbookPage);
@@ -565,10 +743,10 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
               icon: const Icon(Icons.tune_rounded),
               label: Text(l10n.chooseMode),
               style: FilledButton.styleFrom(
-                backgroundColor: DS.primary,
+                backgroundColor: AppTheme.indigo,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(DS.r16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
@@ -591,9 +769,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                 width: 220,
                 height: 140,
                 decoration: BoxDecoration(
-                  color: DS.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(DS.r16),
-                  border: Border.all(color: DS.primary.withValues(alpha: 0.24)),
+                  color: AppTheme.indigo.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppTheme.indigo.withValues(alpha: 0.24),
+                  ),
                 ),
               ),
               AnimatedBuilder(
@@ -610,7 +790,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            DS.primary.withValues(alpha: 0.16),
+                            AppTheme.indigo.withValues(alpha: 0.16),
                             Colors.transparent,
                           ],
                         ),
@@ -698,3 +878,7 @@ class _ModeCard extends StatelessWidget {
     );
   }
 }
+
+
+
+

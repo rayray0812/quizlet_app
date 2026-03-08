@@ -23,6 +23,7 @@ class SyncService {
     if (_supabaseService.currentUser == null) return;
 
     try {
+      await _pushDeletedFolders();
       await _pushUnsyncedFolders();
       await _pushUnsynced();
     } catch (e) {
@@ -53,8 +54,22 @@ class SyncService {
     }
   }
 
+  Future<void> _pushDeletedFolders() async {
+    final deletedFolderIds = _localStorage.getDeletedFolderIds();
+    await _runInBatches<String>(deletedFolderIds, (folderId) async {
+      try {
+        await _supabaseService.deleteFolderById(folderId);
+        await _localStorage.clearDeletedFolderId(folderId);
+      } catch (e) {
+        debugPrint('Failed to sync deleted folder $folderId: $e');
+      }
+    });
+  }
+
   Future<void> _pullFoldersDelta() async {
     final manifest = await _supabaseService.fetchFolderManifest();
+    final remoteIds = manifest.map((item) => item.id).toSet();
+    await _applyRemoteDeletedFolders(remoteIds);
     if (manifest.isEmpty) return;
 
     final idsToDownload = <String>[];
@@ -75,6 +90,18 @@ class SyncService {
         idsToDownload,
       );
       await _localStorage.saveFoldersBatch(remoteFolders);
+    }
+  }
+
+  Future<void> _applyRemoteDeletedFolders(Set<String> remoteIds) async {
+    final localFolders = _localStorage.getAllFolders();
+    for (final localFolder in localFolders) {
+      if (!localFolder.isSynced) continue;
+      if (!remoteIds.contains(localFolder.id)) {
+        await _localStorage.deleteFolder(localFolder.id);
+        await _localStorage.clearDeletedFolderId(localFolder.id);
+        await _localStorage.clearFolderReference(localFolder.id);
+      }
     }
   }
 
