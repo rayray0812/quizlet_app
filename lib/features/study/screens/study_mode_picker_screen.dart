@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +12,10 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/services/import_export_service.dart';
 import 'package:recall_app/services/unsplash_service.dart';
+import 'package:recall_app/providers/community_provider.dart';
+import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/features/study/widgets/quiz_settings_dialog.dart';
+import 'package:recall_app/features/study/utils/part_of_speech.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
@@ -78,11 +81,61 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     }
   }
 
+  Future<void> _publishToCommunity(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudySet studySet,
+  ) async {
+    try {
+      await ref.read(communityServiceProvider).publishStudySet(studySet);
+      ref.invalidate(isPublishedProvider(widget.setId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.communityPublished),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _unpublishFromCommunity(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudySet studySet,
+  ) async {
+    try {
+      await ref.read(communityServiceProvider).unpublishStudySet(studySet.id);
+      ref.invalidate(isPublishedProvider(widget.setId));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.communityUnpublish),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
+
   Future<void> _syncClassAssignmentInProgress() async {
     try {
-      await ref.read(classroomServiceProvider).markInProgressFromLocalSetId(
-            localSetId: widget.setId,
-          );
+      await ref
+          .read(classroomServiceProvider)
+          .markInProgressFromLocalSetId(localSetId: widget.setId);
     } catch (e) {
       debugPrint('Classroom sync (in-progress) failed: $e');
     }
@@ -352,7 +405,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
   }
 
   ({int chapterIndex, int totalChapters, List<bool> chapterCompleted})?
-      _readLearnResumePreview(StudySet studySet) {
+  _readLearnResumePreview(StudySet studySet) {
     final storage = ref.read(localStorageServiceProvider);
     final raw = storage.getLearnModeResume(studySet.id);
     if (raw == null) return null;
@@ -374,8 +427,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
       }
     }
 
-    var chapterIndex = ((raw['chapterIndex'] as num?)?.toInt() ?? 0)
-        .clamp(0, totalChapters - 1);
+    var chapterIndex = ((raw['chapterIndex'] as num?)?.toInt() ?? 0).clamp(
+      0,
+      totalChapters - 1,
+    );
     if (completed.every((v) => v)) {
       chapterIndex = 0;
     } else if (completed[chapterIndex]) {
@@ -390,6 +445,26 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     );
   }
 
+  VoidCallback? _buildPrimaryAction(
+    BuildContext context,
+    StudySet studySet,
+    int dueCount,
+  ) {
+    if (studySet.cards.isEmpty) return null;
+    if (dueCount > 0) {
+      return () => context.push('/study/${widget.setId}/srs');
+    }
+    return () => context.push('/study/${widget.setId}/flashcards');
+  }
+
+  String _primaryActionTitle(AppLocalizations l10n, int dueCount) {
+    return dueCount > 0 ? l10n.srsReview : l10n.quickBrowse;
+  }
+
+  String _primaryActionDescription(AppLocalizations l10n, int dueCount) {
+    return dueCount > 0 ? l10n.srsReviewDesc : l10n.quickBrowseDesc;
+  }
+
   Future<void> _showLearnModeLaunchDialog({
     required BuildContext context,
     required StudySet studySet,
@@ -399,9 +474,12 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
     final totalChapters = studySet.cards.isEmpty
         ? 0
         : (studySet.cards.length / chapterSize).ceil();
-    final completed = preview?.chapterCompleted ?? List<bool>.filled(totalChapters, false);
+    final completed =
+        preview?.chapterCompleted ?? List<bool>.filled(totalChapters, false);
     final completedCount = completed.where((v) => v).length;
-    final currentChapter = totalChapters == 0 ? 1 : (preview?.chapterIndex ?? 0) + 1;
+    final currentChapter = totalChapters == 0
+        ? 1
+        : (preview?.chapterIndex ?? 0) + 1;
     final progress = totalChapters == 0 ? 0.0 : completedCount / totalChapters;
 
     await showModalBottomSheet<void>(
@@ -412,7 +490,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
         final timelineWindow = totalChapters <= 10 ? totalChapters : 10;
         final start = totalChapters <= timelineWindow
             ? 0
-            : (currentChapter - 1 - (timelineWindow ~/ 2)).clamp(0, totalChapters - timelineWindow);
+            : (currentChapter - 1 - (timelineWindow ~/ 2)).clamp(
+                0,
+                totalChapters - timelineWindow,
+              );
         final end = (start + timelineWindow).clamp(0, totalChapters);
         final completedChapterLabels = <String>[
           for (var i = 0; i < completed.length; i++)
@@ -439,7 +520,9 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.green.withValues(alpha: 0.14)),
+                      border: Border.all(
+                        color: AppTheme.green.withValues(alpha: 0.14),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -450,7 +533,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                             color: Colors.white.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.school_rounded, color: AppTheme.green),
+                          child: const Icon(
+                            Icons.school_rounded,
+                            color: AppTheme.green,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -459,18 +545,24 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                             children: [
                               Text(
                                 '刷題闖關',
-                                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                    ),
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 preview == null
                                     ? '尚未開始，準備進入第 1 章'
                                     : '目前第 $currentChapter/$totalChapters 章 · 已完成 $completedCount 章',
-                                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
                                       fontWeight: FontWeight.w700,
-                                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        sheetContext,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                               ),
                             ],
@@ -478,7 +570,8 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                         ),
                         Text(
                           '${(progress * 100).round()}%',
-                          style: Theme.of(sheetContext).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(sheetContext).textTheme.headlineSmall
+                              ?.copyWith(
                                 color: AppTheme.green,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -492,8 +585,12 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     child: LinearProgressIndicator(
                       minHeight: 10,
                       value: progress.clamp(0.0, 1.0),
-                      backgroundColor: Theme.of(sheetContext).colorScheme.outlineVariant,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.green),
+                      backgroundColor: Theme.of(
+                        sheetContext,
+                      ).colorScheme.outlineVariant,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppTheme.green,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -501,17 +598,25 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _LearnDialogStatChip(label: '卡片', value: '${studySet.cards.length}'),
-                      _LearnDialogStatChip(label: '章節', value: '$totalChapters'),
-                      _LearnDialogStatChip(label: '每章約', value: '$chapterSize 張'),
+                      _LearnDialogStatChip(
+                        label: '卡片',
+                        value: '${studySet.cards.length}',
+                      ),
+                      _LearnDialogStatChip(
+                        label: '章節',
+                        value: '$totalChapters',
+                      ),
+                      _LearnDialogStatChip(
+                        label: '每章約',
+                        value: '$chapterSize 張',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   Text(
                     '章節時間軸',
-                    style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                    style: Theme.of(sheetContext).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -519,7 +624,9 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.indigo.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.indigo.withValues(alpha: 0.10)),
+                      border: Border.all(
+                        color: AppTheme.indigo.withValues(alpha: 0.10),
+                      ),
                     ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -531,20 +638,25 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                               state: completed[i]
                                   ? _LearnTimelineNodeState.completed
                                   : (i == currentChapter - 1
-                                      ? _LearnTimelineNodeState.current
-                                      : _LearnTimelineNodeState.upcoming),
+                                        ? _LearnTimelineNodeState.current
+                                        : _LearnTimelineNodeState.upcoming),
                             ),
                             if (i < end - 1)
                               Container(
                                 width: 20,
                                 height: 2,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                color: (completed[i] && (i + 1 < completed.length && completed[i + 1]))
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                color:
+                                    (completed[i] &&
+                                        (i + 1 < completed.length &&
+                                            completed[i + 1]))
                                     ? AppTheme.green.withValues(alpha: 0.35)
                                     : Theme.of(sheetContext)
-                                        .colorScheme
-                                        .outlineVariant
-                                        .withValues(alpha: 0.6),
+                                          .colorScheme
+                                          .outlineVariant
+                                          .withValues(alpha: 0.6),
                               ),
                           ],
                         ],
@@ -555,7 +667,8 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     const SizedBox(height: 6),
                     Text(
                       '顯示第 ${start + 1} 到第 $end 章（重點章節區段）',
-                      style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      style: Theme.of(sheetContext).textTheme.bodySmall
+                          ?.copyWith(
                             color: Theme.of(sheetContext).colorScheme.outline,
                             fontWeight: FontWeight.w600,
                           ),
@@ -564,9 +677,8 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                   const SizedBox(height: 14),
                   Text(
                     '完成章節',
-                    style: Theme.of(sheetContext).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
+                    style: Theme.of(sheetContext).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -574,14 +686,15 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.green.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.green.withValues(alpha: 0.10)),
+                      border: Border.all(
+                        color: AppTheme.green.withValues(alpha: 0.10),
+                      ),
                     ),
                     child: completedChapterLabels.isEmpty
                         ? Text(
                             '目前還沒有完成章節，先刷完第 1 章建立手感。',
-                            style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            style: Theme.of(sheetContext).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           )
                         : Wrap(
                             spacing: 8,
@@ -590,19 +703,28 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                                 .map(
                                   (label) => Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 7),
+                                      horizontal: 10,
+                                      vertical: 7,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.green.withValues(alpha: 0.10),
+                                      color: AppTheme.green.withValues(
+                                        alpha: 0.10,
+                                      ),
                                       borderRadius: BorderRadius.circular(999),
                                       border: Border.all(
-                                        color: AppTheme.green.withValues(alpha: 0.20),
+                                        color: AppTheme.green.withValues(
+                                          alpha: 0.20,
+                                        ),
                                       ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.check_circle_rounded,
-                                            size: 14, color: AppTheme.green),
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 14,
+                                          color: AppTheme.green,
+                                        ),
                                         const SizedBox(width: 6),
                                         Text(
                                           label,
@@ -677,6 +799,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
 
     final hasEnoughCards = studySet.cards.length >= 4;
     final dueCount = ref.watch(dueCountForSetProvider(widget.setId));
+    final primaryAction = _buildPrimaryAction(context, studySet, dueCount);
     _syncPreviewCards(studySet.cards);
 
     return Scaffold(
@@ -732,6 +855,10 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                   l10n: l10n,
                   studySet: studySet,
                 );
+              } else if (value == 'publish') {
+                await _publishToCommunity(context, l10n, studySet);
+              } else if (value == 'unpublish') {
+                await _unpublishFromCommunity(context, l10n, studySet);
               }
             },
             itemBuilder: (context) => [
@@ -772,6 +899,28 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
+              if (ref.watch(currentUserProvider) != null) ...[
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: ref.watch(isPublishedProvider(widget.setId)).valueOrNull == true
+                      ? 'unpublish'
+                      : 'publish',
+                  child: ListTile(
+                    leading: Icon(
+                      ref.watch(isPublishedProvider(widget.setId)).valueOrNull == true
+                          ? Icons.cloud_off_rounded
+                          : Icons.cloud_upload_rounded,
+                    ),
+                    title: Text(
+                      ref.watch(isPublishedProvider(widget.setId)).valueOrNull == true
+                          ? l10n.communityUnpublish
+                          : l10n.communityPublish,
+                    ),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -782,6 +931,137 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
           ListView(
             padding: const EdgeInsets.only(top: 10, bottom: 48),
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: AdaptiveGlassCard(
+                  borderRadius: 18,
+                  fillColor: Colors.white.withValues(alpha: 0.84),
+                  borderColor: Colors.white.withValues(alpha: 0.42),
+                  elevation: 1.4,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppTheme.indigo.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              dueCount > 0
+                                  ? Icons.play_lesson_rounded
+                                  : Icons.auto_stories_rounded,
+                              color: AppTheme.indigo,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _primaryActionTitle(l10n, dueCount),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _primaryActionDescription(l10n, dueCount),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _LearnDialogStatChip(
+                            label: l10n.flashcards,
+                            value: '${studySet.cards.length}',
+                          ),
+                          _LearnDialogStatChip(
+                            label: l10n.reviewCards,
+                            value: '$dueCount',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: primaryAction,
+                          icon: Icon(
+                            dueCount > 0
+                                ? Icons.play_circle_rounded
+                                : Icons.swipe_rounded,
+                          ),
+                          label: Text(
+                            dueCount > 0 ? l10n.startTodayReview : l10n.quickBrowse,
+                          ),
+                        ),
+                      ),
+                      if (studySet.cards.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    context.push('/study/${widget.setId}/speaking'),
+                                icon: const Icon(
+                                  Icons.record_voice_over_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(l10n.speakingPractice),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: hasEnoughCards
+                                    ? () async {
+                                        final settings =
+                                            await showQuizSettingsDialog(
+                                          context: context,
+                                          maxCount: studySet.cards.length,
+                                          minCount: 4,
+                                        );
+                                        if (settings != null && context.mounted) {
+                                          context.push(
+                                            '/study/${widget.setId}/quiz',
+                                            extra: {'settings': settings},
+                                          );
+                                        }
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.quiz_rounded, size: 18),
+                                label: Text(l10n.quiz),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
               if (studySet.cards.isNotEmpty) ...[
                 SizedBox(
                   height: 144,
@@ -802,6 +1082,7 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                           term: card.term,
                           definition: card.definition,
                           imageUrl: card.imageUrl,
+                          posTags: extractPartOfSpeechTags(card.tags),
                           flipped: flipped,
                           onTap: () => _togglePreviewCard(card.id),
                           onLongPress: () => _speakText(
@@ -874,9 +1155,9 @@ class _StudyModePickerScreenState extends ConsumerState<StudyModePickerScreen> {
                       description: _buildLearnModeDescription(studySet),
                       onTap: studySet.cards.length >= 2
                           ? () => _showLearnModeLaunchDialog(
-                                context: context,
-                                studySet: studySet,
-                              )
+                              context: context,
+                              studySet: studySet,
+                            )
                           : null,
                       disabledReason: studySet.cards.length >= 2
                           ? null
@@ -1033,6 +1314,7 @@ class _PreviewFlipCard extends StatelessWidget {
     required this.term,
     required this.definition,
     required this.imageUrl,
+    this.posTags = const <String>[],
     required this.flipped,
     required this.onTap,
     required this.onLongPress,
@@ -1041,6 +1323,7 @@ class _PreviewFlipCard extends StatelessWidget {
   final String term;
   final String definition;
   final String imageUrl;
+  final List<String> posTags;
   final bool flipped;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -1075,6 +1358,40 @@ class _PreviewFlipCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (posTags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: posTags
+                              .map(
+                                (tag) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.indigo.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.indigo,
+                                        ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
                     if (showImage)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -1173,10 +1490,7 @@ class _StudyGlowOrb extends StatelessWidget {
 enum _LearnTimelineNodeState { completed, current, upcoming }
 
 class _LearnTimelineNode extends StatelessWidget {
-  const _LearnTimelineNode({
-    required this.chapterLabel,
-    required this.state,
-  });
+  const _LearnTimelineNode({required this.chapterLabel, required this.state});
 
   final String chapterLabel;
   final _LearnTimelineNodeState state;
@@ -1190,18 +1504,18 @@ class _LearnTimelineNode extends StatelessWidget {
     final fillColor = isCompleted
         ? AppTheme.green.withValues(alpha: 0.12)
         : isCurrent
-            ? AppTheme.indigo.withValues(alpha: 0.10)
-            : Colors.white.withValues(alpha: 0.7);
+        ? AppTheme.indigo.withValues(alpha: 0.10)
+        : Colors.white.withValues(alpha: 0.7);
     final borderColor = isCompleted
         ? AppTheme.green.withValues(alpha: 0.28)
         : isCurrent
-            ? AppTheme.indigo.withValues(alpha: 0.24)
-            : colorScheme.outlineVariant.withValues(alpha: 0.7);
+        ? AppTheme.indigo.withValues(alpha: 0.24)
+        : colorScheme.outlineVariant.withValues(alpha: 0.7);
     final textColor = isCompleted
         ? AppTheme.green
         : isCurrent
-            ? AppTheme.indigo
-            : colorScheme.outline;
+        ? AppTheme.indigo
+        : colorScheme.outline;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1217,8 +1531,8 @@ class _LearnTimelineNode extends StatelessWidget {
             isCompleted
                 ? Icons.check_circle_rounded
                 : isCurrent
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
+                ? Icons.radio_button_checked_rounded
+                : Icons.radio_button_unchecked_rounded,
             size: 14,
             color: textColor,
           ),
@@ -1226,9 +1540,9 @@ class _LearnTimelineNode extends StatelessWidget {
           Text(
             chapterLabel,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: textColor,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: textColor,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -1257,17 +1571,17 @@ class _LearnDialogStatChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Theme.of(context).colorScheme.outline,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(width: 6),
           Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.indigo,
-                  fontWeight: FontWeight.w900,
-                ),
+              color: AppTheme.indigo,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),

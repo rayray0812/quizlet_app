@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/features/study/models/conversation_transcript.dart';
+import 'package:recall_app/features/study/services/transcript_export_service.dart';
+import 'package:recall_app/features/study/widgets/conversation_progress_chart.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
 
-class ConversationSummaryScreen extends StatelessWidget {
+class ConversationSummaryScreen extends ConsumerWidget {
   final ConversationTranscript transcript;
   final String setId;
 
@@ -24,10 +28,11 @@ class ConversationSummaryScreen extends StatelessWidget {
   Color _intScoreColor(int score) => _scoreColor(score.toDouble());
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final score = transcript.overallScore;
+    final allTranscripts = ref.watch(localStorageServiceProvider).getAllConversationTranscripts();
 
     // Compute dimension averages
     double grammarAvg = 0, vocabAvg = 0, relevanceAvg = 0;
@@ -75,6 +80,13 @@ class ConversationSummaryScreen extends StatelessWidget {
       appBar: AppBar(
         leading: const AppBackButton(),
         title: Text(l10n.conversationSummary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: l10n.shareTranscript,
+            onPressed: () => TranscriptExportService.share(transcript, l10n),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -337,6 +349,14 @@ class ConversationSummaryScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
+          // Score progress chart (filtered to current study set)
+          if (allTranscripts.where((t) => t.setId == setId).length >= 2) ...[
+            ConversationProgressChart(
+              transcripts: allTranscripts.where((t) => t.setId == setId).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Action buttons
           Row(
             children: [
@@ -359,6 +379,14 @@ class ConversationSummaryScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => context.push('/conversation/history'),
+              icon: const Icon(Icons.history_rounded, size: 18),
+              label: Text(l10n.viewHistory),
+            ),
           ),
           const SizedBox(height: 20),
         ],

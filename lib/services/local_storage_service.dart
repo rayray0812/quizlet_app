@@ -217,6 +217,7 @@ class LocalStorageService {
     await _foldersBox.clear();
     await _settingsBox.delete(AppConstants.settingDeletedStudySetIdsKey);
     await _settingsBox.delete(AppConstants.settingDeletedFolderIdsKey);
+    await _settingsBox.delete(AppConstants.settingCommunityFriendIdsKey);
   }
 
   Future<void> restoreAllStudyData({
@@ -304,6 +305,36 @@ class LocalStorageService {
   }
 
   // —— Folder CRUD ——
+
+  List<String> getCommunityFriendIds() {
+    final raw =
+        (_settingsBox.get(
+                  AppConstants.settingCommunityFriendIdsKey,
+                  defaultValue: <dynamic>[],
+                ) as List)
+            .cast<dynamic>();
+    return raw.map((item) => item.toString()).toList();
+  }
+
+  Future<void> saveCommunityFriendIds(List<String> ids) async {
+    await _settingsBox.put(
+      AppConstants.settingCommunityFriendIdsKey,
+      ids.toSet().toList(),
+    );
+  }
+
+  Future<void> addCommunityFriendId(String userId) async {
+    final ids = getCommunityFriendIds();
+    if (!ids.contains(userId)) {
+      ids.add(userId);
+      await saveCommunityFriendIds(ids);
+    }
+  }
+
+  Future<void> removeCommunityFriendId(String userId) async {
+    final ids = getCommunityFriendIds()..removeWhere((id) => id == userId);
+    await saveCommunityFriendIds(ids);
+  }
 
   List<Folder> getAllFolders() {
     return _foldersBox.values.whereType<Folder>().toList()
@@ -421,5 +452,14 @@ class LocalStorageService {
       _transcriptsKey,
       ConversationTranscript.encodeList(all),
     );
+  }
+
+  // -- Conversation Settings --
+
+  bool get isConversationMuted =>
+      _settingsBox.get(AppConstants.settingConversationMutedKey, defaultValue: false) as bool;
+
+  Future<void> setConversationMuted(bool value) async {
+    await _settingsBox.put(AppConstants.settingConversationMutedKey, value);
   }
 }

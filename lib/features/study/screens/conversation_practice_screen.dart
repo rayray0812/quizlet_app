@@ -8,6 +8,9 @@ import 'package:recall_app/features/study/models/conversation_transcript.dart';
 import 'package:recall_app/features/study/models/conversation_turn_record.dart';
 import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/turn_feedback_chip.dart';
+import 'package:recall_app/features/study/widgets/typing_indicator.dart';
+import 'package:recall_app/features/study/widgets/quick_action_bar.dart';
+import 'package:recall_app/features/study/widgets/voice_wave_indicator.dart';
 import 'package:recall_app/providers/conversation_session_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
@@ -19,12 +22,14 @@ class ConversationPracticeScreen extends ConsumerStatefulWidget {
   final String setId;
   final int turns;
   final String difficulty;
+  final String? scenarioId;
 
   const ConversationPracticeScreen({
     super.key,
     required this.setId,
     required this.turns,
     required this.difficulty,
+    this.scenarioId,
   });
 
   @override
@@ -69,6 +74,8 @@ class _ConversationPracticeScreenState
   bool _didPlayFirstAiLine = false;
   bool _showScenarioChinese = false;
   bool _showReplyHint = false;
+  double _soundLevel = 0.0;
+  late bool _isMuted;
 
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -77,6 +84,7 @@ class _ConversationPracticeScreenState
     setId: widget.setId,
     turns: widget.turns,
     difficulty: widget.difficulty,
+    scenarioId: widget.scenarioId,
   );
 
   ConversationSessionNotifier get _notifier =>
@@ -85,6 +93,7 @@ class _ConversationPracticeScreenState
   @override
   void initState() {
     super.initState();
+    _isMuted = ref.read(localStorageServiceProvider).isConversationMuted;
     _voice = VoicePlaybackService();
     _voice.init();
     _initStt();
@@ -207,7 +216,7 @@ class _ConversationPracticeScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _didPlayFirstAiLine = true;
-      _playAiMessage(last.text);
+      if (!_isMuted) _playAiMessage(last.text);
     });
   }
 
@@ -268,7 +277,8 @@ class _ConversationPracticeScreenState
     _textController.clear();
     _notifier.sendMessage(text).then((_) {
       if (!mounted || _isDisposed) return;
-      // After AI responds, speak the new AI message
+      // After AI responds, speak the new AI message (unless muted)
+      if (_isMuted) return;
       final updated = ref
           .read(conversationSessionProvider(_params))
           .valueOrNull;
@@ -295,6 +305,10 @@ class _ConversationPracticeScreenState
       setState(() => _isListening = true);
       await _stt.listen(
         localeId: localeId,
+        onSoundLevelChange: (level) {
+          if (!mounted || _isDisposed) return;
+          setState(() => _soundLevel = level);
+        },
         onResult: (result) {
           if (!mounted || _isDisposed) return;
           _textController.value = TextEditingValue(
@@ -305,7 +319,10 @@ class _ConversationPracticeScreenState
           );
           if (result.finalResult) {
             if (!mounted || _isDisposed) return;
-            setState(() => _isListening = false);
+            setState(() {
+              _isListening = false;
+              _soundLevel = 0.0;
+            });
           }
         },
       );
@@ -407,6 +424,18 @@ class _ConversationPracticeScreenState
             title: Text(
               '${l10n.conversationPractice} (${session.currentTurn}/${widget.turns})',
             ),
+            actions: [
+              IconButton(
+                icon: Icon(_isMuted
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded),
+                tooltip: _isMuted ? l10n.unmuteAutoPlay : l10n.muteAutoPlay,
+                onPressed: () {
+                  setState(() => _isMuted = !_isMuted);
+                  ref.read(localStorageServiceProvider).setConversationMuted(_isMuted);
+                },
+              ),
+            ],
           ),
           body: Column(
             children: [
@@ -434,10 +463,7 @@ class _ConversationPracticeScreenState
                       session.messages.length + (session.isAiTyping ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == session.messages.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+                      return const TypingIndicator();
                     }
                     final msg = session.messages[index];
                     return _buildMessageBubble(msg, theme, session);
@@ -496,6 +522,14 @@ class _ConversationPracticeScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (!isKeyboardOpen)
+                  QuickActionBar(
+                    enabled: !session.isAiTyping && !session.isSessionEnded,
+                    onAction: (msg) {
+                      _textController.text = msg;
+                      _handleUserSubmit();
+                    },
+                  ),
                 if (!isKeyboardOpen &&
                     session.latestReplyHint.trim().isNotEmpty)
                   _buildReplyHintPanel(theme, l10n, session),
@@ -537,12 +571,18 @@ class _ConversationPracticeScreenState
   ) {
     return Row(
       children: [
-        if (_sttAvailable)
+        if (_sttAvailable) ...[
           IconButton.filledTonal(
             onPressed: _toggleListening,
             icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
             color: _isListening ? theme.colorScheme.error : null,
           ),
+          if (_isListening)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: VoiceWaveIndicator(soundLevel: _soundLevel),
+            ),
+        ],
         const SizedBox(width: 8),
         Expanded(
           child: TextField(

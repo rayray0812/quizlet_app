@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 import 'package:recall_app/providers/auth_analytics_provider.dart';
 import 'package:recall_app/providers/biometric_provider.dart';
+import 'package:recall_app/providers/profile_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -204,6 +205,10 @@ class _AppAuthLifecycleGateState extends ConsumerState<AppAuthLifecycleGate>
                                 await ref
                                     .read(supabaseServiceProvider)
                                     .signOut();
+                                await ref
+                                    .read(profileProvider.notifier)
+                                    .clearCachedProfile();
+                                ref.invalidate(profileProvider);
                               },
                         child: const Text('Sign Out'),
                       ),

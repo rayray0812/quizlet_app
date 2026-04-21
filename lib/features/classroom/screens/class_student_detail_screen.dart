@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
-import 'package:recall_app/models/classroom.dart';
 import 'package:recall_app/providers/classroom_provider.dart';
 
 class ClassStudentDetailScreen extends ConsumerWidget {

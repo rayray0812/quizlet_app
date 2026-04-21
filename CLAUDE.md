@@ -3,7 +3,7 @@
 # 狀態管理：Riverpod | 資料模型：freezed | 路由：GoRouter
 
 ## 使用者決策（已確認）
-- 獨立 app（不整合進 study_app）
+
 - 從一開始就使用 Supabase + Hive
 - 三種學習模式：翻卡片、測驗、配對遊戲
 - 驗證為選用（支援訪客模式，離線優先）
@@ -13,7 +13,7 @@
 ## 目前進度
 
 所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge 皆已完成。
-程式碼已通過 `flutter analyze`（零問題）和 `flutter test`（158 個測試全部通過）。
+程式碼已通過 `flutter analyze`（零問題）和 `flutter test`（311 個測試全部通過）。
 
 ### 基礎建設（Step 1–10）✅
 - [x] Step 1：專案骨架 + 核心設定
@@ -101,6 +101,15 @@
 - [x] l10n 字串（中/英 groqApiKey, groqFreeLabel, aiProvider 等）
 - [x] 8 個 Groq service tests 全過
 
+### UX 修正與強化（2026-03-25）✅
+- [x] 學習集重新命名（長按選單 + ⋮ 按鈕開啟 context menu → 重新命名對話框）
+- [x] 長按多選 + 批次移動資料夾（多選模式 + AppBar 計數 + 全選 + 底部操作列）
+- [x] 匯入預覽「只看可疑」破版修正（Row → SingleChildScrollView 水平滾動）
+- [x] 測驗模式去除詞性前綴（_stripPos regex 移除 POS 前綴，只顯示中文意思）
+- [x] 測驗模式顯示 POS 標籤提示（從 card.tags 提取詞性，以 chip 形式顯示在題目下方）
+- [x] StudySetCard 新增 onMore 回調 + ⋮ 按鈕（context menu 入口）
+- [x] l10n 新增：rename / renameStudySet / selectedCount / batchMoveToFolder（中/英）
+
 ### 待辦 / 下一步
 - [ ] 在 `supabase_constants.dart` 填入真實 Supabase URL 和 anon key
 - [ ] 在 Supabase 建立資料表 + RLS 政策
@@ -177,7 +186,7 @@ recall_app/lib/
     │   │   ├── card_editor_screen.dart # 卡片編輯頁（含標籤管理）
     │   │   └── search_screen.dart     # 跨學習集搜尋（term/definition/tags）
     │   └── widgets/
-    │       ├── study_set_card.dart    # 學習集卡片元件（含編輯按鈕、待複習數）
+    │       ├── study_set_card.dart    # 學習集卡片元件（含編輯/刪除/⋮ 按鈕、待複習數）
     │       ├── card_edit_row.dart     # 單張卡片輸入列（含標籤）
     │       ├── today_review_card.dart # 每日複習 Banner（含 + 數量/學習集統計）
     │       ├── daily_challenge_card.dart # Daily Challenge 卡片（目標 10 張 + streak）
@@ -185,7 +194,7 @@ recall_app/lib/
     ├── import/
     │   ├── screens/
     │   │   ├── web_import_screen.dart      # WebView + URL 輸入欄 + FAB 匯入（F1）
-    │   │   ├── review_import_screen.dart   # 預覽 & 編輯後儲存
+    │   │   ├── review_import_screen.dart   # 預覽 & 編輯後儲存（含可疑篩選水平滾動）
     │   │   └── photo_import_screen.dart    # 拍照建卡主畫面（F6）
     │   ├── widgets/
     │   │   └── import_preview_card.dart    # 匯入預覽卡片
@@ -198,15 +207,17 @@ recall_app/lib/
     │   │   ├── review_summary_screen.dart     # 複習結果頁
     │   │   ├── custom_study_screen.dart       # 自訂學習計畫
     │   │   ├── flashcard_screen.dart          # Tinder 風格滑動翻卡（快速瀏覽）
-    │   │   ├── quiz_screen.dart               # 測驗（可選題數）
+    │   │   ├── quiz_screen.dart               # 測驗（可選題數 + POS 標籤提示 + 去詞性前綴）
     │   │   └── matching_game_screen.dart      # 配對遊戲（可選組數）
-    │   └── widgets/
-    │       ├── flip_card.dart                 # 自製翻轉卡片動畫
-    │       ├── swipe_card_stack.dart          # 滑動卡片堆疊元件
-    │       ├── rating_buttons.dart            # Again/Hard/Good/Easy 評分按鈕（含預覽間隔）
-    │       ├── count_picker_dialog.dart       # 題數選擇 Dialog
-    │       ├── quiz_option_tile.dart          # 測驗選項元件
-    │       └── matching_tile.dart             # 配對方塊元件
+    │   ├── widgets/
+    │   │   ├── flip_card.dart                 # 自製翻轉卡片動畫
+    │   │   ├── swipe_card_stack.dart          # 滑動卡片堆疊元件
+    │   │   ├── rating_buttons.dart            # Again/Hard/Good/Easy 評分按鈕（含預覽間隔）
+    │   │   ├── count_picker_dialog.dart       # 題數選擇 Dialog
+    │   │   ├── quiz_option_tile.dart          # 測驗選項元件
+    │   │   └── matching_tile.dart             # 配對方塊元件
+    │   └── utils/
+    │       └── part_of_speech.dart            # POS 標籤常數 + extractPartOfSpeechTags()
     └── stats/
         ├── screens/
         │   └── stats_screen.dart              # 統計儀表板（多頁卡片 + 圖表）
@@ -235,6 +246,10 @@ recall_app/lib/
 - **所有 SRS DateTime 統一用 UTC**：避免時區問題
 - **Daily Challenge 固定目標 10 張**：參考 Duolingo，降低啟動門檻
 - **Liquid Glass 僅限 iOS**：Android GPU 碎片化，用 `isLiquidGlassSupported` 切換
+- **POS 標籤存於 tags**：詞性標籤（n./v./adj. 等）存於 Flashcard.tags，測驗模式自動提取顯示
+- **測驗去詞性前綴**：_stripPos regex 自動移除定義中的 POS 前綴，只顯示中文意思
+- **多選模式**：首頁長按進入多選，底部操作列支援批次移動資料夾
+- **StudySetCard.onMore**：⋮ 按鈕開啟 context menu（重新命名/釘選/移動/分享）
 
 ## 路由表
 | 路徑 | 畫面 |
@@ -312,6 +327,7 @@ create policy "Users can CRUD own sets"
 - [ ] 卡片編輯：建立學習集 -> 進入編輯頁 -> 新增/刪除卡片 -> 加標籤 -> 儲存
 - [ ] 三種學習模式皆可正常運作
 - [ ] 測驗選題數 -> 只出指定數量；配對選組數 -> 只出指定數量
+- [ ] 測驗模式：選項只顯示中文意思（不含詞性前綴），題目下方顯示 POS 標籤 chip
 - [ ] 翻卡片：滑動分類 -> 結束統計 -> 複習不記得的
 - [ ] SRS 複習：翻卡片 -> 評分 -> 狀態更新 -> 結果頁
 - [ ] 每日複習 Banner：有待複習 -> 點擊進入跨學習集 SRS 複習
@@ -323,3 +339,6 @@ create policy "Users can CRUD own sets"
 - [ ] 拍照建卡：設定 API Key -> FAB 選拍照建卡 -> 拍照/選圖 -> 選模式 -> AI 分析 -> 預覽 -> 儲存
 - [ ] 未設定 API Key 時點「拍照建卡」-> 顯示提示訊息
 - [ ] `flutter run -d chrome` 網頁版（匯入隱藏，其餘正常）
+- [ ] 長按多選 -> 批次移動資料夾 -> 退出多選
+- [ ] 學習集重新命名：⋮ 按鈕 -> 重新命名 -> 修改標題 -> 儲存
+- [ ] 匯入預覽：按鈕列可水平滾動，不破版

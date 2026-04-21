@@ -5,13 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static final String _appFontFamily = GoogleFonts.notoSansTc().fontFamily!;
-  // Stitch-aligned palette
-  static const indigo = Color(0xFF8F9876); // primary sage
-  static const cyan = Color(0xFFA4B5BC); // morandi blue
+  // Stitch-aligned Morandi palette
+  // Note: names are legacy — "indigo" is actually sage, "cyan" is dusty blue, etc.
+  static const indigo = Color(0xFF8F9876); // sage green (primary)
+  static const cyan = Color(0xFFA4B5BC);   // dusty blue-gray
   static const orange = Color(0xFFA7B388); // soft sage accent
-  static const red = Color(0xFFB47575); // muted error
-  static const gold = Color(0xFFD9D2C5); // morandi sand
-  static const green = Color(0xFF7C8762); // deep sage
+  static const red = Color(0xFFB47575);    // muted rose (error)
+  static const gold = Color(0xFFD9D2C5);   // morandi sand
+  static const green = Color(0xFF7C8762);  // deep sage
   static const purple = Color(0xFFC7ADA5); // morandi rose
 
   // Breakdown colors
@@ -224,10 +225,22 @@ class AppTheme {
           fontWeight: FontWeight.w600,
         ),
       ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        linearMinHeight: 10,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white.withValues(alpha: 0.88),
         shadowColor: Colors.black.withValues(alpha: 0.05),
-        indicatorColor: indigo.withValues(alpha: 0.10),
+        indicatorColor: indigo.withValues(alpha: 0.16),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: indigo);

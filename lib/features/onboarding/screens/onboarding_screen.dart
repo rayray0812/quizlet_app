@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/features/onboarding/widgets/onboarding_page.dart';
+import 'package:recall_app/providers/study_set_provider.dart';
+import 'package:recall_app/services/sample_set_seeder.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
@@ -23,21 +26,55 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _completeOnboarding() {
-    Hive.box(AppConstants.hiveSettingsBox)
-        .put(AppConstants.settingHasSeenOnboarding, true);
+  bool _navigating = false;
+
+  Future<void> _completeOnboarding() async {
+    if (_navigating) return;
+    _navigating = true;
+
+    final settingsBox = Hive.box(AppConstants.hiveSettingsBox);
+    final alreadySeeded =
+        settingsBox.get(_sampleSeededKey, defaultValue: false) as bool;
+    final existing = ref.read(studySetsProvider);
+
+    if (!alreadySeeded && existing.isEmpty) {
+      final l10n = AppLocalizations.of(context);
+      try {
+        await SampleSetSeeder.seed(
+          ref.read(studySetsProvider.notifier),
+          title: l10n.sampleSetTitle,
+          description: l10n.sampleSetDescription,
+        );
+        await settingsBox.put(_sampleSeededKey, true);
+      } catch (e) {
+        debugPrint('Sample set seeding failed: $e');
+      }
+    }
+
+    await settingsBox.put(AppConstants.settingHasSeenOnboarding, true);
+
+    if (!mounted) return;
     context.go('/');
   }
+
+  static const String _sampleSeededKey = 'sample_set_seeded';
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final pages = [
       OnboardingPage(
-        icon: Icons.auto_stories_rounded,
         title: l10n.onboardingWelcome,
         description: l10n.onboardingWelcomeDesc,
         iconColor: AppTheme.indigo,
+        customIcon: SizedBox(
+          width: 120,
+          height: 120,
+          child: Image.asset(
+            'assets/branding/logo_clean.png',
+            fit: BoxFit.contain,
+          ),
+        ),
       ),
       OnboardingPage(
         icon: Icons.psychology_rounded,
@@ -83,7 +120,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: TextButton(
-                  onPressed: _completeOnboarding,
+                  onPressed: () {
+                    _completeOnboarding();
+                  },
                   child: Text(l10n.skip),
                 ),
               ),

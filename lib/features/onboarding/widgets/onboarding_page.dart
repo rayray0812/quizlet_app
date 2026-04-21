@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 
 class OnboardingPage extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final String title;
   final String description;
   final Color? iconColor;
   final Widget? extra;
+  final Widget? customIcon;
 
   const OnboardingPage({
     super.key,
-    required this.icon,
+    this.icon,
     required this.title,
     required this.description,
     this.iconColor,
     this.extra,
+    this.customIcon,
   });
 
   @override
@@ -24,19 +26,22 @@ class OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: (iconColor ?? AppTheme.indigo).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+          if (customIcon != null)
+            customIcon!
+          else
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: (iconColor ?? AppTheme.indigo).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 56,
+                color: iconColor ?? AppTheme.indigo,
+              ),
             ),
-            child: Icon(
-              icon,
-              size: 56,
-              color: iconColor ?? AppTheme.indigo,
-            ),
-          ),
           const SizedBox(height: 36),
           Text(
             title,

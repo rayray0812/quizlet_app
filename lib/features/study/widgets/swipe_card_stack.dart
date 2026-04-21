@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/constants/study_constants.dart';
@@ -31,7 +32,6 @@ class SwipeCardStackState extends State<SwipeCardStack>
   late AnimationController _animController;
   late Animation<Offset> _animOffset;
   late AnimationController _entryController;
-  late Listenable _mergedListenable;
   bool _isAnimating = false;
   bool _isDragging = false;
   bool _isTopCardFlipping = false;
@@ -49,7 +49,6 @@ class SwipeCardStackState extends State<SwipeCardStack>
       vsync: this,
       duration: const Duration(milliseconds: 230),
     )..value = 1;
-    _mergedListenable = Listenable.merge([_animController, _entryController]);
   }
 
   @override
@@ -62,7 +61,8 @@ class SwipeCardStackState extends State<SwipeCardStack>
   @override
   void didUpdateWidget(covariant SwipeCardStack oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.cards, widget.cards)) {
+    final cardsChanged = !_sameCardSequence(oldWidget.cards, widget.cards);
+    if (cardsChanged) {
       _animController.stop();
       _entryController.stop();
       _entryController.value = 1;
@@ -71,7 +71,18 @@ class SwipeCardStackState extends State<SwipeCardStack>
       _isAnimating = false;
       _isDragging = false;
       _isTopCardFlipping = false;
+    } else if (_topIndex > widget.cards.length) {
+      _topIndex = widget.cards.length;
     }
+  }
+
+  bool _sameCardSequence(List<SwipeCardData> a, List<SwipeCardData> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   bool get isDone => _topIndex >= widget.cards.length;
@@ -207,6 +218,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
             child: IgnorePointer(
               child: _CardPreview(
                 term: data.term,
+                posTags: data.posTags,
                 hideText: _isTopCardFlipping,
               ),
             ),
@@ -226,94 +238,102 @@ class SwipeCardStackState extends State<SwipeCardStack>
         }
       },
       child: AnimatedBuilder(
-        animation: _mergedListenable,
+        animation: _entryController,
         builder: (context, _) {
-          final offset = _isAnimating ? _animOffset.value : _dragOffset;
-          final ratio = _screenWidth > 0 ? offset.dx / _screenWidth : 0.0;
-          final rotation = (ratio * 0.13).clamp(-0.13, 0.13);
-          final entryT = (!_isAnimating && !_isDragging)
-              ? Curves.easeOutQuart.transform(_entryController.value)
-              : 1.0;
-          final entryScale = lerpDouble(0.985, 1.0, entryT) ?? 1.0;
-          final entryYOffset = lerpDouble(8.0, 0.0, entryT) ?? 0.0;
-          final entryOpacity = lerpDouble(0.92, 1.0, entryT) ?? 1.0;
-          final overlayOpacity = (ratio.abs() * 0.5)
-              .clamp(0.0, 0.36)
-              .toDouble();
-          final labelOpacity = (ratio.abs() * 2).clamp(0.0, 1.0).toDouble();
-          final isRight = ratio > 0.05;
-          final isLeft = ratio < -0.05;
+          return AnimatedBuilder(
+            animation: _animController,
+            builder: (context, _) {
+              final offset = _isAnimating ? _animOffset.value : _dragOffset;
+              final ratio = _screenWidth > 0 ? offset.dx / _screenWidth : 0.0;
+              final rotation = (ratio * 0.13).clamp(-0.13, 0.13);
+              final entryT = (!_isAnimating && !_isDragging)
+                  ? Curves.easeOutQuart.transform(_entryController.value)
+                  : 1.0;
+              final entryScale = lerpDouble(0.985, 1.0, entryT) ?? 1.0;
+              final entryYOffset = lerpDouble(8.0, 0.0, entryT) ?? 0.0;
+              final entryOpacity = lerpDouble(0.92, 1.0, entryT) ?? 1.0;
+              final overlayOpacity = (ratio.abs() * 0.5)
+                  .clamp(0.0, 0.36)
+                  .toDouble();
+              final labelOpacity = (ratio.abs() * 2).clamp(0.0, 1.0).toDouble();
+              final isRight = ratio > 0.05;
+              final isLeft = ratio < -0.05;
 
-          // During out-animation use a lightweight preview; while dragging keep flip state.
-          final useLiteCard = _isAnimating;
-          final data = widget.cards[_topIndex];
+              final useLiteCard = _isAnimating;
+              final data = widget.cards[_topIndex];
 
-          return RepaintBoundary(
-            child: Transform.translate(
-              offset: Offset(offset.dx, offset.dy + entryYOffset),
-              child: Opacity(
-                opacity: entryOpacity,
-                child: Transform.scale(
-                  scale: entryScale,
-                  child: Transform.rotate(
-                    angle: rotation,
-                    child: Stack(
-                      children: [
-                        useLiteCard
-                            ? _CardPreview(term: data.term, emphasize: true)
-                            : _cardContent(_topIndex),
-                        if (isRight)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: AppTheme.green.withValues(
-                                  alpha: overlayOpacity,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                l10n.know.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 2,
-                                  color: Colors.white.withValues(
-                                    alpha: labelOpacity,
+              return RepaintBoundary(
+                child: Transform.translate(
+                  offset: Offset(offset.dx, offset.dy + entryYOffset),
+                  child: Opacity(
+                    opacity: entryOpacity,
+                    child: Transform.scale(
+                      scale: entryScale,
+                      child: Transform.rotate(
+                        angle: rotation,
+                        child: Stack(
+                          children: [
+                            useLiteCard
+                                ? _CardPreview(
+                                    term: data.term,
+                                    posTags: data.posTags,
+                                    emphasize: true,
+                                  )
+                                : _cardContent(_topIndex),
+                            if (isRight)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    color: AppTheme.green.withValues(
+                                      alpha: overlayOpacity,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    l10n.know.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 2,
+                                      color: Colors.white.withValues(
+                                        alpha: labelOpacity,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        if (isLeft)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: AppTheme.red.withValues(
-                                  alpha: overlayOpacity,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                l10n.dontKnow.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 2,
-                                  color: Colors.white.withValues(
-                                    alpha: labelOpacity,
+                            if (isLeft)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    color: AppTheme.red.withValues(
+                                      alpha: overlayOpacity,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    l10n.dontKnow.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 2,
+                                      color: Colors.white.withValues(
+                                        alpha: labelOpacity,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -330,6 +350,7 @@ class SwipeCardStackState extends State<SwipeCardStack>
         frontText: data.term,
         backText: data.definition,
         imageUrl: data.imageUrl,
+        posTags: data.posTags,
         onFlipStateChanged: (isFlipping) {
           if (!mounted || _isTopCardFlipping == isFlipping) return;
           setState(() => _isTopCardFlipping = isFlipping);
@@ -341,11 +362,13 @@ class SwipeCardStackState extends State<SwipeCardStack>
 
 class _CardPreview extends StatelessWidget {
   final String term;
+  final List<String> posTags;
   final bool emphasize;
   final bool hideText;
 
   const _CardPreview({
     required this.term,
+    this.posTags = const <String>[],
     this.emphasize = false,
     this.hideText = false,
   });
@@ -418,6 +441,25 @@ class _CardPreview extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (posTags.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A221A).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      posTags.join(' / '),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: const Color(0xFF1A221A),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                if (posTags.isNotEmpty) const SizedBox(height: 12),
                 Expanded(
                   child: Center(
                     child: AnimatedOpacity(
@@ -451,12 +493,28 @@ class SwipeCardData {
   final String term;
   final String definition;
   final String imageUrl;
+  final List<String> posTags;
 
   const SwipeCardData({
     required this.term,
     required this.definition,
     this.imageUrl = '',
+    this.posTags = const <String>[],
   });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SwipeCardData &&
+        other.term == term &&
+        other.definition == definition &&
+        other.imageUrl == imageUrl &&
+        listEquals(other.posTags, posTags);
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(term, definition, imageUrl, Object.hashAll(posTags));
 }
 
 class _PreviewPaperTexturePainter extends CustomPainter {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/widgets/app_back_button.dart';
 import 'package:recall_app/features/study/models/conversation_transcript.dart';
+import 'package:recall_app/features/study/widgets/conversation_progress_chart.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 
 class ConversationHistoryScreen extends ConsumerWidget {
@@ -39,9 +40,17 @@ class ConversationHistoryScreen extends ConsumerWidget {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: transcripts.length,
+              itemCount: transcripts.length + 1,
               itemBuilder: (context, index) {
-                final t = transcripts[index];
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ConversationProgressChart(
+                      transcripts: transcripts,
+                    ),
+                  );
+                }
+                final t = transcripts[index - 1];
                 return _TranscriptCard(
                   transcript: t,
                   onTap: () {

@@ -55,3 +55,6 @@ card_progress.lock
 review_logs.lock
 settings.lock
 folders.lock
+
+# Local backup snapshots
+.git-backups/

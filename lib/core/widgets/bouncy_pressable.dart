@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Lightweight press feedback wrapper for buttons.
 /// Uses implicit animations only to avoid manual controller lifecycle issues.
@@ -24,13 +25,16 @@ class _BouncyPressableState extends State<BouncyPressable> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
+      onPointerDown: (_) {
+        HapticFeedback.selectionClick();
+        setState(() => _pressed = true);
+      },
       onPointerUp: (_) => setState(() => _pressed = false),
       onPointerCancel: (_) => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? widget.scaleWhenPressed : 1.0,
         duration: widget.duration,
-        curve: Curves.easeOutBack,
+        curve: Curves.easeOutCubic,
         child: widget.child,
       ),
     );

@@ -6,23 +6,23 @@ import 'package:uuid/uuid.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/providers/auth_provider.dart';
-import 'package:recall_app/providers/sync_provider.dart';
 import 'package:recall_app/core/icons/material_icon_mapper.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
 import 'package:recall_app/core/widgets/adaptive_glass_card.dart';
 import 'package:recall_app/core/widgets/liquid_glass.dart';
-import 'package:recall_app/features/home/screens/search_screen.dart';
+import 'package:recall_app/features/community/screens/community_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
 import 'package:recall_app/features/home/screens/settings_tab.dart';
 import 'package:recall_app/features/home/widgets/study_set_card.dart';
 import 'package:recall_app/features/home/widgets/dashboard_helpers.dart';
 import 'package:recall_app/services/import_export_service.dart';
+import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/providers/folder_provider.dart';
+import 'package:recall_app/providers/community_provider.dart';
 import 'package:recall_app/providers/sort_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
-import 'package:recall_app/features/home/widgets/folder_chips.dart';
 import 'package:recall_app/features/home/widgets/sort_selector.dart';
 import 'package:recall_app/providers/widget_provider.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
@@ -35,25 +35,19 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentTab = 0;
+  String _homeSearchQuery = '';
+  final _homeSearchController = TextEditingController();
+  bool _isSearching = false;
+
+  // Multi-select state
+  bool _isMultiSelectMode = false;
+  final Set<String> _selectedSetIds = {};
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOut,
-    );
-    _animController.forward();
-
     // Sync widget data when app opens
     Future.microtask(() {
       if (mounted) ref.read(widgetRefreshProvider)();
@@ -62,7 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   void dispose() {
-    _animController.dispose();
+    _homeSearchController.dispose();
     super.dispose();
   }
 
@@ -72,7 +66,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final user = ref.watch(currentUserProvider);
     final l10n = AppLocalizations.of(context);
     final pageTitle = switch (_currentTab) {
-      1 => l10n.search,
+      1 => l10n.community,
       2 => l10n.statistics,
       3 => l10n.settings,
       _ => AppConstants.appName,
@@ -86,8 +80,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ).colorScheme.surface.withValues(alpha: 0.96),
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        leading: _isMultiSelectMode
+            ? IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(() {
+                  _isMultiSelectMode = false;
+                  _selectedSetIds.clear();
+                }),
+              )
+            : null,
         title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
+          duration: const Duration(milliseconds: 200),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
@@ -96,74 +99,124 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               child: child,
             );
           },
-          child: _currentTab == 0
-              ? Row(
-                  key: const ValueKey('app-logo-title'),
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: Image.asset(
-                        'assets/branding/logo_clean.png',
-                        fit: BoxFit.contain,
+          child: _isMultiSelectMode
+              ? Text(
+                  key: const ValueKey('multi-select-title'),
+                  l10n.selectedCount(_selectedSetIds.length),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n.appDisplayName,
-                      style: TextStyle(
-                        color: AppTheme.indigo,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
-                      ),
-                    ),
-                  ],
                 )
-              : Row(
-                  key: ValueKey(pageTitle),
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      switch (_currentTab) {
-                        1 => Icons.search_rounded,
-                        2 => Icons.bar_chart_rounded,
-                        3 => Icons.settings_rounded,
-                        _ => Icons.home_rounded,
-                      },
-                      color: AppTheme.indigo,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      pageTitle,
-                      style: TextStyle(
-                        color: AppTheme.indigo,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
+              : (_currentTab == 0 && _isSearching)
+              ? TextField(
+                  key: const ValueKey('search-field'),
+                  controller: _homeSearchController,
+                  autofocus: true,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
+                  decoration: InputDecoration(
+                    hintText: l10n.searchCards,
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                      fontWeight: FontWeight.w400,
                     ),
-                  ],
-                ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onChanged: (v) =>
+                      setState(() => _homeSearchQuery = v.trim()),
+                )
+              : _currentTab == 0
+                  ? Row(
+                      key: const ValueKey('app-logo-title'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 30,
+                          width: 30,
+                          child: Image.asset(
+                            'assets/branding/logo_clean.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          l10n.appDisplayName,
+                          style: TextStyle(
+                            color: AppTheme.indigo,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      key: ValueKey(pageTitle),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          switch (_currentTab) {
+                            1 => Icons.people_rounded,
+                            2 => Icons.bar_chart_rounded,
+                            3 => Icons.settings_rounded,
+                            _ => Icons.home_rounded,
+                          },
+                          color: AppTheme.indigo,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          pageTitle,
+                          style: TextStyle(
+                            color: AppTheme.indigo,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ],
+                    ),
         ),
         actions: [
-          if (_currentTab == 0)
-            IconButton(
-              icon: const Icon(Icons.groups_2_rounded, size: 22),
-              onPressed: () => context.push('/classes'),
-              tooltip: 'Classes',
-            ),
-          if (_currentTab == 0)
-            IconButton(
-              icon: const Icon(Icons.search_rounded, size: 22),
-              onPressed: () => setState(() => _currentTab = 1),
-              tooltip: l10n.search,
-            ),
-          if (_currentTab == 0 && user != null)
-            IconButton(
-              icon: const Icon(Icons.sync_rounded, size: 22),
-              onPressed: () => ref.refresh(syncProvider),
-              tooltip: l10n.sync,
+          if (!_isMultiSelectMode && _currentTab == 0)
+            _isSearching
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                    onPressed: () {
+                      _homeSearchController.clear();
+                      setState(() {
+                        _homeSearchQuery = '';
+                        _isSearching = false;
+                      });
+                    },
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.search_rounded, size: 22),
+                    onPressed: () => setState(() => _isSearching = true),
+                    tooltip: l10n.searchCards,
+                  ),
+          if (_isMultiSelectMode)
+            TextButton(
+              onPressed: () {
+                final allSets = ref.read(studySetsProvider);
+                setState(() {
+                  if (_selectedSetIds.length == allSets.length) {
+                    _selectedSetIds.clear();
+                  } else {
+                    _selectedSetIds.addAll(allSets.map((s) => s.id));
+                  }
+                });
+              },
+              child: Text(
+                _selectedSetIds.length == ref.read(studySetsProvider).length
+                    ? l10n.cancel
+                    : l10n.all,
+              ),
             ),
         ],
       ),
@@ -215,8 +268,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               )
             : const SizedBox.shrink(key: ValueKey('empty-fab')),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: Padding(
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: _isMultiSelectMode
+          ? _buildMultiSelectBar(context, ref, l10n)
+          : Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Container(
           decoration: AppTheme.softCardDecoration(
@@ -245,9 +300,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 label: l10n.home,
               ),
               NavigationDestination(
-                icon: const Icon(CupertinoIcons.search),
-                selectedIcon: const Icon(CupertinoIcons.search),
-                label: l10n.search,
+                icon: const Icon(CupertinoIcons.person_2),
+                selectedIcon: const Icon(CupertinoIcons.person_2_fill),
+                label: l10n.community,
               ),
               NavigationDestination(
                 icon: const Icon(CupertinoIcons.chart_bar),
@@ -272,6 +327,100 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  Widget _buildMultiSelectBar(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () => setState(() {
+                _isMultiSelectMode = false;
+                _selectedSetIds.clear();
+              }),
+              icon: const Icon(Icons.close_rounded),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l10n.selectedCount(_selectedSetIds.length),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: _selectedSetIds.isEmpty
+                  ? null
+                  : () => _showBatchMoveFolderDialog(context, ref),
+              icon: const Icon(Icons.drive_file_move_outlined, size: 18),
+              label: Text(l10n.moveToFolder),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBatchMoveFolderDialog(BuildContext context, WidgetRef ref) {
+    final folders = ref.read(foldersProvider);
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.batchMoveToFolder),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(l10n.noFolder),
+              onTap: () {
+                for (final id in _selectedSetIds) {
+                  ref.read(studySetsProvider.notifier).moveToFolder(id, null);
+                }
+                Navigator.pop(ctx);
+                setState(() {
+                  _isMultiSelectMode = false;
+                  _selectedSetIds.clear();
+                });
+              },
+            ),
+            ...folders.map((folder) => ListTile(
+                  leading: Icon(
+                    MaterialIconMapper.fromCodePoint(folder.iconCodePoint),
+                    color: Color(int.parse(folder.colorHex, radix: 16)),
+                  ),
+                  title: Text(folder.name),
+                  onTap: () {
+                    for (final id in _selectedSetIds) {
+                      ref
+                          .read(studySetsProvider.notifier)
+                          .moveToFolder(id, folder.id);
+                    }
+                    Navigator.pop(ctx);
+                    setState(() {
+                      _isMultiSelectMode = false;
+                      _selectedSetIds.clear();
+                    });
+                  },
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAnimatedTabBody(
     BuildContext context,
     WidgetRef ref,
@@ -282,7 +431,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       studySets.isEmpty
           ? _buildEmptyState(context, l10n)
           : _buildList(context, studySets),
-      const SearchScreen(embedded: true),
+      const CommunityScreen(embedded: true),
       const StatsScreen(embedded: true),
       Padding(
         padding: const EdgeInsets.only(top: 10),
@@ -299,72 +448,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 32, 16, 120),
-        children: [
-          AdaptiveGlassCard(
-            borderRadius: 20,
-            fillColor: Colors.white.withValues(alpha: 0.84),
-            borderColor: Colors.white.withValues(alpha: 0.4),
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-            child: Column(
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: AppTheme.indigo.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(
-                    Icons.auto_stories_rounded,
-                    size: 34,
-                    color: AppTheme.indigo.withValues(alpha: 0.9),
-                  ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 32, 16, 120),
+      children: [
+        AdaptiveGlassCard(
+          borderRadius: 20,
+          fillColor: Colors.white.withValues(alpha: 0.84),
+          borderColor: Colors.white.withValues(alpha: 0.4),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+          child: Column(
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppTheme.indigo.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.noStudySetsYet,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                  textAlign: TextAlign.center,
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 34,
+                  color: AppTheme.indigo.withValues(alpha: 0.9),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.importOrCreate,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _showCreateDialog(context, ref),
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: Text(l10n.createBtn),
-                      ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.noStudySetsYet,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.push('/import'),
-                        icon: const Icon(Icons.download_rounded, size: 18),
-                        label: Text(l10n.importBtn),
-                      ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.importOrCreate,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
                     ),
-                  ],
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _showCreateDialog(context, ref),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text(l10n.createBtn),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _importFromFile(context, ref),
+                      icon: const Icon(Icons.download_rounded, size: 18),
+                      label: Text(l10n.importBtn),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -413,11 +559,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final target = dueCount + todayReviewed;
     final focusProgress = target <= 0 ? 1.0 : (todayReviewed / target).clamp(0.0, 1.0);
 
+    // Filter study sets by search query
+    final searchFiltered = _homeSearchQuery.isEmpty
+        ? sorted
+        : sorted.where((s) {
+            final q = _homeSearchQuery.toLowerCase();
+            if (s.title.toLowerCase().contains(q)) return true;
+            if (s.description.toLowerCase().contains(q)) return true;
+            return s.cards.any((c) =>
+                c.term.toLowerCase().contains(q) ||
+                c.definition.toLowerCase().contains(q) ||
+                c.tags.any((t) => t.toLowerCase().contains(q)));
+          }).toList();
+
     return ListView(
       padding: const EdgeInsets.only(top: 12, bottom: 110),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
           child: HomeSectionHeader(
             title: l10n.todayTasks,
             trailing: Text(
@@ -521,7 +680,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                         borderRadius: BorderRadius.circular(999),
                         child: LinearProgressIndicator(
                           value: focusProgress,
-                          minHeight: 7,
+                          minHeight: 10,
                           backgroundColor: AppTheme.indigo.withValues(alpha: 0.12),
                           valueColor: AlwaysStoppedAnimation<Color>(AppTheme.indigo),
                         ),
@@ -634,6 +793,61 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
         Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 14),
+          child: SizedBox(
+            height: 120,
+            child: Row(
+              children: [
+                Expanded(
+                  child: HomeQuickActionTile(
+                    icon: dueCount > 0
+                        ? Icons.play_circle_fill_rounded
+                        : Icons.history_rounded,
+                    title: dueCount > 0
+                        ? l10n.reviewCards
+                        : (continueSet != null
+                            ? l10n.goTo
+                            : l10n.createBtn),
+                    subtitle: dueCount > 0
+                        ? l10n.nDueCards(dueCount)
+                        : (continueSet != null
+                            ? continueSet.title
+                            : l10n.importOrCreate),
+                    tint: AppTheme.indigo,
+                    onTap: dueCount > 0
+                        ? () => context.push('/review')
+                        : (continueSet != null
+                            ? () => context.push('/study/${continueSet.id}')
+                            : () => _showCreateOrImportSheet(context, ref)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HomeQuickActionTile(
+                    icon: Icons.search_rounded,
+                    title: l10n.search,
+                    subtitle: _homeSearchQuery.isEmpty
+                        ? l10n.searchCards
+                        : _homeSearchQuery,
+                    tint: AppTheme.cyan,
+                    onTap: () => setState(() => _isSearching = true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: HomeQuickActionTile(
+                    icon: Icons.add_box_rounded,
+                    title: l10n.createOrImportSet,
+                    subtitle: l10n.importOrCreate,
+                    tint: AppTheme.green,
+                    onTap: () => _showCreateOrImportSheet(context, ref),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: HomeSectionHeader(
             title: l10n.myStudySets,
@@ -644,7 +858,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '${sorted.length}',
+                '${searchFiltered.length}',
                 style: TextStyle(
                   color: AppTheme.indigo,
                   fontSize: 12,
@@ -654,26 +868,407 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
         ),
-        const FolderChips(),
-        const SizedBox(height: 10),
         const SortSelector(),
         const SizedBox(height: 8),
-          ...List<Widget>.generate(sorted.length, (index) {
-            final set = sorted[index];
+        // Folder section (inline)
+        _buildFolderSection(context, ref, l10n),
+          ...List<Widget>.generate(searchFiltered.length, (index) {
+            final set = searchFiltered[index];
+            final isSelected = _selectedSetIds.contains(set.id);
             return StaggeredFadeItem(
               index: index + 1,
               child: GestureDetector(
-                onLongPress: () => _showSetContextMenu(context, ref, set),
-                child: StudySetCard(
-                  studySet: set,
-                  onTap: () => context.push('/study/${set.id}'),
-                  onDelete: () => _confirmDelete(context, ref, set),
-                  onEdit: () => context.push('/edit/${set.id}'),
+                onLongPress: () {
+                  if (_isMultiSelectMode) return;
+                  setState(() {
+                    _isMultiSelectMode = true;
+                    _selectedSetIds.add(set.id);
+                  });
+                },
+                onTap: _isMultiSelectMode
+                    ? () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedSetIds.remove(set.id);
+                            if (_selectedSetIds.isEmpty) {
+                              _isMultiSelectMode = false;
+                            }
+                          } else {
+                            _selectedSetIds.add(set.id);
+                          }
+                        });
+                      }
+                    : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(vertical: 1),
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.indigo,
+                            width: 2,
+                          ),
+                        )
+                      : null,
+                  child: StudySetCard(
+                    studySet: set,
+                    onTap: _isMultiSelectMode
+                        ? null
+                        : () => context.push('/study/${set.id}'),
+                    onDelete: _isMultiSelectMode
+                        ? null
+                        : () => _confirmDelete(context, ref, set),
+                    onEdit: _isMultiSelectMode
+                        ? null
+                        : () => context.push('/edit/${set.id}'),
+                    onMore: _isMultiSelectMode
+                        ? null
+                        : () => _showSetContextMenu(context, ref, set),
+                  ),
                 ),
               ),
             );
           }),
+        if (searchFiltered.isEmpty) ...[
+          if (_homeSearchQuery.isNotEmpty)
+            // Search returned no results
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: AdaptiveGlassCard(
+                borderRadius: 14,
+                fillColor: Colors.white.withValues(alpha: 0.8),
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search_off_rounded,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        l10n.noResults,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (ref.watch(selectedFolderIdProvider) != null)
+            // Folder filter active but empty
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: AdaptiveGlassCard(
+                borderRadius: 14,
+                fillColor: Colors.white.withValues(alpha: 0.8),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_open_rounded,
+                      size: 36,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.folderEmpty,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () {
+                        ref.read(selectedFolderIdProvider.notifier).state = null;
+                      },
+                      icon: const Icon(Icons.clear_all_rounded, size: 18),
+                      label: Text(l10n.showAll),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildFolderSection(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    final folders = ref.watch(foldersProvider);
+    final selectedId = ref.watch(selectedFolderIdProvider);
+    final allSets = ref.watch(studySetsProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: SizedBox(
+        height: 38,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            // "All" chip
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _FolderChip(
+                label: l10n.all,
+                icon: Icons.apps_rounded,
+                color: AppTheme.indigo,
+                count: allSets.length,
+                isSelected: selectedId == null,
+                onTap: () =>
+                    ref.read(selectedFolderIdProvider.notifier).state = null,
+              ),
+            ),
+            // Folder chips
+            ...folders.map((folder) {
+              final color = Color(int.parse(folder.colorHex, radix: 16));
+              final setCount =
+                  allSets.where((s) => s.folderId == folder.id).length;
+              final isSelected = selectedId == folder.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _FolderChip(
+                  label: folder.name,
+                  icon: MaterialIconMapper.fromCodePoint(folder.iconCodePoint),
+                  color: color,
+                  count: setCount,
+                  isSelected: isSelected,
+                  onTap: () =>
+                      ref.read(selectedFolderIdProvider.notifier).state =
+                          isSelected ? null : folder.id,
+                  onLongPress: () =>
+                      _showFolderContextMenu(context, ref, l10n, folder),
+                ),
+              );
+            }),
+            // "+" add folder chip
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: ActionChip(
+                avatar: Icon(Icons.add_rounded, size: 16, color: Colors.grey[800]),
+                label: Text(
+                  l10n.newFolder,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+                onPressed: () => _showFolderDialog(context, ref, l10n),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFolderContextMenu(BuildContext context, WidgetRef ref, AppLocalizations l10n, Folder folder) {
+    final user = ref.read(currentUserProvider);
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.editFolder),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showFolderDialog(context, ref, l10n, folder: folder);
+              },
+            ),
+            if (user != null)
+              ListTile(
+                leading: const Icon(Icons.cloud_upload_rounded),
+                title: Text(l10n.communityPublish),
+                subtitle: Text(l10n.shareFolderToCommunity),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _publishFolder(context, ref, l10n, folder);
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: AppTheme.red),
+              title: Text(l10n.delete, style: TextStyle(color: AppTheme.red)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmDeleteFolder(context, ref, l10n, folder);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteFolder(BuildContext context, WidgetRef ref, AppLocalizations l10n, Folder folder) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteFolder),
+        content: Text(l10n.deleteFolderConfirm(folder.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(foldersProvider.notifier).remove(folder.id);
+              if (ref.read(selectedFolderIdProvider) == folder.id) {
+                ref.read(selectedFolderIdProvider.notifier).state = null;
+              }
+              Navigator.pop(ctx);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppTheme.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _publishFolder(BuildContext context, WidgetRef ref, AppLocalizations l10n, Folder folder) async {
+    // Get all sets in this folder
+    final setsInFolder = ref.read(studySetsProvider).where((s) => s.folderId == folder.id).toList();
+    if (setsInFolder.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.noStudySetsYet), behavior: SnackBarBehavior.floating),
+        );
+      }
+      return;
+    }
+    try {
+      final service = ref.read(communityServiceProvider);
+      for (final set in setsInFolder) {
+        await service.publishStudySet(set);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${l10n.communityPublished} (${setsInFolder.length})'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  void _showFolderDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n, {Folder? folder}) {
+    final nameController = TextEditingController(text: folder?.name ?? '');
+    final isEditing = folder != null;
+
+    final colorOptions = [
+      'FF6366F1', 'FF8B5CF6', 'FF3B82F6', 'FF06B6D4',
+      'FF10B981', 'FFF59E0B', 'FFEF4444', 'FFEC4899',
+    ];
+    final iconOptions = [0xe6c4, 0xe335, 0xe153, 0xeb7b, 0xe3c9, 0xee94, 0xf06c, 0xea22];
+
+    var selectedColor = folder?.colorHex ?? colorOptions[0];
+    var selectedIcon = folder?.iconCodePoint ?? iconOptions[0];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(isEditing ? l10n.editFolder : l10n.newFolder),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(labelText: l10n.folderName),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.color, style: Theme.of(ctx).textTheme.labelMedium),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: colorOptions.map((hex) {
+                    final color = Color(int.parse(hex, radix: 16));
+                    final isSelected = hex == selectedColor;
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedColor = hex),
+                      child: Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: color, shape: BoxShape.circle,
+                          border: isSelected ? Border.all(color: Theme.of(ctx).colorScheme.onSurface, width: 3) : null,
+                        ),
+                        child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                Text(l10n.icon, style: Theme.of(ctx).textTheme.labelMedium),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: iconOptions.map((codePoint) {
+                    final isSelected = codePoint == selectedIcon;
+                    final chipColor = Color(int.parse(selectedColor, radix: 16));
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedIcon = codePoint),
+                      child: Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: isSelected ? chipColor.withValues(alpha: 0.2) : Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                          border: isSelected ? Border.all(color: chipColor, width: 2) : null,
+                        ),
+                        child: Icon(MaterialIconMapper.fromCodePoint(codePoint), size: 22, color: isSelected ? chipColor : Theme.of(ctx).colorScheme.onSurface),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                final newFolder = Folder(
+                  id: folder?.id ?? const Uuid().v4(),
+                  name: name,
+                  colorHex: selectedColor,
+                  iconCodePoint: selectedIcon,
+                  createdAt: folder?.createdAt ?? DateTime.now().toUtc(),
+                );
+                if (isEditing) {
+                  ref.read(foldersProvider.notifier).update(newFolder);
+                } else {
+                  ref.read(foldersProvider.notifier).add(newFolder);
+                }
+                Navigator.pop(dialogContext);
+              },
+              child: Text(isEditing ? l10n.save : l10n.create),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -689,6 +1284,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(l10n.rename),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRenameDialog(context, ref, set);
+              },
+            ),
+            ListTile(
               leading: Icon(
                 set.isPinned
                     ? Icons.push_pin_rounded
@@ -700,15 +1303,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ref.read(studySetsProvider.notifier).togglePin(set.id);
               },
             ),
-            if (folders.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: Text(l10n.moveToFolder),
-                onTap: () {
-                  Navigator.pop(ctx);
+            ListTile(
+              leading: const Icon(Icons.drive_file_move_outlined),
+              title: Text(l10n.moveToFolder),
+              subtitle: set.folderId != null
+                  ? Text(
+                      folders
+                          .where((f) => f.id == set.folderId)
+                          .map((f) => f.name)
+                          .firstOrNull ??
+                          '',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    )
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                if (folders.isEmpty) {
+                  _showFolderDialog(context, ref, l10n);
+                } else {
                   _showMoveFolderDialog(context, ref, set);
-                },
-              ),
+                }
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.qr_code_rounded),
               title: Text(l10n.shareSet),
@@ -719,6 +1338,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRenameDialog(
+      BuildContext context, WidgetRef ref, StudySet set) {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(text: set.title);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.renameStudySet),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: l10n.title),
+          onSubmitted: (_) {
+            final newTitle = controller.text.trim();
+            if (newTitle.isNotEmpty && newTitle != set.title) {
+              ref
+                  .read(studySetsProvider.notifier)
+                  .update(set.copyWith(title: newTitle));
+            }
+            Navigator.pop(ctx);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newTitle = controller.text.trim();
+              if (newTitle.isNotEmpty && newTitle != set.title) {
+                ref
+                    .read(studySetsProvider.notifier)
+                    .update(set.copyWith(title: newTitle));
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text(l10n.save),
+          ),
+        ],
       ),
     );
   }
@@ -796,6 +1460,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               icon: CupertinoIcons.plus,
               iconColor: AppTheme.indigo,
               title: l10n.createNewSet,
+              subtitle: 'Blank set',
               onTap: () async {
                 Navigator.pop(sheetContext);
                 await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -807,6 +1472,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               icon: CupertinoIcons.globe,
               iconColor: AppTheme.purple,
               title: l10n.importFromRecall,
+              subtitle: 'Paste from website',
               onTap: () {
                 Navigator.pop(sheetContext);
                 screenContext.push('/import');
@@ -816,6 +1482,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               icon: CupertinoIcons.doc,
               iconColor: AppTheme.green,
               title: l10n.importFromFile,
+              subtitle: 'JSON / CSV',
               onTap: () {
                 Navigator.pop(sheetContext);
                 _importFromFile(screenContext, ref);
@@ -825,6 +1492,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               icon: CupertinoIcons.qrcode,
               iconColor: AppTheme.cyan,
               title: l10n.scanQr,
+              subtitle: 'Open scanner',
               onTap: () {
                 Navigator.pop(sheetContext);
                 screenContext.push('/scan');
@@ -834,6 +1502,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               icon: CupertinoIcons.camera,
               iconColor: AppTheme.orange,
               title: l10n.photoToFlashcard,
+              subtitle: 'Import with camera',
               onTap: () {
                 Navigator.pop(sheetContext);
                 final apiKey = ref.read(geminiKeyProvider);
@@ -889,49 +1558,99 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     WidgetRef ref,
   ) async {
     final l10n = AppLocalizations.of(screenContext);
+    final folders = ref.read(foldersProvider);
     var draftTitle = '';
     var draftDescription = '';
+    // Default to the currently selected folder filter
+    String? selectedFolderId = ref.read(selectedFolderIdProvider);
 
-    final result = await showDialog<Map<String, String>>(
+    final result = await showDialog<Map<String, String?>>(
       context: screenContext,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.newStudySet),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(labelText: l10n.title),
-                autofocus: true,
-                onChanged: (value) => draftTitle = value,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: l10n.descriptionOptional,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l10n.newStudySet),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: InputDecoration(labelText: l10n.title),
+                  autofocus: true,
+                  onChanged: (value) => draftTitle = value,
                 ),
-                onChanged: (value) => draftDescription = value,
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: l10n.descriptionOptional,
+                  ),
+                  onChanged: (value) => draftDescription = value,
+                ),
+                if (folders.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String?>(
+                    value: selectedFolderId,
+                    decoration: InputDecoration(
+                      labelText: l10n.folders,
+                      prefixIcon: Icon(
+                        Icons.folder_rounded,
+                        size: 20,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          l10n.noFolder,
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ),
+                      ...folders.map((folder) {
+                        final color =
+                            Color(int.parse(folder.colorHex, radix: 16));
+                        return DropdownMenuItem<String?>(
+                          value: folder.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                MaterialIconMapper.fromCodePoint(
+                                    folder.iconCodePoint),
+                                color: color,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(folder.name),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (v) =>
+                        setDialogState(() => selectedFolderId = v),
+                  ),
+                ],
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final trimmedTitle = draftTitle.trim();
+                if (trimmedTitle.isEmpty) return;
+                Navigator.pop(dialogContext, <String, String?>{
+                  'title': trimmedTitle,
+                  'description': draftDescription.trim(),
+                  'folderId': selectedFolderId,
+                });
+              },
+              child: Text(l10n.create),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final trimmedTitle = draftTitle.trim();
-              if (trimmedTitle.isEmpty) return;
-              Navigator.pop(dialogContext, <String, String>{
-                'title': trimmedTitle,
-                'description': draftDescription.trim(),
-              });
-            },
-            child: Text(l10n.create),
-          ),
-        ],
       ),
     );
 
@@ -940,6 +1659,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       id: const Uuid().v4(),
       title: result['title'] ?? '',
       description: result['description'] ?? '',
+      folderId: result['folderId'],
       createdAt: DateTime.now().toUtc(),
       cards: [],
     );
@@ -970,6 +1690,83 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             child: Text(l10n.delete),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FolderChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _FolderChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.14)
+              : Colors.white.withValues(alpha: 0.88),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.5)
+                : Colors.black.withValues(alpha: 0.15),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? color : Theme.of(context).colorScheme.outline),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? color : Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? color.withValues(alpha: 0.12)
+                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? color : Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

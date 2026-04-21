@@ -1166,14 +1166,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldPop = await _confirmDiscard();
-        if (shouldPop && mounted) context.pop();
+        if (shouldPop && mounted) {
+          if (context.mounted) context.pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
           leading: AppBackButton(
             onPressed: () async {
               final shouldPop = await _confirmDiscard();
-              if (shouldPop && mounted) context.pop();
+              if (shouldPop && mounted) {
+                if (context.mounted) context.pop();
+              }
             },
           ),
           title: Text(l10n.editCards),
@@ -1308,7 +1312,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 spacing: 8,
                 children: [
                   Text(
-                    '顯示 ${filteredIndices.isEmpty ? 0 : start + 1}-${end} / ${filteredIndices.length}（總共 ${_termControllers.length} 張）',
+                    '顯示 ${filteredIndices.isEmpty ? 0 : start + 1}-$end / ${filteredIndices.length}（總共 ${_termControllers.length} 張）',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                     ),

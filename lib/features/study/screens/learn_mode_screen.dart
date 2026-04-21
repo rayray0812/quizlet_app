@@ -1286,8 +1286,9 @@ class _LearnModeScreenState extends ConsumerState<LearnModeScreen> {
   }) {
     if (chapterProgress >= 0.85) return '準備收尾';
     if (_streak >= 5) return '手感很熱';
-    if (weakCount >= max(2, (_activeChapterIds.length / 3).round()))
+    if (weakCount >= max(2, (_activeChapterIds.length / 3).round())) {
       return '先穩基本盤';
+    }
     if (chapterProgress >= 0.4) return '漸入佳境';
     return '暖身起步';
   }

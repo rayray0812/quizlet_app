@@ -4,6 +4,7 @@ import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/classroom.dart';
 import 'package:recall_app/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class ClassroomService {
   final SupabaseService _supabaseService;
@@ -31,7 +32,7 @@ class ClassroomService {
 
     await client.from(SupabaseConstants.profilesTable).upsert({
       'user_id': userId,
-      'display_name': _supabaseService.currentUser?.email ?? '',
+      'display_name': _supabaseService.preferredDisplayName(),
       'role': 'student',
     });
     return 'student';
@@ -44,7 +45,7 @@ class ClassroomService {
     final normalized = role == 'teacher' ? 'teacher' : 'student';
     await client.from(SupabaseConstants.profilesTable).upsert({
       'user_id': userId,
-      'display_name': _supabaseService.currentUser?.email ?? '',
+      'display_name': _supabaseService.preferredDisplayName(),
       'role': normalized,
     });
   }
@@ -81,7 +82,9 @@ class ClassroomService {
 
     final byId = <String, Classroom>{};
     for (final row in [...teacherRows, ...studentRows]) {
-      final classroom = Classroom.fromMap(Map<String, dynamic>.from(row as Map));
+      final classroom = Classroom.fromMap(
+        Map<String, dynamic>.from(row as Map),
+      );
       byId[classroom.id] = classroom;
     }
 
@@ -111,20 +114,27 @@ class ClassroomService {
     final userId = _requireUserId();
     for (var attempt = 0; attempt < 5; attempt++) {
       final code = _generateInviteCode();
+      final classId = const Uuid().v4();
+      final now = DateTime.now().toUtc();
       try {
-        final rows = await client
-            .from(SupabaseConstants.classesTable)
-            .insert({
-              'teacher_id': userId,
-              'name': name.trim(),
-              'subject': subject.trim(),
-              'grade': grade.trim(),
-              'invite_code': code,
-            })
-            .select('*')
-            .limit(1);
-        return Classroom.fromMap(
-          Map<String, dynamic>.from((rows as List).first),
+        await client.from(SupabaseConstants.classesTable).insert({
+          'id': classId,
+          'teacher_id': userId,
+          'name': name.trim(),
+          'subject': subject.trim(),
+          'grade': grade.trim(),
+          'invite_code': code,
+        });
+        return Classroom(
+          id: classId,
+          teacherId: userId,
+          name: name.trim(),
+          subject: subject.trim(),
+          grade: grade.trim(),
+          inviteCode: code,
+          isArchived: false,
+          createdAt: now,
+          updatedAt: now,
         );
       } catch (_) {
         if (attempt == 4) rethrow;
@@ -183,7 +193,9 @@ class ClassroomService {
               .inFilter('user_id', studentIds);
     final profileMap = <String, String>{
       for (final row in profileRows)
-        (row['user_id'] as String? ?? ''): (row['display_name'] as String? ?? ''),
+        (row['user_id'] as String? ?? ''): _normalizeDisplayName(
+          row['display_name'] as String?,
+        ),
     };
 
     return rows.map((row) {
@@ -213,7 +225,9 @@ class ClassroomService {
         .eq('class_id', classId)
         .order('updated_at', ascending: false);
     return (rows as List)
-        .map((row) => ClassroomSet.fromMap(Map<String, dynamic>.from(row as Map)))
+        .map(
+          (row) => ClassroomSet.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
         .toList();
   }
 
@@ -236,7 +250,9 @@ class ClassroomService {
         })
         .select('*')
         .limit(1);
-    return ClassroomSet.fromMap(Map<String, dynamic>.from((rows as List).first));
+    return ClassroomSet.fromMap(
+      Map<String, dynamic>.from((rows as List).first),
+    );
   }
 
   Future<List<ClassroomAssignment>> fetchAssignments(String classId) async {
@@ -250,8 +266,9 @@ class ClassroomService {
         .order('published_at', ascending: false);
     final assignments = (assignmentRows as List)
         .map(
-          (row) =>
-              ClassroomAssignment.fromMap(Map<String, dynamic>.from(row as Map)),
+          (row) => ClassroomAssignment.fromMap(
+            Map<String, dynamic>.from(row as Map),
+          ),
         )
         .toList();
     if (assignments.isEmpty) return assignments;
@@ -420,7 +437,8 @@ class ClassroomService {
     return true;
   }
 
-  Future<List<ClassroomMatchLeaderboardEntry>> fetchMatchLeaderboardForLocalSetId(
+  Future<List<ClassroomMatchLeaderboardEntry>>
+  fetchMatchLeaderboardForLocalSetId(
     String localSetId, {
     int limit = 10,
   }) async {
@@ -438,7 +456,8 @@ class ClassroomService {
     );
   }
 
-  Future<List<ClassroomMatchLeaderboardEntry>> fetchMatchLeaderboardForAssignment({
+  Future<List<ClassroomMatchLeaderboardEntry>>
+  fetchMatchLeaderboardForAssignment({
     required String classId,
     required String assignmentId,
     int limit = 10,
@@ -469,7 +488,9 @@ class ClassroomService {
               .inFilter('user_id', studentIds);
     final displayNameById = <String, String>{
       for (final row in profileRows)
-        (row['user_id'] as String? ?? ''): (row['display_name'] as String? ?? ''),
+        (row['user_id'] as String? ?? ''): _normalizeDisplayName(
+          row['display_name'] as String?,
+        ),
     };
 
     return rows.map((row) {
@@ -479,7 +500,8 @@ class ClassroomService {
         assignmentId: map['assignment_id'] as String? ?? '',
         classId: map['class_id'] as String? ?? '',
         studentId: studentId,
-        studentDisplayName: displayNameById[studentId]?.trim().isNotEmpty == true
+        studentDisplayName:
+            displayNameById[studentId]?.trim().isNotEmpty == true
             ? displayNameById[studentId]!
             : studentId,
         bestTimeSeconds: (map['best_time_seconds'] as num?)?.toInt() ?? 0,
@@ -503,14 +525,13 @@ class ClassroomService {
       classSetId: context.classSetId,
     );
     if (assignmentId == null) return false;
-    await upsertMyProgress(
-      assignmentId: assignmentId,
-      status: 'in_progress',
-    );
+    await upsertMyProgress(assignmentId: assignmentId, status: 'in_progress');
     return true;
   }
 
-  Future<List<ClassroomProgressRow>> fetchClassProgressRows(String classId) async {
+  Future<List<ClassroomProgressRow>> fetchClassProgressRows(
+    String classId,
+  ) async {
     final client = _supabaseService.clientOrNull;
     if (client == null) return const [];
 
@@ -564,12 +585,15 @@ class ClassroomService {
     final rows = await fetchClassProgressRows(classId);
     final rowsByAssignment = <String, List<ClassroomProgressRow>>{};
     for (final row in rows) {
-      rowsByAssignment.putIfAbsent(row.assignmentId, () => <ClassroomProgressRow>[]).add(row);
+      rowsByAssignment
+          .putIfAbsent(row.assignmentId, () => <ClassroomProgressRow>[])
+          .add(row);
     }
 
     final reports = <ClassroomAssignmentReport>[];
     for (final assignment in assignments) {
-      final assignmentRows = rowsByAssignment[assignment.id] ?? const <ClassroomProgressRow>[];
+      final assignmentRows =
+          rowsByAssignment[assignment.id] ?? const <ClassroomProgressRow>[];
       var completed = 0;
       var inProgress = 0;
       final progressedStudents = <String>{};
@@ -610,7 +634,9 @@ class ClassroomService {
     final assignments = await fetchAssignments(classId);
     if (assignments.isEmpty) return const [];
     final members = await fetchClassMembers(classId);
-    final activeMembers = members.where((member) => member.status == 'active').toList();
+    final activeMembers = members
+        .where((member) => member.status == 'active')
+        .toList();
     if (activeMembers.isEmpty) return const [];
     final rows = await fetchClassProgressRows(classId);
     final rowByStudentAndAssignment = <String, ClassroomProgressRow>{};
@@ -627,7 +653,8 @@ class ClassroomService {
       var scoreCount = 0;
 
       for (final assignment in assignments) {
-        final row = rowByStudentAndAssignment['${member.studentId}:${assignment.id}'];
+        final row =
+            rowByStudentAndAssignment['${member.studentId}:${assignment.id}'];
         if (row == null) {
           notStarted++;
           continue;
@@ -741,8 +768,13 @@ class _LocalClassContext {
   final String classId;
   final String classSetId;
 
-  const _LocalClassContext({
-    required this.classId,
-    required this.classSetId,
-  });
+  const _LocalClassContext({required this.classId, required this.classSetId});
+}
+
+String _normalizeDisplayName(String? value) {
+  final trimmed = value?.trim() ?? '';
+  if (trimmed.isEmpty) return '';
+  if (!trimmed.contains('@')) return trimmed;
+  final localPart = trimmed.split('@').first.trim();
+  return localPart.isEmpty ? trimmed : localPart;
 }

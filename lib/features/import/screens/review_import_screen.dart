@@ -434,109 +434,111 @@ class _ReviewImportScreenState extends ConsumerState<ReviewImportScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.indigo.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_cards.length} cards',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.indigo,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.indigo.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_cards.length} cards',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.indigo,
+                      ),
                     ),
                   ),
-                ),
-                if (hasSmartCleanup) ...[
-                  const SizedBox(width: 8),
-                  if (_suspiciousCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.errorContainer.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '可疑 $_suspiciousCount',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
-                      ),
-                    ),
-                  if (_suspiciousCount > 0) const SizedBox(width: 8),
-                  if (mergeGroupCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.orange.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.orange.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: const Text(
-                        '可合併',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.orange,
-                        ),
-                      ),
-                    ),
-                  if (mergeGroupCount > 0) const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _runSmartCleanup,
-                    icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
-                    label: const Text('一鍵清理'),
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                  if (_suspiciousCount > 0) ...[
+                  if (hasSmartCleanup) ...[
                     const SizedBox(width: 8),
+                    if (_suspiciousCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.errorContainer.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '可疑 $_suspiciousCount',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    if (_suspiciousCount > 0) const SizedBox(width: 8),
+                    if (mergeGroupCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.orange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.orange.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: const Text(
+                          '可合併',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.orange,
+                          ),
+                        ),
+                      ),
+                    if (mergeGroupCount > 0) const SizedBox(width: 8),
                     OutlinedButton.icon(
-                      onPressed: () => setState(
-                        () => _showSuspiciousOnly = !_showSuspiciousOnly,
-                      ),
-                      icon: Icon(
-                        _showSuspiciousOnly
-                            ? Icons.visibility_off_outlined
-                            : Icons.filter_alt_outlined,
-                        size: 16,
-                      ),
-                      label: Text(_showSuspiciousOnly ? '顯示全部' : '只看可疑'),
+                      onPressed: _runSmartCleanup,
+                      icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
+                      label: const Text('一鍵清理'),
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      onPressed: _removeAllSuspicious,
-                      tooltip: '刪除全部可疑',
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        Icons.delete_sweep_rounded,
-                        color: Theme.of(context).colorScheme.error,
+                    if (_suspiciousCount > 0) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => setState(
+                          () => _showSuspiciousOnly = !_showSuspiciousOnly,
+                        ),
+                        icon: Icon(
+                          _showSuspiciousOnly
+                              ? Icons.visibility_off_outlined
+                              : Icons.filter_alt_outlined,
+                          size: 16,
+                        ),
+                        label: Text(_showSuspiciousOnly ? '顯示全部' : '只看可疑'),
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        onPressed: _removeAllSuspicious,
+                        tooltip: '刪除全部可疑',
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.delete_sweep_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
-                const Spacer(),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 8),

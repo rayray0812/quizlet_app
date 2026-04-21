@@ -10,12 +10,14 @@ import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/features/about/screens/about_screen.dart';
+import 'package:recall_app/features/about/screens/legal_document_screen.dart';
 import 'package:recall_app/features/admin/screens/admin_management_screen.dart';
 import 'package:recall_app/features/classroom/screens/class_detail_screen.dart';
 import 'package:recall_app/features/classroom/screens/class_student_detail_screen.dart';
 import 'package:recall_app/features/classroom/screens/classes_screen.dart';
 import 'package:recall_app/features/onboarding/screens/onboarding_screen.dart';
 import 'package:recall_app/features/home/screens/folder_management_screen.dart';
+import 'package:recall_app/features/home/screens/search_screen.dart';
 import 'package:recall_app/features/share/screens/share_screen.dart';
 import 'package:recall_app/features/share/screens/qr_scan_screen.dart';
 import 'package:recall_app/features/achievements/screens/achievements_screen.dart';
@@ -39,7 +41,8 @@ import 'package:recall_app/features/study/screens/revenge_detail_screen.dart';
 import 'package:recall_app/features/study/screens/revenge_quiz_screen.dart';
 import 'package:recall_app/features/study/screens/speaking_practice_screen.dart';
 import 'package:recall_app/features/stats/screens/stats_screen.dart';
-import 'package:recall_app/features/home/screens/search_screen.dart';
+import 'package:recall_app/features/community/screens/community_screen.dart';
+import 'package:recall_app/features/community/screens/user_profile_screen.dart';
 import 'package:recall_app/features/study/screens/custom_study_screen.dart';
 import 'package:recall_app/features/study/screens/conversation_setup_screen.dart';
 import 'package:recall_app/features/study/screens/conversation_practice_screen.dart';
@@ -215,6 +218,10 @@ GoRouter createAppRouter({
         builder: (context, state) => const FolderManagementScreen(),
       ),
       GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
         path: '/classes',
         builder: (context, state) => const ClassesScreen(),
       ),
@@ -254,8 +261,19 @@ GoRouter createAppRouter({
           GoRoute(
             path: ':transcriptId',
             builder: (context, state) {
-              final transcript =
-                  state.extra as ConversationTranscript?;
+              var transcript = state.extra as ConversationTranscript?;
+              if (transcript == null) {
+                final id = state.pathParameters['transcriptId'] ?? '';
+                final raw = Hive.box(AppConstants.hiveSettingsBox)
+                    .get('conversation_transcripts') as String?;
+                if (raw != null && raw.isNotEmpty) {
+                  final all = ConversationTranscript.decodeList(raw);
+                  transcript = all.cast<ConversationTranscript?>().firstWhere(
+                    (t) => t!.id == id,
+                    orElse: () => null,
+                  );
+                }
+              }
               if (transcript == null) {
                 return const Scaffold(
                   body: Center(child: Text('Transcript not found')),
@@ -366,6 +384,21 @@ GoRouter createAppRouter({
         builder: (context, state) => const ProfileEditScreen(),
       ),
       GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
+      GoRoute(
+        path: '/about/privacy',
+        builder: (context, state) =>
+            const LegalDocumentScreen(type: LegalDocType.privacy),
+      ),
+      GoRoute(
+        path: '/about/terms',
+        builder: (context, state) =>
+            const LegalDocumentScreen(type: LegalDocType.terms),
+      ),
+      GoRoute(
+        path: '/about/youth',
+        builder: (context, state) =>
+            const LegalDocumentScreen(type: LegalDocType.youth),
+      ),
       GoRoute(path: '/stats', builder: (context, state) => const StatsScreen()),
       GoRoute(
         path: '/admin',
@@ -377,8 +410,15 @@ GoRouter createAppRouter({
         builder: (context, state) => const AdminManagementScreen(),
       ),
       GoRoute(
-        path: '/search',
-        builder: (context, state) => const SearchScreen(),
+        path: '/community',
+        builder: (context, state) => const CommunityScreen(),
+      ),
+      GoRoute(
+        path: '/profile/:userId',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          return UserProfileScreen(userId: userId);
+        },
       ),
       GoRoute(
         path: '/speaking/:setId',
@@ -419,10 +459,12 @@ GoRouter createAppRouter({
                   final data = extractMapExtra(state.extra);
                   final turns = data['turns'] as int? ?? 5;
                   final difficulty = data['difficulty'] as String? ?? 'medium';
+                  final scenarioId = data['scenarioId'] as String?;
                   return ConversationPracticeScreen(
                     setId: setId,
                     turns: turns,
                     difficulty: difficulty,
+                    scenarioId: scenarioId,
                   );
                 },
                 routes: [

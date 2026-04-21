@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:recall_app/app.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
@@ -71,9 +72,7 @@ Future<Uint8List?> _getOrCreateEncryptionKey() async {
   }
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
+Future<void> _bootstrap() async {
   // Initialize Hive
   await Hive.initFlutter();
   Hive.registerAdapter(StudySetAdapter());
@@ -169,8 +168,8 @@ void main() async {
   if (SupabaseConstants.isConfigured) {
     try {
       await Supabase.initialize(
-        url: SupabaseConstants.supabaseUrl,
-        anonKey: SupabaseConstants.supabaseAnonKey,
+        url: SupabaseConstants.resolvedSupabaseUrl,
+        anonKey: SupabaseConstants.resolvedSupabaseAnonKey,
       );
     } catch (e) {
       debugPrint('Supabase init failed (offline mode): $e');
@@ -189,4 +188,25 @@ void main() async {
       child: const RecallApp(),
     ),
   );
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  const sentryDsn = String.fromEnvironment('SENTRY_DSN');
+  if (sentryDsn.isNotEmpty && !kDebugMode) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = sentryDsn;
+        options.environment = kReleaseMode ? 'production' : 'profile';
+        options.release = 'recall@${AppConstants.appVersion}';
+        options.tracesSampleRate = 0.2;
+        options.attachScreenshot = false;
+        options.sendDefaultPii = false;
+      },
+      appRunner: _bootstrap,
+    );
+  } else {
+    await _bootstrap();
+  }
 }

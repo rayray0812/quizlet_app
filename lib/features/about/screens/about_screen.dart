@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
@@ -188,8 +189,121 @@ class AboutScreen extends StatelessWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: 28),
+
+          // -- Legal section --
+          Container(
+            decoration: AppTheme.softCardDecoration(
+              fillColor: Colors.white,
+              borderRadius: 14,
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.gavel_rounded,
+                        size: 18,
+                        color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.legalSectionTitle,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _LegalTile(
+                  icon: Icons.privacy_tip_rounded,
+                  label: l10n.privacyPolicy,
+                  onTap: () => context.push('/about/privacy'),
+                ),
+                _LegalTile(
+                  icon: Icons.description_rounded,
+                  label: l10n.termsOfService,
+                  onTap: () => context.push('/about/terms'),
+                ),
+                _LegalTile(
+                  icon: Icons.child_care_rounded,
+                  label: l10n.youthProtectionNotice,
+                  onTap: () => context.push('/about/youth'),
+                ),
+                _LegalTile(
+                  icon: Icons.code_rounded,
+                  label: l10n.openSourceLicenses,
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: AppConstants.appName,
+                    applicationVersion: AppConstants.appVersion,
+                  ),
+                  showDivider: false,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _LegalTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  const _LegalTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.showDivider = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: theme.colorScheme.outline),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: theme.colorScheme.outline,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            indent: 52,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+      ],
     );
   }
 }

@@ -14,6 +14,10 @@
   static const String settingDeletedStudySetIdsKey = 'deleted_study_set_ids';
   static const String settingDeletedFolderIdsKey = 'deleted_folder_ids';
   static const String settingTtsEngineKey = 'tts_engine';
+  static const String settingCommunityFriendIdsKey = 'community_friend_ids';
+  static const String settingConversationMutedKey = 'conversation_muted';
+  static const String settingGemmaLocalModelPathKey =
+      'gemma_local_model_path';
 
   static const int maxCardsPerSet = 2000;
   static const int defaultNewCardsPerDay = 20;

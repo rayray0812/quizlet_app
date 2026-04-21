@@ -13,6 +13,7 @@ import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/features/study/widgets/quiz_option_tile.dart';
 import 'package:recall_app/features/study/widgets/text_input_question.dart';
 import 'package:recall_app/features/study/widgets/true_false_question.dart';
+import 'package:recall_app/features/study/utils/part_of_speech.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
 import 'package:recall_app/core/theme/app_theme.dart';
@@ -300,11 +301,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         final isCorrect = _random.nextBool();
         String shownDef;
         if (isCorrect) {
-          shownDef = reversed ? card.term : card.definition;
+          shownDef = _stripPos(reversed ? card.term : card.definition);
         } else {
           final others = _allCards.where((c) => c.id != card.id).toList();
           others.shuffle(_random);
-          shownDef = reversed ? others.first.term : others.first.definition;
+          shownDef = _stripPos(reversed ? others.first.term : others.first.definition);
         }
         return QuizQuestion(
           card: card,
@@ -477,7 +478,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   String _getPrompt(QuizQuestion q) =>
       q.reversed ? q.card.definition : q.card.term;
   String _getAnswer(QuizQuestion q) =>
-      q.reversed ? q.card.term : q.card.definition;
+      _stripPos(q.reversed ? q.card.term : q.card.definition);
+
+  /// Strips common part-of-speech prefixes from text.
+  /// e.g. "(n.) 蘋果" → "蘋果", "adj. 快樂的" → "快樂的"
+  static final _posPattern = RegExp(
+    r'^\s*\(?\s*(?:n|v|vt|vi|adj|adv|prep|conj|pron|int|det|aux|abbr|pl)\s*\.?\s*\)?\s*',
+    caseSensitive: false,
+  );
+  String _stripPos(String text) {
+    final stripped = text.replaceFirst(_posPattern, '').trim();
+    return stripped.isEmpty ? text.trim() : stripped;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -626,9 +638,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     }
   }
 
+  Widget _buildPosChips(List<String> posTags) {
+    if (posTags.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 6,
+        children: posTags.map((tag) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppTheme.indigo.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            tag,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.indigo,
+            ),
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
   Widget _buildMultipleChoice(QuizQuestion question, AppLocalizations l10n) {
     final correctIndex = _allCards.indexOf(question.card);
     final prompt = _getPrompt(question);
+    final posTags = extractPartOfSpeechTags(question.card.tags);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -646,6 +684,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             context,
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
+        _buildPosChips(posTags),
         const SizedBox(height: 32),
         ...List.generate(4, (i) {
           final optionCardIndex = question.optionIndices[i];
@@ -660,10 +699,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             }
           }
 
-          // Show answer side (definition or term) as option text
-          final optionText = question.reversed
+          // Show answer side (definition or term) as option text, strip POS
+          final optionText = _stripPos(question.reversed
               ? optionCard.term
-              : optionCard.definition;
+              : optionCard.definition);
 
           return QuizOptionTile(
             text: optionText,
@@ -680,6 +719,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Widget _buildTextInput(QuizQuestion question, AppLocalizations l10n) {
     final prompt = _getPrompt(question);
     final answer = _getAnswer(question);
+    final posTags = extractPartOfSpeechTags(question.card.tags);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -690,6 +730,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             color: Theme.of(context).colorScheme.outline,
           ),
         ),
+        _buildPosChips(posTags),
         const SizedBox(height: 16),
         TextInputQuestion(
           key: ValueKey('text_${question.card.id}_$_currentIndex'),
@@ -704,13 +745,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Widget _buildTrueFalse(QuizQuestion question) {
     final prompt = _getPrompt(question);
+    final posTags = extractPartOfSpeechTags(question.card.tags);
 
-    return TrueFalseQuestion(
-      key: ValueKey('tf_${question.card.id}_$_currentIndex'),
-      term: prompt,
-      shownDefinition: question.shownDefinition,
-      isCorrectPair: question.isCorrectPair,
-      onAnswered: _onTrueFalseAnswered,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildPosChips(posTags),
+        if (posTags.isNotEmpty) const SizedBox(height: 8),
+        TrueFalseQuestion(
+          key: ValueKey('tf_${question.card.id}_$_currentIndex'),
+          term: prompt,
+          shownDefinition: question.shownDefinition,
+          isCorrectPair: question.isCorrectPair,
+          onAnswered: _onTrueFalseAnswered,
+        ),
+      ],
     );
   }
 }

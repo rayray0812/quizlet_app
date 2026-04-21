@@ -1,5 +1,6 @@
 ﻿import 'dart:typed_data';
 import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
@@ -16,24 +17,39 @@ import 'package:recall_app/providers/ai_provider_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/services/gemini_service.dart';
 import 'package:recall_app/services/groq_vision_service.dart';
+import 'package:recall_app/services/on_device_ai_service.dart';
 import 'package:recall_app/services/ocr_parser_service.dart';
 import 'package:recall_app/services/ocr_service.dart';
 
 String activeAiProviderLabel(AiProvider provider) {
-  return provider == AiProvider.groq ? 'Groq' : 'Gemini';
+  return switch (provider) {
+    AiProvider.groq => 'Groq',
+    AiProvider.gemma => 'Gemma',
+    AiProvider.gemini => 'Gemini',
+  };
 }
 
 String missingApiKeyMessageForProvider(
   AiProvider provider,
   AppLocalizations l10n,
 ) {
-  return provider == AiProvider.groq ? 'Groq API Key is not set.' : l10n.geminiApiKeyNotSet;
+  return switch (provider) {
+    AiProvider.groq => 'Groq API Key is not set.',
+    AiProvider.gemma =>
+      'Gemma endpoint or on-device model is not ready for this mode.',
+    AiProvider.gemini => l10n.geminiApiKeyNotSet,
+  };
 }
 
 String authErrorMessageForProvider(AiProvider provider) {
-  return provider == AiProvider.groq
-      ? 'API authentication failed. Please check your Groq API Key.'
-      : 'API authentication failed. Please check your Gemini API key.';
+  return switch (provider) {
+    AiProvider.groq =>
+      'API authentication failed. Please check your Groq API Key.',
+    AiProvider.gemma =>
+      'API authentication failed. Please check your Gemma API key.',
+    AiProvider.gemini =>
+      'API authentication failed. Please check your Gemini API key.',
+  };
 }
 
 class PhotoImportScreen extends ConsumerStatefulWidget {
@@ -47,9 +63,12 @@ enum _Stage { pickImage, pickMode, analyzing }
 
 class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     with SingleTickerProviderStateMixin {
+  static const Duration _aiExtractTimeout = Duration(seconds: 18);
+
   final _picker = ImagePicker();
   Uint8List? _imageBytes;
   String _mimeType = 'image/jpeg';
+  String? _imagePath;
   _Stage _stage = _Stage.pickImage;
   bool _cancelled = false;
   OcrResult? _ocrResult;
@@ -63,8 +82,8 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
         .trim()
         .toLowerCase()
         .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll(RegExp(r'^[\-\??Ⅹ愧d\.\)\(]+'), '')
-        .replaceAll(RegExp(r'[\s:嚗?嚗?.嚗+$'), '');
+        .replaceAll(RegExp(r'^[\s\-\.\)\(:;,_]+'), '')
+        .replaceAll(RegExp(r'[\s\-\.\)\(:;,_]+$'), '');
     return s;
   }
 
@@ -172,42 +191,53 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     final mime = picked.mimeType ?? 'image/jpeg';
 
     if (!mounted) return;
-
-    // Run on-device OCR for offline parsing + hybrid accuracy boost.
-    OcrResult? ocrResult;
-    try {
-      ocrResult = await OcrService.recognizeFromPath(picked.path);
-      if (kDebugMode && ocrResult != null) {
-        debugPrint(
-          'OCR pre-scan: ${ocrResult.lineCount} lines, '
-          '${ocrResult.blockCount} blocks, '
-          '${ocrResult.fullText.length} chars',
-        );
-      }
-    } catch (e) {
-      debugPrint('OCR pre-scan skipped: $e');
-    }
-
-    if (!mounted) return;
     setState(() {
       _imageBytes = bytes;
       _mimeType = mime;
-      _ocrResult = ocrResult;
+      _imagePath = picked.path;
+      _ocrResult = null;
       _stage = _Stage.pickMode;
     });
   }
 
+  Future<OcrResult?> _ensureOcrResult() async {
+    if (_ocrResult != null) return _ocrResult;
+    final imagePath = _imagePath;
+    if (imagePath == null || imagePath.isEmpty) return null;
+    try {
+      final result = await OcrService.recognizeFromPath(imagePath);
+      if (kDebugMode && result != null) {
+        debugPrint(
+          'OCR scan: ${result.lineCount} lines, '
+          '${result.blockCount} blocks, '
+          '${result.fullText.length} chars',
+        );
+      }
+      _ocrResult = result;
+      return result;
+    } catch (e) {
+      debugPrint('OCR scan skipped: $e');
+      return null;
+    }
+  }
+
   /// Call the selected AI provider's extractFlashcards method.
   ///
-  /// For Groq: prefers **text-only mode** (OCR text ??AI formatting) when
-  /// sufficient OCR text is available. This is faster, cheaper, and more
-  /// accurate than sending the image to Vision API. Falls back to Vision
-  /// only when OCR text is insufficient.
+  /// For Gemma (local model):
+  ///   - Vocabulary mode: try OCR parser first (fast, deterministic), then
+  ///     enhance with Gemma if OCR parser yields too few results.
+  ///   - Textbook mode: use Gemma with simplified textbook prompt.
+  ///
+  /// For Groq: prefers text-only mode (OCR text + AI formatting) when
+  /// sufficient OCR text is available. Falls back to Vision API.
   Future<List<Map<String, String>>> _callAiExtract({
     required String apiKey,
     required PhotoScanMode mode,
   }) async {
     final provider = ref.read(aiProviderProvider);
+    if (provider == AiProvider.gemma) {
+      return _callGemmaExtract(mode);
+    }
     if (provider == AiProvider.groq) {
       // Prefer text-only mode: OCR reads, AI formats.
       final ocrText = _ocrResult?.fullText;
@@ -233,6 +263,16 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
         ocrHintText: ocrText,
       );
     }
+    final ocrText = _ocrResult?.fullText;
+    if (mode == PhotoScanMode.vocabularyList &&
+        ocrText != null &&
+        ocrText.trim().length >= 20) {
+      return GeminiService.extractFlashcardsFromText(
+        apiKey: apiKey,
+        ocrText: ocrText,
+        mode: mode,
+      );
+    }
     return GeminiService.extractFlashcards(
       apiKey: apiKey,
       imageBytes: _imageBytes!,
@@ -241,16 +281,106 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     );
   }
 
+  /// Gemma-specific extraction with hybrid OCR parser + local model strategy.
+  ///
+  /// Vocabulary mode:
+  ///   1. Try OCR spatial parser first (fast, deterministic, no AI)
+  ///   2. If OCR parser gives < 3 results, try Gemma local model
+  ///   3. Return whichever source found more results
+  ///
+  /// Textbook mode:
+  ///   1. Use Gemma directly with textbook prompt
+  Future<List<Map<String, String>>> _callGemmaExtract(PhotoScanMode mode) async {
+    final ocrResult = _ocrResult;
+    if (ocrResult == null) {
+      throw ScanException(
+        ScanFailureReason.invalidRequest,
+        'Gemma requires OCR results from the captured image.',
+      );
+    }
+
+    final modelPath = ref.read(gemmaLocalModelPathProvider);
+
+    if (mode == PhotoScanMode.textbookPage) {
+      return OnDeviceAiService.extractTextbookFlashcards(
+        modelPath: modelPath,
+        ocrResult: ocrResult,
+      );
+    }
+
+    // --- Vocabulary mode: hybrid OCR parser + Gemma ---
+
+    // Step 1: Try OCR spatial parser (fast, deterministic).
+    final ocrParsed = _tryOcrOnlyParse();
+    if (kDebugMode) {
+      debugPrint('Gemma hybrid: OCR parser found ${ocrParsed.length} pairs');
+    }
+
+    // Step 2: If OCR parser found enough, use those directly.
+    if (ocrParsed.length >= 3) {
+      if (kDebugMode) {
+        debugPrint('Gemma hybrid: OCR parser sufficient, skipping local model');
+      }
+      return ocrParsed;
+    }
+
+    // Step 2.5: Language-aware alternating-line parse (no AI needed).
+    // Handles the most common Taiwan vocab-book format: English line → Chinese line.
+    // Deterministic and immune to meaning-drift — skip Gemma entirely when found.
+    final altParsed = OcrParserService.parseAlternatingLines(ocrResult);
+    if (altParsed.length >= 2) {
+      if (kDebugMode) {
+        debugPrint(
+          'Gemma hybrid: alternating-lang OCR found ${altParsed.length} pairs, skipping local model',
+        );
+      }
+      return altParsed;
+    }
+
+    // Step 3: OCR parser insufficient — try Gemma local model.
+    List<Map<String, String>> gemmaResults = [];
+    try {
+      gemmaResults = await OnDeviceAiService.extractFlashcards(
+        modelPath: modelPath,
+        ocrResult: ocrResult,
+      );
+      if (kDebugMode) {
+        debugPrint('Gemma hybrid: local model found ${gemmaResults.length} pairs');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Gemma hybrid: local model failed: $e');
+      }
+      // If we have OCR results, use them; otherwise rethrow.
+      if (ocrParsed.isNotEmpty) return ocrParsed;
+      rethrow;
+    }
+
+    // Step 4: Return whichever found more results.
+    if (ocrParsed.isEmpty) return gemmaResults;
+    if (gemmaResults.isEmpty) return ocrParsed;
+    if (gemmaResults.length > ocrParsed.length) return gemmaResults;
+    return ocrParsed;
+  }
+
   /// Get the active API key based on the selected AI provider.
   String _activeApiKey() {
     final provider = ref.read(aiProviderProvider);
     if (provider == AiProvider.groq) {
       return ref.read(groqKeyProvider);
     }
+    // Gemma uses local model, no API key needed.
+    if (provider == AiProvider.gemma) return '';
     return ref.read(geminiKeyProvider);
   }
 
-  bool _hasActiveApiKey() => _activeApiKey().isNotEmpty;
+  bool _canUseAiForMode(PhotoScanMode mode) {
+    final provider = ref.read(aiProviderProvider);
+    if (provider == AiProvider.gemma) {
+      return ref.read(gemmaLocalModelPathProvider).trim().isNotEmpty;
+    }
+    return _activeApiKey().isNotEmpty;
+  }
 
   String _missingApiKeyMessage(AppLocalizations l10n) {
     return missingApiKeyMessageForProvider(ref.read(aiProviderProvider), l10n);
@@ -263,10 +393,10 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   Future<void> _analyze(PhotoScanMode mode) async {
     final l10n = AppLocalizations.of(context);
     final apiKey = _activeApiKey();
-    final hasApiKey = apiKey.isNotEmpty;
+    final canUseAi = _canUseAiForMode(mode);
 
     // Textbook mode always requires AI.
-    if (mode == PhotoScanMode.textbookPage && !hasApiKey) {
+    if (mode == PhotoScanMode.textbookPage && !canUseAi) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_missingApiKeyMessage(l10n))),
       );
@@ -279,58 +409,51 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     setState(() => _stage = _Stage.analyzing);
 
     try {
+      await _ensureOcrResult();
+
       List<Map<String, String>> results;
       var usedOcrOnly = false;
 
       if (mode == PhotoScanMode.vocabularyList) {
-        // --- Vocabulary list: try OCR-only first, then AI ---
-        results = _tryOcrOnlyParse();
+        // --- Vocabulary list: AI-first, OCR parser as fallback ---
+        results = const <Map<String, String>>[];
 
-        if (results.length >= 2 && !hasApiKey) {
-          // OCR-only succeeded and no API key ??use these results.
-          usedOcrOnly = true;
-        } else if (hasApiKey) {
-          // API key available ??try AI for better results.
+        if (canUseAi) {
           try {
-            final aiResults = await _callAiExtract(
+            results = await _callAiExtract(
               apiKey: apiKey,
               mode: mode,
-            );
-            // Use AI results if they're better than OCR-only.
-            if (aiResults.length >= results.length) {
-              results = aiResults;
-            } else {
-              usedOcrOnly = true;
-            }
+            ).timeout(_aiExtractTimeout);
           } on ScanException catch (e) {
-            // API failed ??fall back to OCR-only results.
-            if (results.length >= 2) {
-              usedOcrOnly = true;
-              if (kDebugMode) {
-                debugPrint('AI failed, using OCR-only: ${e.message}');
-              }
-            } else {
-              // Both OCR and API failed.
-              rethrow;
+            if (kDebugMode) {
+              debugPrint('AI extract failed, falling back to OCR parser: ${e.message}');
+            }
+          } on TimeoutException {
+            if (kDebugMode) {
+              debugPrint('AI extract timed out, falling back to OCR parser');
             }
           }
-        } else if (results.isEmpty) {
-          // No API key and OCR found nothing.
+        }
+
+        if (results.isEmpty) {
+          results = _tryOcrOnlyParse();
+          usedOcrOnly = results.isNotEmpty;
+        }
+
+        if (results.isEmpty) {
           if (!mounted || _cancelled) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.noCardsExtracted)),
           );
           setState(() => _stage = _Stage.pickMode);
           return;
-        } else {
-          usedOcrOnly = true;
         }
       } else {
         // --- Textbook mode: always use AI ---
         results = await _callAiExtract(
           apiKey: apiKey,
           mode: mode,
-        );
+        ).timeout(_aiExtractTimeout);
       }
 
       if (!mounted || _cancelled) return;
@@ -361,6 +484,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
         _accumulatedCards.addAll(cards);
         _photoCount++;
         _imageBytes = null;
+        _imagePath = null;
         _ocrResult = null;
         _stage = _Stage.pickImage;
       });
@@ -441,6 +565,7 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   void _reset() {
     setState(() {
       _imageBytes = null;
+      _imagePath = null;
       _ocrResult = null;
       _stage = _Stage.pickImage;
     });
@@ -480,9 +605,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
   }
 
   Future<void> _showScanModeBottomSheet(AppLocalizations l10n) async {
-    final hasApiKey = _hasActiveApiKey();
     final provider = ref.read(aiProviderProvider);
     final providerLabel = activeAiProviderLabel(provider);
+    final canUseVocabularyAi = _canUseAiForMode(PhotoScanMode.vocabularyList);
+    final canUseTextbookAi = _canUseAiForMode(PhotoScanMode.textbookPage);
+    final gemmaUsesOnDevice = provider == AiProvider.gemma;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -527,8 +654,10 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                         icon: Icons.list_alt_rounded,
                         iconColor: AppTheme.indigo,
                         title: l10n.vocabularyList,
-                        description: hasApiKey
-                            ? l10n.vocabularyListDesc
+                        description: canUseVocabularyAi
+                            ? gemmaUsesOnDevice
+                                  ? '${l10n.vocabularyListDesc}\n\u2705 Gemma \u672c\u5730 beta \u6703\u5148\u5617\u8a66\uff0c\u5931\u6557\u6642\u56de\u9000 OCR'
+                                  : l10n.vocabularyListDesc
                             : '${l10n.vocabularyListDesc}\n\u2705 \u96e2\u7dda OCR \u53ef\u7528\uff0c\u4e0d\u9700 API Key',
                         onTap: () {
                           Navigator.pop(sheetContext);
@@ -540,9 +669,11 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                       child: _ModeCard(
                         icon: Icons.menu_book_rounded,
-                        iconColor: hasApiKey ? AppTheme.purple : Colors.grey,
+                        iconColor: canUseTextbookAi
+                            ? AppTheme.purple
+                            : Colors.grey,
                         title: l10n.textbookPage,
-                        description: hasApiKey
+                        description: canUseTextbookAi
                             ? l10n.textbookPageDesc
                             : '${l10n.textbookPageDesc}\n\ud83d\udd12 \u9700\u8981 $providerLabel API Key',
                         onTap: () {

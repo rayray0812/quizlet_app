@@ -1,0 +1,152 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quizlet Batch Importer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Local Tool</p>
+        <h1>Quizlet Batch Importer</h1>
+        <p class="intro">
+          改成更穩的流程：在 Quizlet 頁面點書籤腳本，把單字集複製到剪貼簿；回到本機網站後按一下就加入。
+        </p>
+      </section>
+
+      <section class="panel two-column">
+        <div>
+          <h2>1. 貼上 Quizlet 連結</h2>
+          <textarea
+            id="urlInput"
+            placeholder="一行一個 Quizlet 連結&#10;https://quizlet.com/tw/123456789/example-set-flash-cards/"
+          ></textarea>
+          <div class="row">
+            <button id="addUrlsButton" class="primary">加入清單</button>
+            <button id="openNextButton" class="ghost">Open next</button>
+            <button id="clearQueueButton" class="ghost">清空連結</button>
+          </div>
+        </div>
+
+        <div>
+          <h2>2. 建立書籤腳本</h2>
+          <p class="hint">
+            把下面這顆拖到瀏覽器書籤列。在 Quizlet 單字集頁面點它，會直接把擷取結果複製到剪貼簿。
+          </p>
+          <a id="bookmarkletLink" class="bookmarklet" href="#">Quizlet -&gt; Clipboard</a>
+          <button id="copyBookmarkletButton" class="ghost">複製書籤腳本</button>
+          <p class="hint">
+            回到本頁後，按「從剪貼簿加入」即可，不再需要跳頁或連 localhost。
+          </p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>3. 匯入剛剛擷取的內容</h2>
+            <p class="hint">如果瀏覽器不允許書籤腳本直接寫入剪貼簿，也可以把它跳出的內容手動貼到下方。</p>
+          </div>
+        </div>
+        <div class="row">
+          <button id="importClipboardButton" class="primary">從剪貼簿加入</button>
+          <button id="clearCaptureInputButton" class="ghost">清空貼上區</button>
+        </div>
+        <textarea
+          id="captureInput"
+          placeholder="若書籤腳本顯示一大串資料，貼到這裡後按從剪貼簿加入，或直接把剪貼簿內容貼進來"
+        ></textarea>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>待處理連結</h2>
+            <p class="hint">開啟 Quizlet 頁面後，必要時手動通過 Cloudflare，再點書籤腳本。</p>
+          </div>
+          <span id="queueCount" class="badge">0 links</span>
+        </div>
+        <div id="queueList" class="stack"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>已擷取單字集</h2>
+            <p class="hint">可勾選後合併，也可批量把每個單字集各自輸出成一個 JSON。</p>
+          </div>
+          <span id="capturedCount" class="badge">0 sets</span>
+        </div>
+        <div class="toolbar">
+          <button id="selectAllButton" class="ghost">全選</button>
+          <button id="downloadSelectedSinglesButton" class="ghost">批量下載各自 JSON</button>
+          <button id="clearCapturedButton" class="ghost danger">清空已擷取</button>
+        </div>
+        <div id="capturedList" class="stack"></div>
+      </section>
+
+      <section class="panel export-panel">
+        <div>
+          <h2>匯出 Recall JSON</h2>
+          <p class="hint">輸出格式會對齊 app 目前的 JSON 匯入格式：`title`、`description`、`cards`。</p>
+        </div>
+        <label>
+          合併後標題
+          <input id="mergeTitleInput" type="text" placeholder="例如：三月英文單字總整理" />
+        </label>
+        <label>
+          描述
+          <input id="mergeDescriptionInput" type="text" placeholder="可留空" />
+        </label>
+        <label class="checkbox-row">
+          <input id="dedupeCheckbox" type="checkbox" checked />
+          <span>合併時移除重複卡片，term + definition 相同就視為重複</span>
+        </label>
+        <div class="row">
+          <button id="downloadMergedButton" class="primary">下載合併 JSON</button>
+          <button id="copyMergedJsonButton" class="ghost">複製合併 JSON</button>
+        </div>
+        <pre id="exportPreview" class="preview">尚未產生 JSON</pre>
+      </section>
+    </main>
+
+    <template id="queueItemTemplate">
+      <article class="card-item">
+        <div class="card-main">
+          <div class="card-title-line">
+            <strong class="queue-label"></strong>
+            <span class="status-pill"></span>
+          </div>
+          <a class="queue-url" href="" target="_blank" rel="noreferrer"></a>
+        </div>
+        <div class="actions">
+          <button class="ghost open-link-button">Open</button>
+          <button class="ghost remove-link-button">移除</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="capturedItemTemplate">
+      <article class="card-item">
+        <label class="check-main">
+          <input class="select-set-checkbox" type="checkbox" />
+          <div class="card-main">
+            <div class="card-title-line">
+              <strong class="captured-title"></strong>
+              <span class="captured-count"></span>
+            </div>
+            <a class="captured-url" href="" target="_blank" rel="noreferrer"></a>
+          </div>
+        </label>
+        <div class="actions">
+          <button class="ghost download-single-button">單獨下載</button>
+          <button class="ghost remove-set-button">移除</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

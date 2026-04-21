@@ -4,22 +4,31 @@ import 'package:google_fonts/google_fonts.dart';
 class DS {
   const DS._();
 
-  // Stitch-inspired palette
-  static const Color primary = Color(0xFF8F9876);
-  static const Color bgLight = Color(0xFFFDFBF7);
-  static const Color bgDark = Color(0xFF1A1A18);
-  static const Color text1 = Color(0xFF151514);
-  static const Color text2 = Color(0xFF777972);
-  static const Color border = Color(0xFFE5E1D8);
+  // ── Spacing scale ──
+  static const double s4 = 4.0;
+  static const double s8 = 8.0;
+  static const double s12 = 12.0;
+  static const double s16 = 16.0;
+  static const double s24 = 24.0;
+  static const double s32 = 32.0;
 
-  // Radius
+  /// Standard horizontal page padding.
+  static const EdgeInsets pagePadding =
+      EdgeInsets.symmetric(horizontal: s16);
+
+  // ── Radius scale ──
   static const double r8 = 8.0;
   static const double r12 = 12.0;
   static const double r16 = 16.0;
   static const double r24 = 24.0;
   static const double r32 = 32.0;
 
-  // Shadow
+  // ── Animation durations ──
+  static const Duration aniFast = Duration(milliseconds: 150);
+  static const Duration aniNormal = Duration(milliseconds: 250);
+  static const Duration aniSlow = Duration(milliseconds: 400);
+
+  // ── Shadow ──
   static final List<BoxShadow> cardShadow = <BoxShadow>[
     BoxShadow(
       color: Colors.black.withValues(alpha: 0.03),
@@ -28,18 +37,18 @@ class DS {
     ),
   ];
 
-  // Typography
+  // ── Typography helpers ──
   static TextStyle heading(double size) => GoogleFonts.notoSerifTc(
     fontSize: size,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.5,
-    color: text1,
+    color: const Color(0xFF151514),
   );
 
   static TextStyle body(double size) => GoogleFonts.notoSansTc(
     fontSize: size,
     fontWeight: FontWeight.w500,
-    color: text2,
+    color: const Color(0xFF777972),
   );
 }
 

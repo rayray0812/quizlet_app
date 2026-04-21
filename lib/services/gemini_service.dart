@@ -29,6 +29,7 @@ class ScanException implements Exception {
 }
 
 class ConversationScenario {
+  final String? id;
   final String title;
   final String titleZh;
   final String setting;
@@ -41,6 +42,7 @@ class ConversationScenario {
   final List<String> stagesZh;
 
   const ConversationScenario({
+    this.id,
     required this.title,
     required this.titleZh,
     required this.setting,
@@ -97,6 +99,23 @@ class GeminiService {
       'Return ONLY valid JSON array. Do not use markdown fences. '
       'Each item must be: {"term":"...","definition":"...","exampleSentence":"..."} '
       'Exclude duplicates and invalid/noisy rows.';
+  static const _vocabularyTextPrompt =
+      'The following text was extracted by OCR from a vocabulary list image. '
+      'Structure it into term-definition pairs. '
+      'Keep original language. For bilingual content, use one language as term and the other as definition. '
+      'Skip headers, page numbers, section titles, numbering-only rows, and decorative text. '
+      'Do NOT output items where term and definition are the same text. '
+      'Preserve row pairing as much as possible based on OCR order. '
+      'Do not invent missing rows. '
+      'exampleSentence should usually be empty unless a sentence is clearly present.';
+
+  static const _textbookTextPrompt =
+      'The following text was extracted by OCR from a textbook page. '
+      'Extract 5-15 key concepts as flashcard pairs. '
+      'Create concise term and definition pairs in the original language. '
+      'Skip headers, footers, labels, and standalone fragments. '
+      'Do not invent details. '
+      'exampleSentence should be empty unless explicitly present.';
 
   static final _responseSchema = Schema.array(
     items: Schema.object(
@@ -166,6 +185,59 @@ class GeminiService {
         final reason = _classifyAiError(e.toString());
         lastError = ScanException(reason, e.toString());
         // Stop immediately on rate limit — retrying worsens the 429 problem
+        if (_isRateLimitError(e)) break;
+        if (reason == ScanFailureReason.serverError) {
+          continue;
+        }
+      } on FormatException catch (e) {
+        lastError = ScanException(ScanFailureReason.parseError, e.toString());
+      } catch (e) {
+        if (e is ScanException) rethrow;
+        lastError = ScanException(ScanFailureReason.networkError, e.toString());
+      }
+    }
+
+    throw lastError ??
+        ScanException(ScanFailureReason.unknown, 'All models failed');
+  }
+
+  static Future<List<Map<String, String>>> extractFlashcardsFromText({
+    required String apiKey,
+    required String ocrText,
+    required PhotoScanMode mode,
+  }) async {
+    final basePrompt = switch (mode) {
+      PhotoScanMode.vocabularyList => _vocabularyTextPrompt,
+      PhotoScanMode.textbookPage => _textbookTextPrompt,
+    };
+    final prompt = '$basePrompt\n\n$_jsonOnlySuffix\n\nOCR text:\n$ocrText';
+    final content = Content.text(prompt);
+
+    ScanException? lastError;
+    for (final modelName in _models) {
+      try {
+        final response = await _generateWithFallback(
+          apiKey: apiKey,
+          modelName: modelName,
+          content: content,
+          prompt: prompt,
+        ).timeout(_timeout);
+        final text = response.text;
+        if (text == null || text.trim().isEmpty) return [];
+
+        final results = parseResponse(text);
+        if (results.length > maxCards) {
+          return results.sublist(0, maxCards);
+        }
+        return results;
+      } on TimeoutException {
+        lastError = ScanException(
+          ScanFailureReason.timeout,
+          'Request timed out',
+        );
+      } on GenerativeAIException catch (e) {
+        final reason = _classifyAiError(e.toString());
+        lastError = ScanException(reason, e.toString());
         if (_isRateLimitError(e)) break;
         if (reason == ScanFailureReason.serverError) {
           continue;

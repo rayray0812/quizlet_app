@@ -32,8 +32,8 @@ class _MatchingGameScreenState extends ConsumerState<MatchingGameScreen>
   static const Color _primary = Color(0xFF6F8451);
   static const Color _sageLight = Color(0xFFD9E4C7);
 
-  late List<Flashcard> _gameCards;
-  late List<_TileItem> _tiles;
+  List<Flashcard> _gameCards = [];
+  List<_TileItem> _tiles = [];
   int? _selectedIndex;
   final Set<String> _matchedCardIds = {};
   final Set<int> _incorrectIndices = {};

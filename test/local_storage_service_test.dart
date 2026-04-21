@@ -6,7 +6,6 @@ import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/models/adapters/folder_adapter.dart';
 import 'package:recall_app/models/adapters/study_set_adapter.dart';
 import 'package:recall_app/models/flashcard.dart';
-import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
 import 'package:recall_app/models/review_log.dart';
 import 'package:recall_app/models/study_set.dart';

@@ -226,6 +226,10 @@ class SecurityDialogs {
                             result: 'local',
                           );
                           await supabase.signOut();
+                          await ref
+                              .read(profileProvider.notifier)
+                              .clearCachedProfile();
+                          ref.invalidate(profileProvider);
                           if (context.mounted) {
                             Navigator.pop(sheetContext);
                             onResetTab();
@@ -258,6 +262,10 @@ class SecurityDialogs {
                             result: 'global',
                           );
                           await supabase.signOutAllSessions();
+                          await ref
+                              .read(profileProvider.notifier)
+                              .clearCachedProfile();
+                          ref.invalidate(profileProvider);
                           if (context.mounted) {
                             Navigator.pop(sheetContext);
                             onResetTab();

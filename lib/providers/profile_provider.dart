@@ -4,7 +4,6 @@ import 'package:hive/hive.dart';
 import 'package:recall_app/core/constants/app_constants.dart';
 import 'package:recall_app/providers/auth_provider.dart';
 
-/// Lightweight profile data holder.
 class UserProfile {
   final String displayName;
   final String bio;
@@ -16,11 +15,7 @@ class UserProfile {
     this.avatarUrl = '',
   });
 
-  UserProfile copyWith({
-    String? displayName,
-    String? bio,
-    String? avatarUrl,
-  }) {
+  UserProfile copyWith({String? displayName, String? bio, String? avatarUrl}) {
     return UserProfile(
       displayName: displayName ?? this.displayName,
       bio: bio ?? this.bio,
@@ -29,10 +24,19 @@ class UserProfile {
   }
 }
 
-/// Keys used to persist guest profile in Hive settings box.
 const _kDisplayName = 'profile_display_name';
 const _kBio = 'profile_bio';
 const _kAvatarUrl = 'profile_avatar_url';
+
+String _sanitizeDisplayName(String value, String email) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return '';
+  final normalizedEmail = email.trim().toLowerCase();
+  if (normalizedEmail.isEmpty) return trimmed;
+  if (trimmed.toLowerCase() != normalizedEmail) return trimmed;
+  final localPart = normalizedEmail.split('@').first.trim();
+  return localPart;
+}
 
 class ProfileNotifier extends AsyncNotifier<UserProfile?> {
   @override
@@ -41,26 +45,37 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
     if (user != null) {
       return _fetchFromSupabase();
     }
-    // Guest: load from Hive settings box.
-    return _loadFromHive();
+    return const UserProfile();
   }
 
   Future<UserProfile?> _fetchFromSupabase() async {
     try {
       final supabase = ref.read(supabaseServiceProvider);
+      final user = ref.read(currentUserProvider);
       final row = await supabase.fetchProfile();
-      if (row == null) return const UserProfile();
+      final fallbackName = supabase.preferredDisplayName(user);
+
+      if (row == null) {
+        final profile = UserProfile(displayName: fallbackName);
+        _saveToHive(profile);
+        return profile;
+      }
+
+      final remoteDisplayName = _sanitizeDisplayName(
+        row['display_name'] as String? ?? '',
+        user?.email ?? '',
+      );
       final profile = UserProfile(
-        displayName: row['display_name'] as String? ?? '',
+        displayName: remoteDisplayName.isNotEmpty
+            ? remoteDisplayName
+            : fallbackName,
         bio: row['bio'] as String? ?? '',
         avatarUrl: row['avatar_url'] as String? ?? '',
       );
-      // Cache to Hive for offline access.
       _saveToHive(profile);
       return profile;
     } catch (e) {
       debugPrint('ProfileNotifier: fetchProfile failed: $e');
-      // Fallback to Hive cache.
       return _loadFromHive();
     }
   }
@@ -98,7 +113,9 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
     final user = ref.read(currentUserProvider);
     if (user != null) {
       try {
-        await ref.read(supabaseServiceProvider).updateProfile(displayName: name);
+        await ref
+            .read(supabaseServiceProvider)
+            .updateProfile(displayName: name);
       } catch (e) {
         debugPrint('ProfileNotifier: updateDisplayName failed: $e');
       }
@@ -123,25 +140,32 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
 
   Future<void> uploadAndSetAvatar(Uint8List bytes, String fileExt) async {
     final user = ref.read(currentUserProvider);
-    if (user != null) {
-      try {
-        final url = await ref.read(supabaseServiceProvider).uploadAvatar(bytes, fileExt);
-        final current = state.valueOrNull ?? const UserProfile();
-        final updated = current.copyWith(avatarUrl: url);
-        state = AsyncData(updated);
-        _saveToHive(updated);
-        await ref.read(supabaseServiceProvider).updateProfile(avatarUrl: url);
-      } catch (e) {
-        debugPrint('ProfileNotifier: uploadAndSetAvatar failed: $e');
-      }
-    } else {
-      // Guest mode: no upload, could store local path but we skip for now.
+    if (user == null) {
       debugPrint('ProfileNotifier: avatar upload skipped in guest mode');
+      return;
+    }
+
+    try {
+      final url = await ref
+          .read(supabaseServiceProvider)
+          .uploadAvatar(bytes, fileExt);
+      final versionedUrl = '$url?v=${DateTime.now().millisecondsSinceEpoch}';
+      final current = state.valueOrNull ?? const UserProfile();
+      final updated = current.copyWith(avatarUrl: versionedUrl);
+      state = AsyncData(updated);
+      _saveToHive(updated);
+      await ref
+          .read(supabaseServiceProvider)
+          .updateProfile(avatarUrl: versionedUrl);
+    } catch (e) {
+      debugPrint('ProfileNotifier: uploadAndSetAvatar failed: $e');
     }
   }
 
-  /// Save display name + bio in one call.
-  Future<void> saveProfile({required String displayName, required String bio}) async {
+  Future<void> saveProfile({
+    required String displayName,
+    required String bio,
+  }) async {
     final current = state.valueOrNull ?? const UserProfile();
     final updated = current.copyWith(displayName: displayName, bio: bio);
     state = AsyncData(updated);
@@ -150,10 +174,9 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
     final user = ref.read(currentUserProvider);
     if (user != null) {
       try {
-        await ref.read(supabaseServiceProvider).updateProfile(
-              displayName: displayName,
-              bio: bio,
-            );
+        await ref
+            .read(supabaseServiceProvider)
+            .updateProfile(displayName: displayName, bio: bio);
       } catch (e) {
         debugPrint('ProfileNotifier: saveProfile failed: $e');
       }
@@ -161,5 +184,6 @@ class ProfileNotifier extends AsyncNotifier<UserProfile?> {
   }
 }
 
-final profileProvider =
-    AsyncNotifierProvider<ProfileNotifier, UserProfile?>(() => ProfileNotifier());
+final profileProvider = AsyncNotifierProvider<ProfileNotifier, UserProfile?>(
+  () => ProfileNotifier(),
+);

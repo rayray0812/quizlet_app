@@ -26,6 +26,7 @@ class AppLocalizations {
 
   // -- App --
   String get appDisplayName => '';
+  String get loginSubtitle => '';
 
   // -- Home --
   String get myStudySets => '';
@@ -153,6 +154,57 @@ class AppLocalizations {
   String get setTitle => '';
   String get addAtLeastOneCard => '';
   String get importedSet => '';
+  String get paste => '';
+
+  // -- Community --
+  String get community => '';
+  String get communityTitle => '';
+  String get communitySubtitle => '';
+  String get communityExplore => '';
+  String get communityClassroom => '';
+  String get communitySearchHint => '';
+  String get communityPopularTags => '';
+  String get communityHotSets => '';
+  String get communityNoPublicSets => '';
+  String get communityLoadError => '';
+  String get communityDownload => '';
+  String communityDownloaded(String title) => '';
+  String get communityLocalResults => '';
+  String get communityPublicResults => '';
+  String get communityLoginRequired => '';
+  String get communityLoginHint => '';
+  String get communityClassroomTitle => '';
+  String get communityClassroomHint => '';
+  String get communityGoToClassroom => '';
+  String get communitySharePromptTitle => '';
+  String get communitySharePromptBody => '';
+  String get communityPublish => '';
+  String get communityPublished => '';
+  String get communityUnpublish => '';
+
+  // -- Community: Content Discovery --
+  String get communitySortTrending => '';
+  String get communitySortNewest => '';
+  String get communitySortMostDownloaded => '';
+  String get communityAllCategories => '';
+  String get communityViewProfile => '';
+
+  // -- Community: Profile --
+  String get profileTitle => '';
+  String get profilePublishedSets => '';
+  String get profileTotalDownloads => '';
+  String get profileNoSets => '';
+
+  // -- Community: Report --
+  String get communityReport => '';
+  String get communityReportTitle => '';
+  String get communityReportHint => '';
+  String get communityReportSubmitted => '';
+  String get communityReportInappropriate => '';
+  String get communityReportSpam => '';
+  String get communityReportCopyright => '';
+  String get communityReportOther => '';
+
 
   // -- Language --
   String get language => '';
@@ -175,6 +227,8 @@ class AppLocalizations {
   String get importFromFile => '';
   String get enterRecallUrl => '';
   String get tapToFlip => '';
+  String get tapToReturn => '';
+  String get scrollable => '';
   String get definitionLabel => '';
   String get listen => '';
   String get exportAsJson => '';
@@ -346,8 +400,11 @@ class AppLocalizations {
   String get reminderTitle => '';
 
   // -- Folders (F7) --
+  String get all => '';
   String get folders => '';
   String get noFoldersYet => '';
+  String get folderEmpty => '';
+  String get showAll => '';
   String get newFolder => '';
   String get editFolder => '';
   String get folderName => '';
@@ -357,8 +414,15 @@ class AppLocalizations {
   String get icon => '';
   String get moveToFolder => '';
   String get noFolder => '';
+  String get shareFolderToCommunity => '';
+  String get communityUnpublished => '';
+  String get communityMyPublished => '';
   String get pin => '';
   String get unpin => '';
+  String get rename => '';
+  String get renameStudySet => '';
+  String selectedCount(int count) => '';
+  String get batchMoveToFolder => '';
 
   // -- Sorting (F8) --
   String get sortNewest => '';
@@ -378,13 +442,25 @@ class AppLocalizations {
   String get next => '';
   String get getStarted => '';
 
+  // -- Legal & About (2026-04-21) --
+  String get sampleSetTitle => '';
+  String get sampleSetDescription => '';
+  String get legalSectionTitle => '';
+  String get privacyPolicy => '';
+  String get termsOfService => '';
+  String get youthProtectionNotice => '';
+  String get openSourceLicenses => '';
+
   // -- QR Share (F10) --
   String get shareSet => '';
   String get scanQr => '';
   String get scanToImport => '';
   String get linkCopied => '';
   String get copyLink => '';
+  String get copyLinkDesc => '';
   String get share => '';
+  String get shareToFriend => '';
+  String get shareToFriendDesc => '';
   String get pointCameraAtQr => '';
   String get qrInvalidData => '';
   String get qrTooLarge => '';
@@ -621,6 +697,28 @@ class AppLocalizations {
   String get lowestDimension => '';
   String get replyHintTitle => '';
 
+  // -- Conversation UX Optimization --
+  String get selectScenario => '';
+  String get randomScenario => '';
+  String get viewHistory => '';
+  String get repeatPlease => '';
+  String get speakSimpler => '';
+  String get giveHint => '';
+  String get muteAutoPlay => '';
+  String get unmuteAutoPlay => '';
+  String get shareTranscript => '';
+  String get conversationReport => '';
+  String get scoreProgress => '';
+  String get recentSessions => '';
+  String get exportScenarioLabel => '';
+  String get exportDifficultyLabel => '';
+  String get exportDateLabel => '';
+  String get exportScoreLabel => '';
+  String get exportTurnsLabel => '';
+  String get exportTurnPrefix => '';
+  String get exportCorrectionPrefix => '';
+  String get exportGeneratedBy => '';
+
   // -- Profile --
   String get editProfile => '';
   String get displayName => '';
@@ -670,6 +768,8 @@ class AppLocalizationsZh extends AppLocalizations {
   // -- App --
   @override
   String get appDisplayName => '\u62FE\u61B6';
+  @override
+  String get loginSubtitle => '\u958B\u59CB\u4ECA\u5929\u7684\u5B78\u7FD2\u3002';
 
   // -- Home --
   @override
@@ -925,6 +1025,98 @@ class AppLocalizationsZh extends AppLocalizations {
       '\u81F3\u5C11\u65B0\u589E\u4E00\u5F35\u5361\u7247';
   @override
   String get importedSet => '\u532F\u5165\u7684\u5B78\u7FD2\u96C6';
+  @override
+  String get paste => '\u8CBC\u4E0A';
+
+  // -- Community --
+  @override
+  String get community => '社群';
+  @override
+  String get communityTitle => '探索社群';
+  @override
+  String get communitySubtitle => '瀏覽並下載其他人分享的學習集';
+  @override
+  String get communityExplore => '探索';
+  @override
+  String get communityClassroom => '教室';
+  @override
+  String get communitySearchHint => '搜尋學習集、作者或標籤';
+  @override
+  String get communityPopularTags => '熱門標籤';
+  @override
+  String get communityHotSets => '熱門學習集';
+  @override
+  String get communityNoPublicSets => '目前沒有公開的學習集';
+  @override
+  String get communityLoadError => '載入社群內容失敗';
+  @override
+  String get communityDownload => '下載到我的學習集';
+  @override
+  String communityDownloaded(String title) => '已下載「\$title」';
+  @override
+  String get communityLocalResults => '本機結果';
+  @override
+  String get communityPublicResults => '社群結果';
+  @override
+  String get communityLoginRequired => '登入後可使用教室功能';
+  @override
+  String get communityLoginHint => '登入後可以建立或加入班級';
+  @override
+  String get communityClassroomTitle => '教室系統';
+  @override
+  String get communityClassroomHint => '建立班級、加入班級、追蹤學習進度';
+  @override
+  String get communityGoToClassroom => '前往教室';
+  @override
+  String get communitySharePromptTitle => '分享你的學習集';
+  @override
+  String get communitySharePromptBody => '在學習模式選擇頁點「發布到社群」即可分享';
+  @override
+  String get communityPublish => '發布到社群';
+  @override
+  String get communityPublished => '已發布到社群';
+  @override
+  String get communityUnpublish => '取消發布';
+  // -- Community: Content Discovery --
+  @override
+  String get communitySortTrending => '熱門';
+  @override
+  String get communitySortNewest => '最新';
+  @override
+  String get communitySortMostDownloaded => '最多下載';
+  @override
+  String get communityAllCategories => '全部分類';
+  @override
+  String get communityViewProfile => '查看個人檔案';
+
+  // -- Community: Profile --
+  @override
+  String get profileTitle => '個人檔案';
+  @override
+  String get profilePublishedSets => '已發布的學習集';
+  @override
+  String get profileTotalDownloads => '總下載次數';
+  @override
+  String get profileNoSets => '還沒有發布任何學習集';
+
+  // -- Community: Report --
+  @override
+  String get communityReport => '檢舉';
+  @override
+  String get communityReportTitle => '檢舉此學習集';
+  @override
+  String get communityReportHint => '請選擇檢舉理由';
+  @override
+  String get communityReportSubmitted => '檢舉已提交，感謝你的回報';
+  @override
+  String get communityReportInappropriate => '不當內容';
+  @override
+  String get communityReportSpam => '垃圾內容';
+  @override
+  String get communityReportCopyright => '侵犯著作權';
+  @override
+  String get communityReportOther => '其他';
+
 
   // -- Language --
   @override
@@ -965,6 +1157,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enterRecallUrl => '\u8F38\u5165\u5B78\u7FD2\u96C6\u7DB2\u5740';
   @override
   String get tapToFlip => '\u9EDE\u64CA\u7FFB\u9762';
+  @override
+  String get tapToReturn => '\u9EDE\u64CA\u8FD4\u56DE';
+  @override
+  String get scrollable => '\u53EF\u6372\u52D5';
   @override
   String get definitionLabel => '\u5B9A\u7FA9';
   @override
@@ -1327,9 +1523,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   // -- Folders (F7) --
   @override
+  String get all => '\u5168\u90E8';
+  @override
   String get folders => '\u8CC7\u6599\u593E';
   @override
   String get noFoldersYet => '\u9084\u6C92\u6709\u8CC7\u6599\u593E';
+  @override
+  String get folderEmpty => '\u9019\u500B\u8CC7\u6599\u593E\u9084\u6C92\u6709\u5B78\u7FD2\u96C6';
+  @override
+  String get showAll => '\u986F\u793A\u5168\u90E8';
   @override
   String get newFolder => '\u65B0\u8CC7\u6599\u593E';
   @override
@@ -1350,9 +1552,23 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get noFolder => '\u7121\u8CC7\u6599\u593E';
   @override
+  String get shareFolderToCommunity => '\u5206\u4EAB\u8CC7\u6599\u593E\u5167\u6240\u6709\u5B78\u7FD2\u96C6';
+  @override
+  String get communityUnpublished => '\u5DF2\u4E0B\u67B6';
+  @override
+  String get communityMyPublished => '\u6211\u7684\u767C\u5E03';
+  @override
   String get pin => '\u91D8\u9078';
   @override
   String get unpin => '\u53D6\u6D88\u91D8\u9078';
+  @override
+  String get rename => '\u91CD\u65B0\u547D\u540D';
+  @override
+  String get renameStudySet => '\u91CD\u65B0\u547D\u540D\u5B78\u7FD2\u96C6';
+  @override
+  String selectedCount(int count) => '\u5DF2\u9078 $count \u500B';
+  @override
+  String get batchMoveToFolder => '\u6279\u6B21\u79FB\u52D5\u5230\u8CC7\u6599\u593E';
 
   // -- Sorting (F8) --
   @override
@@ -1389,6 +1605,23 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get getStarted => '\u958B\u59CB\u4F7F\u7528';
 
+  // -- Legal & About (2026-04-21) --
+  @override
+  String get sampleSetTitle => '\u9AD8\u4E2D\u82F1\u55AE\u7BC4\u4F8B';
+  @override
+  String get sampleSetDescription =>
+      '15 \u5F35\u5E38\u898B\u9AD8\u4E2D\u82F1\u6587\u55AE\u5B57\u7BC4\u4F8B\uFF0C\u53EF\u4EE5\u76F4\u63A5\u958B\u59CB\u7DF4\u7FD2';
+  @override
+  String get legalSectionTitle => '\u6CD5\u52D9\u8207\u689D\u6B3E';
+  @override
+  String get privacyPolicy => '\u96B1\u79C1\u6B0A\u653F\u7B56';
+  @override
+  String get termsOfService => '\u670D\u52D9\u689D\u6B3E';
+  @override
+  String get youthProtectionNotice => '\u5152\u5C11\u4FDD\u8B77\u8072\u660E';
+  @override
+  String get openSourceLicenses => '\u958B\u653E\u539F\u59CB\u78BC\u6388\u6B0A';
+
   // -- QR Share (F10) --
   @override
   String get shareSet => '\u5206\u4EAB\u5B78\u7FD2\u96C6';
@@ -1402,7 +1635,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get copyLink => '\u8907\u88FD\u9023\u7D50';
   @override
+  String get copyLinkDesc => '\u8907\u88FD\u6DF1\u5C64\u9023\u7D50\u5230\u526A\u8CBC\u7C3F';
+  @override
   String get share => '\u5206\u4EAB';
+  @override
+  String get shareToFriend => '\u50B3\u9001\u7D66\u670B\u53CB';
+  @override
+  String get shareToFriendDesc => '\u900F\u904E LINE\u3001AirDrop \u7B49\u50B3\u9001\u6A94\u6848';
   @override
   String get pointCameraAtQr => '\u5C07\u93E1\u982D\u5C0D\u6E96 QR Code';
   @override
@@ -1889,6 +2128,48 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get replyHintTitle => '\u56DE\u8986\u63D0\u793A';
 
+  // -- Conversation UX Optimization --
+  @override
+  String get selectScenario => '\u9078\u64C7\u60C5\u5883';
+  @override
+  String get randomScenario => '\u96A8\u6A5F\uFF08AI \u9078\u64C7\uFF09';
+  @override
+  String get viewHistory => '\u67E5\u770B\u6B77\u53F2';
+  @override
+  String get repeatPlease => '\u518D\u8AAA\u4E00\u6B21';
+  @override
+  String get speakSimpler => '\u8AAA\u7C21\u55AE\u4E00\u9EDE';
+  @override
+  String get giveHint => '\u63D0\u793A';
+  @override
+  String get muteAutoPlay => '\u975C\u97F3';
+  @override
+  String get unmuteAutoPlay => '\u53D6\u6D88\u975C\u97F3';
+  @override
+  String get shareTranscript => '\u5206\u4EAB\u5C0D\u8A71\u7D00\u9304';
+  @override
+  String get conversationReport => '\u5C0D\u8A71\u7DF4\u7FD2\u5831\u544A';
+  @override
+  String get scoreProgress => '\u5206\u6578\u8DA8\u52E2';
+  @override
+  String get recentSessions => '\u6700\u8FD1\u5C0D\u8A71';
+  @override
+  String get exportScenarioLabel => '\u60C5\u5883';
+  @override
+  String get exportDifficultyLabel => '\u96E3\u5EA6';
+  @override
+  String get exportDateLabel => '\u65E5\u671F';
+  @override
+  String get exportScoreLabel => '\u5206\u6578';
+  @override
+  String get exportTurnsLabel => '\u56DE\u5408\u6578';
+  @override
+  String get exportTurnPrefix => '\u7B2C {n} \u56DE\u5408';
+  @override
+  String get exportCorrectionPrefix => '\u4FEE\u6B63';
+  @override
+  String get exportGeneratedBy => '\u7531\u62FE\u61B6 App \u7522\u751F';
+
   // -- Profile --
   @override
   String get editProfile => '\u7DE8\u8F2F\u500B\u4EBA\u6A94\u6848';
@@ -1976,6 +2257,8 @@ class AppLocalizationsEn extends AppLocalizations {
   // -- App --
   @override
   String get appDisplayName => 'Grasp';
+  @override
+  String get loginSubtitle => 'Start learning today.';
 
   // -- Home --
   @override
@@ -2217,6 +2500,98 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAtLeastOneCard => 'Add at least one card';
   @override
   String get importedSet => 'Imported Set';
+  @override
+  String get paste => 'Paste';
+
+  // -- Community --
+  @override
+  String get community => 'Community';
+  @override
+  String get communityTitle => 'Explore Community';
+  @override
+  String get communitySubtitle => 'Browse and download study sets shared by others';
+  @override
+  String get communityExplore => 'Explore';
+  @override
+  String get communityClassroom => 'Classroom';
+  @override
+  String get communitySearchHint => 'Search sets, authors, or tags';
+  @override
+  String get communityPopularTags => 'Popular Tags';
+  @override
+  String get communityHotSets => 'Trending Sets';
+  @override
+  String get communityNoPublicSets => 'No public study sets yet';
+  @override
+  String get communityLoadError => 'Failed to load community content';
+  @override
+  String get communityDownload => 'Download to My Sets';
+  @override
+  String communityDownloaded(String title) => 'Downloaded "$title"';
+  @override
+  String get communityLocalResults => 'Local Results';
+  @override
+  String get communityPublicResults => 'Community Results';
+  @override
+  String get communityLoginRequired => 'Login required for classroom';
+  @override
+  String get communityLoginHint => 'Log in to create or join classes';
+  @override
+  String get communityClassroomTitle => 'Classroom System';
+  @override
+  String get communityClassroomHint => 'Create classes, join classes, track learning progress';
+  @override
+  String get communityGoToClassroom => 'Go to Classroom';
+  @override
+  String get communitySharePromptTitle => 'Share your study sets';
+  @override
+  String get communitySharePromptBody => 'Tap "Publish to Community" in study mode to share';
+  @override
+  String get communityPublish => 'Publish to Community';
+  @override
+  String get communityPublished => 'Published to Community';
+  @override
+  String get communityUnpublish => 'Unpublish';
+  // -- Community: Content Discovery --
+  @override
+  String get communitySortTrending => 'Trending';
+  @override
+  String get communitySortNewest => 'Newest';
+  @override
+  String get communitySortMostDownloaded => 'Most Downloaded';
+  @override
+  String get communityAllCategories => 'All Categories';
+  @override
+  String get communityViewProfile => 'View Profile';
+
+  // -- Community: Profile --
+  @override
+  String get profileTitle => 'Profile';
+  @override
+  String get profilePublishedSets => 'Published Study Sets';
+  @override
+  String get profileTotalDownloads => 'Total Downloads';
+  @override
+  String get profileNoSets => 'No study sets published yet';
+
+  // -- Community: Report --
+  @override
+  String get communityReport => 'Report';
+  @override
+  String get communityReportTitle => 'Report this study set';
+  @override
+  String get communityReportHint => 'Select a reason for reporting';
+  @override
+  String get communityReportSubmitted => 'Report submitted, thank you';
+  @override
+  String get communityReportInappropriate => 'Inappropriate content';
+  @override
+  String get communityReportSpam => 'Spam';
+  @override
+  String get communityReportCopyright => 'Copyright violation';
+  @override
+  String get communityReportOther => 'Other';
+
 
   // -- Language --
   @override
@@ -2255,6 +2630,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterRecallUrl => 'Enter Web URL';
   @override
   String get tapToFlip => 'TAP TO FLIP';
+  @override
+  String get tapToReturn => 'TAP TO RETURN';
+  @override
+  String get scrollable => 'Scrollable';
   @override
   String get definitionLabel => 'DEFINITION';
   @override
@@ -2594,9 +2973,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   // -- Folders (F7) --
   @override
+  String get all => 'All';
+  @override
   String get folders => 'Folders';
   @override
   String get noFoldersYet => 'No folders yet';
+  @override
+  String get folderEmpty => 'No study sets in this folder';
+  @override
+  String get showAll => 'Show All';
   @override
   String get newFolder => 'New Folder';
   @override
@@ -2617,9 +3002,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noFolder => 'No Folder';
   @override
+  String get shareFolderToCommunity => 'Share all sets in folder';
+  @override
+  String get communityUnpublished => 'Unpublished';
+  @override
+  String get communityMyPublished => 'My Published';
+  @override
   String get pin => 'Pin';
   @override
   String get unpin => 'Unpin';
+  @override
+  String get rename => 'Rename';
+  @override
+  String get renameStudySet => 'Rename Study Set';
+  @override
+  String selectedCount(int count) => '$count selected';
+  @override
+  String get batchMoveToFolder => 'Move to Folder';
 
   // -- Sorting (F8) --
   @override
@@ -2655,6 +3054,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get getStarted => 'Get Started';
 
+  // -- Legal & About (2026-04-21) --
+  @override
+  String get sampleSetTitle => 'High School Vocabulary Starter';
+  @override
+  String get sampleSetDescription =>
+      '15 common high-school English words to help you get started right away';
+  @override
+  String get legalSectionTitle => 'Legal & Policies';
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+  @override
+  String get termsOfService => 'Terms of Service';
+  @override
+  String get youthProtectionNotice => 'Youth Protection Notice';
+  @override
+  String get openSourceLicenses => 'Open Source Licenses';
+
   // -- QR Share (F10) --
   @override
   String get shareSet => 'Share Study Set';
@@ -2667,7 +3083,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get copyLink => 'Copy Link';
   @override
+  String get copyLinkDesc => 'Copy deep link to clipboard';
+  @override
   String get share => 'Share';
+  @override
+  String get shareToFriend => 'Send to Friend';
+  @override
+  String get shareToFriendDesc => 'Send file via LINE, AirDrop, etc.';
   @override
   String get pointCameraAtQr => 'Point camera at QR code';
   @override
@@ -3127,6 +3549,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lowestDimension => 'Weakest area';
   @override
   String get replyHintTitle => 'Reply Hint';
+
+  // -- Conversation UX Optimization --
+  @override
+  String get selectScenario => 'Choose Scenario';
+  @override
+  String get randomScenario => 'Random (AI picks)';
+  @override
+  String get viewHistory => 'View History';
+  @override
+  String get repeatPlease => 'Repeat';
+  @override
+  String get speakSimpler => 'Simpler';
+  @override
+  String get giveHint => 'Help';
+  @override
+  String get muteAutoPlay => 'Mute';
+  @override
+  String get unmuteAutoPlay => 'Unmute';
+  @override
+  String get shareTranscript => 'Share Transcript';
+  @override
+  String get conversationReport => 'Conversation Report';
+  @override
+  String get scoreProgress => 'Score Progress';
+  @override
+  String get recentSessions => 'Recent Sessions';
+  @override
+  String get exportScenarioLabel => 'Scenario';
+  @override
+  String get exportDifficultyLabel => 'Difficulty';
+  @override
+  String get exportDateLabel => 'Date';
+  @override
+  String get exportScoreLabel => 'Score';
+  @override
+  String get exportTurnsLabel => 'Turns';
+  @override
+  String get exportTurnPrefix => 'Turn {n}';
+  @override
+  String get exportCorrectionPrefix => 'Correction';
+  @override
+  String get exportGeneratedBy => 'Generated by Recall App';
 
   // -- Profile --
   @override

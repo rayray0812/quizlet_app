@@ -19,6 +19,8 @@ import 'package:recall_app/providers/notification_provider.dart';
 import 'package:recall_app/providers/pomodoro_provider.dart';
 import 'package:recall_app/providers/profile_provider.dart';
 import 'package:recall_app/providers/sync_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:recall_app/services/on_device_ai_service.dart';
 
 class SettingsTab extends ConsumerStatefulWidget {
   final VoidCallback onResetTab;
@@ -285,9 +287,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                 leading: const Icon(CupertinoIcons.sparkles),
                 title: serifSettingTitle(context, l10n.aiSettings),
                 subtitle: Text(
-                  ref.watch(aiProviderProvider) == AiProvider.groq
-                      ? 'Groq (Llama 4 Scout)'
-                      : l10n.aiSettingsSubtitle,
+                  switch (ref.watch(aiProviderProvider)) {
+                    AiProvider.groq => 'Groq (Llama 4 Scout)',
+                    AiProvider.gemma => 'Gemma (on-device)',
+                    AiProvider.gemini => l10n.aiSettingsSubtitle,
+                  },
                 ),
                 trailing: const Icon(CupertinoIcons.chevron_right),
                 onTap: () => _showGeminiKeyDialog(context: context, ref: ref),
@@ -437,8 +441,10 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
       context: context,
       builder: (dialogContext) {
         var selectedProvider = currentProvider;
+        var isPickingModel = false;
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            final gemmaLocalModelPath = ref.read(gemmaLocalModelPathProvider);
             return AlertDialog(
               title: Text(l10n.aiSettings),
               content: SingleChildScrollView(
@@ -464,6 +470,11 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                           label: const Text('Groq'),
                           icon: const Icon(Icons.bolt, size: 16),
                         ),
+                        ButtonSegment<AiProvider>(
+                          value: AiProvider.gemma,
+                          label: const Text('Gemma'),
+                          icon: const Icon(Icons.memory_rounded, size: 16),
+                        ),
                       ],
                       selected: {selectedProvider},
                       onSelectionChanged: (s) {
@@ -480,9 +491,164 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                           ),
                         ),
                       ),
+                    if (selectedProvider == AiProvider.gemma)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          'On-device inference via .litertlm model. No API key or network needed.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 16),
-                    // -- API Key input (show the relevant one) --
-                    if (selectedProvider == AiProvider.gemini)
+                    // -- Gemma: local model management --
+                    if (selectedProvider == AiProvider.gemma)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Local model',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            FutureBuilder<LocalModelStatus>(
+                              future: gemmaLocalModelPath.trim().isEmpty
+                                  ? Future.value(const LocalModelStatus(
+                                      ready: false,
+                                      message: 'No model file imported yet.',
+                                    ))
+                                  : OnDeviceAiService.checkModel(gemmaLocalModelPath),
+                              builder: (context, snapshot) {
+                                final status = snapshot.data;
+                                final icon = status?.ready == true
+                                    ? Icons.check_circle_rounded
+                                    : Icons.info_outline_rounded;
+                                final color = status?.ready == true
+                                    ? Colors.green.shade700
+                                    : Theme.of(context).colorScheme.onSurfaceVariant;
+                                return Row(
+                                  children: [
+                                    Icon(icon, size: 16, color: color),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        status?.message ?? 'Checking model...',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(color: color),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: isPickingModel
+                                      ? null
+                                      : () async {
+                                          if (isPickingModel) return;
+                                          setDialogState(() => isPickingModel = true);
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
+                                          try {
+                                            final result =
+                                                await FilePicker.platform.pickFiles(
+                                              allowMultiple: false,
+                                              type: FileType.any,
+                                              withData: false,
+                                            );
+                                            final path =
+                                                result?.files.single.path;
+                                            if (path == null || path.isEmpty) {
+                                              return;
+                                            }
+                                            if (!ctx.mounted ||
+                                                !context.mounted) {
+                                              return;
+                                            }
+                                            await ref
+                                                .read(gemmaLocalModelPathProvider
+                                                    .notifier)
+                                                .setPath(path);
+                                            if (!ctx.mounted ||
+                                                !context.mounted) {
+                                              return;
+                                            }
+                                            setDialogState(() {});
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Model set: ${path.split('/').last.split('\\').last}',
+                                                ),
+                                              ),
+                                            );
+                                          } catch (e) {
+                                            if (!context.mounted) return;
+                                            // Ignore "already_active" — user tapped twice.
+                                            if (!e
+                                                .toString()
+                                                .contains('already_active')) {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Failed to pick model: $e',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } finally {
+                                            if (ctx.mounted) {
+                                              setDialogState(
+                                                () => isPickingModel = false,
+                                              );
+                                            }
+                                          }
+                                        },
+                                  icon: const Icon(Icons.upload_file_rounded),
+                                  label: Text(gemmaLocalModelPath.trim().isEmpty
+                                      ? 'Import .litertlm model'
+                                      : 'Change model'),
+                                ),
+                                if (gemmaLocalModelPath.trim().isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      await ref
+                                          .read(gemmaLocalModelPathProvider.notifier)
+                                          .clear();
+                                      if (!ctx.mounted || !context.mounted) return;
+                                      setDialogState(() {});
+                                    },
+                                    icon: const Icon(Icons.delete_outline_rounded),
+                                    label: const Text('Remove'),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    // -- API Key input (Gemini / Groq) --
+                    if (selectedProvider == AiProvider.gemini) ...[
+                      const SizedBox(height: 16),
                       TextField(
                         controller: geminiController,
                         obscureText: true,
@@ -491,8 +657,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                           hintText: l10n.geminiApiKeyHint,
                           isDense: true,
                         ),
-                      )
-                    else
+                      ),
+                    ] else if (selectedProvider == AiProvider.groq) ...[
+                      const SizedBox(height: 16),
                       TextField(
                         controller: groqController,
                         obscureText: true,
@@ -502,6 +669,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                           isDense: true,
                         ),
                       ),
+                    ],
                     const SizedBox(height: 16),
                     const TtsEnginePicker(),
                   ],
@@ -514,16 +682,14 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    // Save provider selection
                     ref
                         .read(aiProviderProvider.notifier)
                         .setProvider(selectedProvider);
-                    // Save the API key for the selected provider
                     if (selectedProvider == AiProvider.gemini) {
                       ref
                           .read(geminiKeyProvider.notifier)
                           .setApiKey(geminiController.text.trim());
-                    } else {
+                    } else if (selectedProvider == AiProvider.groq) {
                       ref
                           .read(groqKeyProvider.notifier)
                           .setApiKey(groqController.text.trim());
@@ -612,3 +778,4 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     );
   }
 }
+

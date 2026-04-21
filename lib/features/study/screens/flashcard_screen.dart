@@ -2,22 +2,23 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/core/services/study_haptics.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
+import 'package:recall_app/core/widgets/app_back_button.dart';
+import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/features/study/utils/encouragement_lines.dart';
+import 'package:recall_app/features/study/utils/part_of_speech.dart';
 import 'package:recall_app/features/study/widgets/combo_indicator.dart';
 import 'package:recall_app/features/study/widgets/completion_celebrate_overlay.dart';
+import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
+import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
+import 'package:recall_app/features/study/widgets/swipe_card_stack.dart';
 import 'package:recall_app/features/study/widgets/xp_toast.dart';
-import 'package:recall_app/providers/session_xp_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/models/flashcard.dart';
+import 'package:recall_app/providers/session_xp_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
-import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
-import 'package:recall_app/features/study/widgets/swipe_card_stack.dart';
-import 'package:recall_app/features/study/widgets/study_result_widgets.dart';
-import 'package:recall_app/features/study/utils/encouragement_lines.dart';
-import 'package:recall_app/core/l10n/app_localizations.dart';
-import 'package:recall_app/core/theme/app_theme.dart';
-import 'package:recall_app/core/widgets/app_back_button.dart';
 
 class FlashcardScreen extends ConsumerStatefulWidget {
   final String setId;
@@ -32,7 +33,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
     with TickerProviderStateMixin {
   final GlobalKey<SwipeCardStackState> _stackKey =
       GlobalKey<SwipeCardStackState>();
-  late List<Flashcard> _currentCards;
+  List<Flashcard> _currentCards = const [];
   final List<Flashcard> _knownCards = [];
   final List<Flashcard> _unknownCards = [];
   int _swipedCount = 0;
@@ -67,7 +68,13 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
   }
 
   void _onSwiped(int index, bool remembered) {
-    final card = _currentCards[index];
+    final sourceCards = _currentCards.isEmpty
+        ? ref.read(studySetsProvider.notifier).getById(widget.setId)?.cards ??
+              const <Flashcard>[]
+        : _currentCards;
+    if (index >= sourceCards.length) return;
+
+    final card = sourceCards[index];
     if (remembered) {
       final earned = ref
           .read(sessionXpProvider.notifier)
@@ -83,7 +90,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
         _unknownCards.add(card);
       }
       _swipedCount++;
-      if (_swipedCount >= _currentCards.length) {
+      if (_swipedCount >= sourceCards.length) {
         StudyHaptics.onComplete();
         _playCelebrationThenShowRoundEnd();
       }
@@ -128,9 +135,20 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
       );
     }
 
-    final progress = _currentCards.isEmpty
+    if (_currentCards.isEmpty &&
+        _knownCards.isEmpty &&
+        _unknownCards.isEmpty &&
+        !_roundDone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _currentCards.isNotEmpty) return;
+        _startRound(null);
+      });
+    }
+
+    final activeCards = _currentCards.isEmpty ? studySet.cards : _currentCards;
+    final progress = activeCards.isEmpty
         ? 0.0
-        : _swipedCount / _currentCards.length;
+        : _swipedCount / activeCards.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +168,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
             children: [
               RoundedProgressBar(
                 value: progress,
-                counterText: '$_swipedCount / ${_currentCards.length}',
+                counterText: '$_swipedCount / ${activeCards.length}',
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
@@ -177,7 +195,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                           ),
                         ),
                         child: Text(
-                          '左滑 ${l10n.dontKnow}・右滑 ${l10n.know}・點卡片翻面',
+                          'Left: ${l10n.dontKnow} / Right: ${l10n.know} / Tap to flip',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
@@ -198,14 +216,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                 ),
               ),
               Expanded(
-                child: _roundDone ? _buildRoundEnd(context) : _buildCardStack(),
+                child: _roundDone
+                    ? _buildRoundEnd(context)
+                    : _buildCardStack(activeCards),
               ),
               if (!_roundDone) _buildSwipeActionBar(context, l10n),
             ],
           ),
-          // Combo indicator
           const Positioned(top: 60, right: 16, child: ComboIndicator()),
-          // XP toast
           Positioned(
             top: 100,
             left: 0,
@@ -218,10 +236,9 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
                 animation: _celebrateController!,
                 color: AppTheme.green,
                 tier: celebrationTierFromPercent(
-                  _currentCards.isEmpty
+                  activeCards.isEmpty
                       ? 0
-                      : (_knownCards.length / _currentCards.length * 100)
-                            .round(),
+                      : (_knownCards.length / activeCards.length * 100).round(),
                 ),
               ),
             ),
@@ -230,13 +247,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen>
     );
   }
 
-  Widget _buildCardStack() {
-    final swipeCards = _currentCards
+  Widget _buildCardStack(List<Flashcard> activeCards) {
+    final swipeCards = activeCards
         .map(
           (c) => SwipeCardData(
             term: c.term,
             definition: c.definition,
             imageUrl: c.imageUrl,
+            posTags: extractPartOfSpeechTags(c.tags),
           ),
         )
         .toList();

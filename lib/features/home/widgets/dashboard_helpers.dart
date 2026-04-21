@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
@@ -25,7 +26,7 @@ class HomeSectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 2.5,
+          width: 4,
           height: 20,
           decoration: BoxDecoration(
             color: AppTheme.indigo.withValues(alpha: 0.7),
@@ -74,7 +75,10 @@ class _HomeQuickActionTileState extends State<HomeQuickActionTile> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
+      onTapDown: (_) {
+        HapticFeedback.selectionClick();
+        setState(() => _pressed = true);
+      },
       onTap: () {
         setState(() => _pressed = false);
         widget.onTap();
@@ -147,11 +151,11 @@ class TaskMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.68),
+        color: Colors.white.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tint.withValues(alpha: 0.24)),
+        border: Border.all(color: tint.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -352,6 +356,7 @@ class SheetItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
+  final String? subtitle;
   final VoidCallback onTap;
 
   const SheetItem({
@@ -359,6 +364,7 @@ class SheetItem extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.title,
+    this.subtitle,
     required this.onTap,
   });
 
@@ -378,6 +384,7 @@ class SheetItem extends StatelessWidget {
           child: Icon(icon, color: iconColor, size: 22),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: subtitle == null ? null : Text(subtitle!),
         trailing: Icon(
           CupertinoIcons.chevron_right,
           color: Colors.grey.shade400,
@@ -494,42 +501,32 @@ class StaggeredFadeItem extends StatefulWidget {
   State<StaggeredFadeItem> createState() => _StaggeredFadeItemState();
 }
 
-class _StaggeredFadeItemState extends State<StaggeredFadeItem>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _slide;
+class _StaggeredFadeItemState extends State<StaggeredFadeItem> {
+  bool _visible = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 550),
-      vsync: this,
-    );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.04),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart));
-
-    final delay = Duration(milliseconds: 80 * (widget.index.clamp(0, 8)));
+    final delay = Duration(milliseconds: 60 * (widget.index.clamp(0, 6)));
     Future.delayed(delay, () {
-      if (mounted) _controller.forward();
+      if (mounted) {
+        setState(() => _visible = true);
+      }
     });
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _slide, child: widget.child),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutQuart,
+      opacity: _visible ? 1 : 0,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutQuart,
+        offset: _visible ? Offset.zero : const Offset(0, 0.04),
+        child: widget.child,
+      ),
     );
   }
 }

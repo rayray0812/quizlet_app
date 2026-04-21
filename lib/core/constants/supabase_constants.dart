@@ -10,11 +10,29 @@ class SupabaseConstants {
   static const String supabaseRedirectUrl = String.fromEnvironment(
     'SUPABASE_REDIRECT_URL',
   );
+  static const String _debugFallbackUrl =
+      'https://jijyptcixzievhdohzje.supabase.co';
+  static const String _debugFallbackAnonKey =
+      'sb_publishable_FPDzL1AlThG5iSORBR4Q2A_ZfLpcVm5';
   static const String mobileRedirectUrl =
       'io.supabase.flutter://login-callback/';
 
+  static String get resolvedSupabaseUrl {
+    final configured = supabaseUrl.trim();
+    if (configured.isNotEmpty) return configured;
+    if (kDebugMode) return _debugFallbackUrl;
+    return '';
+  }
+
+  static String get resolvedSupabaseAnonKey {
+    final configured = supabaseAnonKey.trim();
+    if (configured.isNotEmpty) return configured;
+    if (kDebugMode) return _debugFallbackAnonKey;
+    return '';
+  }
+
   static bool get isConfigured =>
-      supabaseUrl.trim().isNotEmpty && supabaseAnonKey.trim().isNotEmpty;
+      resolvedSupabaseUrl.isNotEmpty && resolvedSupabaseAnonKey.isNotEmpty;
 
   static String get authRedirectUrl {
     if (supabaseRedirectUrl.trim().isNotEmpty) return supabaseRedirectUrl;
@@ -50,4 +68,6 @@ class SupabaseConstants {
   static const String adminImpersonationTelemetryTable =
       'admin_impersonation_telemetry';
   static const String adminComplianceExportsTable = 'admin_compliance_exports';
+  static const String publicStudySetsTable = 'public_study_sets';
+  static const String communityReportsTable = 'community_reports';
 }

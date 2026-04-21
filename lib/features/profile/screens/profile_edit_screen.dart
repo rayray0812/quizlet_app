@@ -109,6 +109,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen>
       final router = GoRouter.of(context);
       if (router.canPop()) {
         router.pop();
+      } else {
+        router.go('/');
       }
     } finally {
       if (mounted) setState(() => _saving = false);

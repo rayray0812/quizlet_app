@@ -64,7 +64,7 @@ class StatsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Every review builds your memory map',
+                'Track your learning rhythm and weak spots.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                       letterSpacing: 0.4,
@@ -213,7 +213,7 @@ class StatsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Learning is visible in your streaks.',
+                    'Progress becomes clear when you keep showing up.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context)
                               .colorScheme

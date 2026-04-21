@@ -8,11 +8,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:recall_app/core/constants/study_constants.dart';
 import 'package:recall_app/core/design_system.dart';
 import 'package:recall_app/core/l10n/app_localizations.dart';
+import 'package:recall_app/core/theme/app_theme.dart';
 
 class FlipCardWidget extends StatefulWidget {
   final String frontText;
   final String backText;
   final String imageUrl;
+  final List<String> posTags;
   final VoidCallback? onAdvance;
   final ValueChanged<bool>? onFlipStateChanged;
 
@@ -21,6 +23,7 @@ class FlipCardWidget extends StatefulWidget {
     required this.frontText,
     required this.backText,
     this.imageUrl = '',
+    this.posTags = const <String>[],
     this.onAdvance,
     this.onFlipStateChanged,
   });
@@ -325,16 +328,24 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
           final frontVisible = cos(angle) > 0;
           final perspective = Matrix4.identity()..setEntry(3, 2, 0.0008);
 
+          final cs = Theme.of(context).colorScheme;
+          final frontBg = cs.surfaceContainerLowest;
+          final frontEnd = Color.lerp(frontBg, AppTheme.indigo, 0.22)!;
+          final backBg = Color.lerp(cs.surfaceContainerLowest, AppTheme.gold, 0.18)!;
+          final backEnd = Color.lerp(backBg, AppTheme.indigo, 0.18)!;
+          final cardText = cs.onSurface;
+
           final front = Transform(
             alignment: Alignment.center,
             transform: perspective.clone()..rotateY(angle),
             child: _buildSide(
               widget.frontText,
-              const Color(0xFFF9F3E6),
-              const Color(0xFF1A221A),
+              frontBg,
+              cardText,
               AppLocalizations.of(context).tapToFlip,
               showImage: true,
-              bgColorEnd: const Color(0xFFB9CCB2),
+              bgColorEnd: frontEnd,
+              posTags: widget.posTags,
             ),
           );
 
@@ -343,10 +354,11 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
             transform: perspective.clone()..rotateY(angle + pi),
             child: _buildSide(
               widget.backText,
-              const Color(0xFFF6ECD9),
-              const Color(0xFF1A221A),
+              backBg,
+              cardText,
               AppLocalizations.of(context).definitionLabel,
-              bgColorEnd: const Color(0xFFB3C8AD),
+              bgColorEnd: backEnd,
+              posTags: widget.posTags,
             ),
           );
 
@@ -369,6 +381,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
     String label, {
     bool showImage = false,
     Color? bgColorEnd,
+    List<String> posTags = const <String>[],
   }) {
     final hasImage = showImage && widget.imageUrl.isNotEmpty;
     final longText = text.trim().length > 90 || text.contains('\n');
@@ -393,7 +406,7 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
         ),
         borderRadius: BorderRadius.circular(DS.r24),
         border: Border.all(
-          color: const Color(0xFFFEFAF0).withValues(alpha: 0.55),
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
           width: 0.6,
         ),
         boxShadow: [
@@ -495,6 +508,42 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
                   ],
                 ),
               ),
+              if (posTags.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 2, 24, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: posTags
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: textColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: textColor.withValues(alpha: 0.12),
+                                ),
+                              ),
+                              child: Text(
+                                tag,
+                                style: GoogleFonts.notoSansTc(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor.withValues(alpha: 0.76),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -557,24 +606,26 @@ class _FlipCardWidgetState extends State<FlipCardWidget>
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          '可上下滑動閱讀',
+                          AppLocalizations.of(context).scrollable,
                           style: GoogleFonts.notoSerifTc(
                             textStyle: TextStyle(
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: textColor.withValues(alpha: 0.72),
+                              color: textColor.withValues(alpha: 0.68),
                             ),
                           ),
                         ),
                       ),
                     const Spacer(),
                     Text(
-                      _controller.isCompleted ? '再點一下下一張' : '點一下翻面',
+                      _controller.isCompleted
+                          ? AppLocalizations.of(context).tapToReturn
+                          : AppLocalizations.of(context).tapToFlip,
                       style: GoogleFonts.notoSerifTc(
                         textStyle: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: textColor.withValues(alpha: 0.68),
+                          color: textColor.withValues(alpha: 0.65),
                           letterSpacing: 0.2,
                         ),
                       ),

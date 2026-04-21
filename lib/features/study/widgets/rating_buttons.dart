@@ -30,7 +30,7 @@ class RatingButtons extends StatelessWidget {
           enabled: enabled,
           onTap: () => onRating(1),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _RatingButton(
           icon: Icons.sentiment_dissatisfied_rounded,
           label: l10n.ratingHard,
@@ -39,7 +39,7 @@ class RatingButtons extends StatelessWidget {
           enabled: enabled,
           onTap: () => onRating(2),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _RatingButton(
           icon: Icons.sentiment_satisfied_rounded,
           label: l10n.ratingGood,
@@ -48,7 +48,7 @@ class RatingButtons extends StatelessWidget {
           enabled: enabled,
           onTap: () => onRating(3),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _RatingButton(
           icon: Icons.sentiment_very_satisfied_rounded,
           label: l10n.ratingEasy,
@@ -151,7 +151,7 @@ class _RatingButtonState extends State<_RatingButton>
             duration: const Duration(milliseconds: 120),
             opacity: widget.enabled ? 1 : 0.45,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -174,9 +174,9 @@ class _RatingButtonState extends State<_RatingButton>
                   Text(
                     widget.label,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
+                      letterSpacing: 0.4,
                       color: widget.color,
                     ),
                     maxLines: 1,
@@ -188,7 +188,7 @@ class _RatingButtonState extends State<_RatingButton>
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: widget.color.withValues(alpha: 0.84),
+                      color: widget.color.withValues(alpha: 0.72),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

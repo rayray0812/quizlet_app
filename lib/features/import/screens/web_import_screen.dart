@@ -1,6 +1,7 @@
 ﻿import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -377,7 +378,26 @@ class _WebImportScreenState extends State<WebImportScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      onPressed: _isImporting
+                          ? null
+                          : () async {
+                              final data =
+                                  await Clipboard.getData(Clipboard.kTextPlain);
+                              if (data?.text != null &&
+                                  data!.text!.trim().isNotEmpty) {
+                                _urlController.text = data.text!.trim();
+                                _navigateToUrl();
+                              }
+                            },
+                      icon: const Icon(Icons.content_paste_rounded),
+                      tooltip: l10n.paste,
+                      style: IconButton.styleFrom(
+                        foregroundColor: AppTheme.indigo,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     IconButton.filled(
                       onPressed: _isImporting ? null : _navigateToUrl,
                       icon: const Icon(Icons.arrow_forward_rounded),

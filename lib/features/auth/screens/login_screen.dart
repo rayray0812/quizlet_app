@@ -47,16 +47,16 @@ class LoginScreen extends ConsumerWidget {
             ),
           ),
           Positioned(
-            top: -44,
-            right: -30,
+            top: -MediaQuery.of(context).size.height * 0.05,
+            right: -MediaQuery.of(context).size.width * 0.08,
             child: _AuthGlow(
               size: 190,
               color: AppTheme.cyan.withValues(alpha: 0.12),
             ),
           ),
           Positioned(
-            top: 100,
-            left: -36,
+            top: MediaQuery.of(context).size.height * 0.12,
+            left: -MediaQuery.of(context).size.width * 0.1,
             child: _AuthGlow(
               size: 170,
               color: AppTheme.indigo.withValues(alpha: 0.1),
@@ -91,7 +91,7 @@ class LoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '開始今天的學習。',
+                    l10n.loginSubtitle,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Theme.of(context).colorScheme.outline,
                           fontWeight: FontWeight.w600,

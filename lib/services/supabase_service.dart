@@ -10,38 +10,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 typedef AccountCleanupTarget = ({String table, String userIdColumn});
 
 const List<AccountCleanupTarget> accountDeletionFallbackTargets = [
-  (
-    table: SupabaseConstants.reviewLogsTable,
-    userIdColumn: 'user_id',
-  ),
-  (
-    table: SupabaseConstants.cardProgressTable,
-    userIdColumn: 'user_id',
-  ),
-  (
-    table: SupabaseConstants.studySetsTable,
-    userIdColumn: 'user_id',
-  ),
-  (
-    table: SupabaseConstants.foldersTable,
-    userIdColumn: 'user_id',
-  ),
+  (table: SupabaseConstants.reviewLogsTable, userIdColumn: 'user_id'),
+  (table: SupabaseConstants.cardProgressTable, userIdColumn: 'user_id'),
+  (table: SupabaseConstants.studySetsTable, userIdColumn: 'user_id'),
+  (table: SupabaseConstants.foldersTable, userIdColumn: 'user_id'),
   (
     table: SupabaseConstants.studentAssignmentProgressTable,
     userIdColumn: 'student_id',
   ),
-  (
-    table: SupabaseConstants.classMembersTable,
-    userIdColumn: 'student_id',
-  ),
-  (
-    table: SupabaseConstants.classesTable,
-    userIdColumn: 'teacher_id',
-  ),
-  (
-    table: SupabaseConstants.profilesTable,
-    userIdColumn: 'user_id',
-  ),
+  (table: SupabaseConstants.classMembersTable, userIdColumn: 'student_id'),
+  (table: SupabaseConstants.classesTable, userIdColumn: 'teacher_id'),
+  (table: SupabaseConstants.profilesTable, userIdColumn: 'user_id'),
 ];
 
 const List<String> accountDeletionAvatarCandidates = [
@@ -67,6 +46,23 @@ class SupabaseService {
 
   // Auth
   User? get currentUser => _clientOrNull?.auth.currentUser;
+
+  String preferredDisplayName([User? user]) {
+    final target = user ?? currentUser;
+    if (target == null) return '';
+    final metadata = target.userMetadata ?? const <String, dynamic>{};
+    final candidates = <String>[
+      metadata['full_name']?.toString() ?? '',
+      metadata['name']?.toString() ?? '',
+      metadata['display_name']?.toString() ?? '',
+      target.email?.split('@').first ?? '',
+    ];
+    for (final candidate in candidates) {
+      final value = candidate.trim();
+      if (value.isNotEmpty) return value;
+    }
+    return '';
+  }
 
   Stream<AuthState> get authStateChanges =>
       _clientOrNull?.auth.onAuthStateChange ?? const Stream<AuthState>.empty();
@@ -116,7 +112,9 @@ class SupabaseService {
     final client = _clientOrNull;
     final user = currentUser;
     if (client == null || user == null) {
-      if (kDebugMode) debugPrint('[Admin] client=$client user=$user → false (null)');
+      if (kDebugMode) {
+        debugPrint('[Admin] client=$client user=$user ??false (null)');
+      }
       return false;
     }
     try {
@@ -124,7 +122,11 @@ class SupabaseService {
         'is_global_admin',
         params: {'uid': user.id},
       );
-      if (kDebugMode) debugPrint('[Admin] RPC is_global_admin returned: $rpcResult (${rpcResult.runtimeType})');
+      if (kDebugMode) {
+        debugPrint(
+          '[Admin] RPC is_global_admin returned: $rpcResult (${rpcResult.runtimeType})',
+        );
+      }
       if (rpcResult is bool) return rpcResult;
       if (rpcResult is num) return rpcResult != 0;
       if (rpcResult is String) {
@@ -132,9 +134,11 @@ class SupabaseService {
         if (value == 'true' || value == 't' || value == '1') return true;
         if (value == 'false' || value == 'f' || value == '0') return false;
       }
-      if (kDebugMode) debugPrint('[Admin] RPC returned unhandled type, falling through');
+      if (kDebugMode) {
+        debugPrint('[Admin] RPC returned unhandled type, falling through');
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('[Admin] RPC failed: $e — trying table query');
+      if (kDebugMode) debugPrint('[Admin] RPC failed: $e ??trying table query');
     }
     try {
       final rows = await client
@@ -145,10 +149,10 @@ class SupabaseService {
           .inFilter('role_key', ['super_admin', 'org_admin'])
           .limit(1);
       final result = (rows as List).isNotEmpty;
-      if (kDebugMode) debugPrint('[Admin] Table query rows=$rows → $result');
+      if (kDebugMode) debugPrint('[Admin] Table query rows=$rows ??$result');
       return result;
     } catch (e) {
-      if (kDebugMode) debugPrint('[Admin] Table query failed: $e → false');
+      if (kDebugMode) debugPrint('[Admin] Table query failed: $e ??false');
       return false;
     }
   }
@@ -616,7 +620,9 @@ class SupabaseService {
     if (userId == null) throw StateError('No signed-in user.');
 
     final path = '$userId/avatar.$fileExt';
-    await client.storage.from('avatars').uploadBinary(
+    await client.storage
+        .from('avatars')
+        .uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(upsert: true),
@@ -664,5 +670,3 @@ class SupabaseService {
     }
   }
 }
-
-
