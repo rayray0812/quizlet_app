@@ -415,25 +415,29 @@ class SupabaseService {
     final userId = currentUser?.id;
     if (client == null || userId == null) return;
 
-    final rows = logs
-        .map(
-          (log) => {
-            'id': log.id,
-            'card_id': log.cardId,
-            'set_id': log.setId,
-            'user_id': userId,
-            'rating': log.rating,
-            'state': log.state,
-            'reviewed_at': log.reviewedAt.toIso8601String(),
-            'elapsed_days': log.elapsedDays,
-            'scheduled_days': log.scheduledDays,
-            'last_stability': log.lastStability,
-            'last_difficulty': log.lastDifficulty,
-          },
-        )
-        .toList();
+    final rows = logs.map((log) => reviewLogToRow(log, userId)).toList();
 
     await client.from(SupabaseConstants.reviewLogsTable).upsert(rows);
+  }
+
+  /// Map a ReviewLog into a Supabase-compatible row.
+  /// Exposed for round-trip testing of the sync schema.
+  static Map<String, dynamic> reviewLogToRow(ReviewLog log, String userId) {
+    return {
+      'id': log.id,
+      'card_id': log.cardId,
+      'set_id': log.setId,
+      'user_id': userId,
+      'rating': log.rating,
+      'state': log.state,
+      'reviewed_at': log.reviewedAt.toIso8601String(),
+      'review_type': log.reviewType,
+      'speaking_score': log.speakingScore,
+      'elapsed_days': log.elapsedDays,
+      'scheduled_days': log.scheduledDays,
+      'last_stability': log.lastStability,
+      'last_difficulty': log.lastDifficulty,
+    };
   }
 
   Future<List<StudySet>> fetchStudySets() async {
@@ -557,7 +561,11 @@ class SupabaseService {
     );
   }
 
-  ReviewLog _rowToReviewLog(dynamic row) {
+  ReviewLog _rowToReviewLog(dynamic row) => rowToReviewLog(row);
+
+  /// Map a Supabase row back into a ReviewLog.
+  /// Exposed for round-trip testing of the sync schema.
+  static ReviewLog rowToReviewLog(dynamic row) {
     return ReviewLog(
       id: row['id'] as String,
       cardId: row['card_id'] as String,
@@ -565,6 +573,8 @@ class SupabaseService {
       rating: row['rating'] as int,
       state: row['state'] as int,
       reviewedAt: DateTime.parse(row['reviewed_at'] as String),
+      reviewType: row['review_type'] as String? ?? 'srs',
+      speakingScore: (row['speaking_score'] as num?)?.toInt(),
       elapsedDays: row['elapsed_days'] as int? ?? 0,
       scheduledDays: row['scheduled_days'] as int? ?? 0,
       lastStability: (row['last_stability'] as num?)?.toDouble() ?? 0.0,
