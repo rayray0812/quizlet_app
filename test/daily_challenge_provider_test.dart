@@ -5,7 +5,11 @@ import 'package:recall_app/providers/daily_challenge_provider.dart';
 import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/providers/stats_provider.dart';
 
-ReviewLog _logAt(DateTime reviewedAt, int index) {
+ReviewLog _logAt(
+  DateTime reviewedAt,
+  int index, {
+  String reviewType = 'srs',
+}) {
   return ReviewLog(
     id: 'log-$index-${reviewedAt.toIso8601String()}',
     cardId: 'card-$index',
@@ -13,13 +17,23 @@ ReviewLog _logAt(DateTime reviewedAt, int index) {
     rating: 3,
     state: 2,
     reviewedAt: reviewedAt,
+    reviewType: reviewType,
   );
 }
 
-List<ReviewLog> _logsForDay(DateTime dayUtc, int count, int startIndex) {
+List<ReviewLog> _logsForDay(
+  DateTime dayUtc,
+  int count,
+  int startIndex, {
+  String reviewType = 'srs',
+}) {
   return List<ReviewLog>.generate(
     count,
-    (i) => _logAt(dayUtc.add(Duration(minutes: i)), startIndex + i),
+    (i) => _logAt(
+      dayUtc.add(Duration(minutes: i)),
+      startIndex + i,
+      reviewType: reviewType,
+    ),
   );
 }
 
@@ -137,16 +151,46 @@ void main() {
   });
 
   test('remaining clamps to zero when reviewed exceeds target', () {
-    final container = buildContainer(
-      logs: [],
-      todayCount: 15,
-      dueNow: 5,
-    );
+    final today = todayUtc();
+    final logs = _logsForDay(today, 15, 0);
+
+    final container = buildContainer(logs: logs, dueNow: 5);
     addTearDown(container.dispose);
 
     final status = container.read(dailyChallengeStatusProvider);
     expect(status.remaining, 0);
     expect(status.isCompleted, isTrue);
     expect(status.reviewedToday, 15);
+  });
+
+  test('conversation turns count at half weight, not double-counted', () {
+    final today = todayUtc();
+    // 4 SRS reviews + 6 conversation turns
+    // Expected: srsCount=4, convBonus=6~/2=3, effectiveToday=7
+    final logs = <ReviewLog>[
+      ..._logsForDay(today, 4, 0, reviewType: 'srs'),
+      ..._logsForDay(today, 6, 100, reviewType: 'conversation'),
+    ];
+
+    final container = buildContainer(logs: logs);
+    addTearDown(container.dispose);
+
+    final status = container.read(dailyChallengeStatusProvider);
+    expect(status.reviewedToday, 7);
+    expect(status.remaining, 3);
+    expect(status.isCompleted, isFalse);
+  });
+
+  test('pure conversation session contributes via half-weight rule only', () {
+    final today = todayUtc();
+    // 20 conversation turns -> 10 progress (20 ~/ 2)
+    final logs = _logsForDay(today, 20, 0, reviewType: 'conversation');
+
+    final container = buildContainer(logs: logs);
+    addTearDown(container.dispose);
+
+    final status = container.read(dailyChallengeStatusProvider);
+    expect(status.reviewedToday, 10);
+    expect(status.isCompleted, isTrue);
   });
 }

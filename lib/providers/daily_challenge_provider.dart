@@ -24,13 +24,23 @@ class DailyChallengeStatus {
 }
 
 final dailyChallengeStatusProvider = Provider<DailyChallengeStatus>((ref) {
-  final todayCount = ref.watch(todayReviewCountProvider);
   final dueNow = ref.watch(dueCountProvider);
   final allLogs = ref.watch(allReviewLogsProvider);
-  // Every 2 conversation turns = 1 daily challenge progress
+  // Every 2 conversation turns = 1 daily challenge progress.
+  // Exclude conversation logs from srsCount so they aren't counted twice
+  // (conversation logs are also stored in allReviewLogs via saveReviewLog).
   final convTurnsToday = ref.watch(todayConversationTurnsProvider);
   final convBonus = convTurnsToday ~/ 2;
-  final effectiveToday = todayCount + convBonus;
+
+  final now = DateTime.now().toUtc();
+  final todayStart = DateTime.utc(now.year, now.month, now.day);
+  final todayEnd = todayStart.add(const Duration(days: 1));
+  final srsCount = allLogs.where((log) {
+    if (log.reviewType == 'conversation') return false;
+    return !log.reviewedAt.isBefore(todayStart) &&
+        log.reviewedAt.isBefore(todayEnd);
+  }).length;
+  final effectiveToday = srsCount + convBonus;
 
   final remaining = (dailyChallengeTarget - effectiveToday).clamp(0, dailyChallengeTarget);
   final currentStreak = _calculateChallengeStreak(
