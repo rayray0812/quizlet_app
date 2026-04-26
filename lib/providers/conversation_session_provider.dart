@@ -1032,8 +1032,11 @@ class ConversationSessionNotifier
         await localStorage.saveReviewLog(log);
       }
 
-      // SRS feedback: penalize unused target terms in low-scoring turns
-      await _applyConversationSrsFeedback(current, localStorage);
+      // TODO(grasp-phase-a): Replace with OutcomeAdapter that emits a
+      // 'conversation_unused_term' outcome event for unused target terms,
+      // and let FsrsService decide the schedule impact. Direct stability
+      // mutation removed in Phase 0 hotfix because it bypassed FSRS-5
+      // internal consistency.
 
       // Save transcript
       await _saveTranscript(current);
@@ -1043,51 +1046,6 @@ class ConversationSessionNotifier
     } catch (_) {
       _hasPersistedSessionResult = false;
       rethrow;
-    }
-  }
-
-  Future<void> _applyConversationSrsFeedback(
-    ConversationSessionState current,
-    dynamic localStorage,
-  ) async {
-    // Collect all used terms across the session
-    final allUsedTerms = <String>{};
-    for (final turn in current.turnRecords) {
-      allUsedTerms.addAll(turn.termsUsed);
-    }
-
-    // Find unused target terms
-    final unusedTerms = current.targetTerms
-        .where((t) => !allUsedTerms.contains(t))
-        .toList();
-
-    if (unusedTerms.isEmpty) return;
-
-    // Look up flashcards in the study set to find card IDs for unused terms
-    final studySet = ref.read(studySetsProvider.notifier).getById(arg.setId);
-    if (studySet == null) return;
-
-    final termToCardId = <String, String>{};
-    for (final card in studySet.cards) {
-      final normalizedTerm = card.term.trim().toLowerCase();
-      termToCardId[normalizedTerm] = card.id;
-    }
-
-    // For each unused term, reduce stability in CardProgress
-    for (final term in unusedTerms) {
-      final cardId = termToCardId[term.trim().toLowerCase()];
-      if (cardId == null) continue;
-
-      final progress = (localStorage as dynamic).getCardProgress(cardId);
-      if (progress == null) continue;
-
-      // Reduce stability by 20% to schedule earlier review
-      final newStability = (progress.stability * 0.8).clamp(0.1, 9999.0);
-      final updated = progress.copyWith(
-        stability: newStability,
-        isSynced: false,
-      );
-      await (localStorage as dynamic).saveCardProgress(updated);
     }
   }
 
@@ -1130,7 +1088,7 @@ class ConversationSessionNotifier
       turns: transcriptTurns,
     );
 
-    await (localStorage as dynamic).saveConversationTranscript(transcript);
+    await localStorage.saveConversationTranscript(transcript);
   }
 
   int _heuristicScore(ConversationTurnRecord turn) {
