@@ -28,7 +28,7 @@ class ComboIndicator extends ConsumerWidget {
       builder: (context, value, child) {
         return Transform.scale(
           scale: isMilestone ? 0.8 + value * 0.3 : 0.9 + value * 0.1,
-          child: Opacity(opacity: value, child: child),
+          child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
         );
       },
       child: Container(

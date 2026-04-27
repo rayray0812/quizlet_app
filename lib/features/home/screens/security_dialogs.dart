@@ -778,7 +778,7 @@ class SecurityDialogs {
                                   content: Text(
                                     fullDeleted
                                         ? l10n.accountDeleted
-                                        : '已刪除雲端學習資料並登出，但帳號本身未完全刪除。請確認後端 delete_my_account RPC 是否已部署。',
+                                        : l10n.accountDataDeletedFallback,
                                   ),
                                   duration: const Duration(seconds: 6),
                                 ),

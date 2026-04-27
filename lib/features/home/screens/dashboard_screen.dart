@@ -1460,7 +1460,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: CupertinoIcons.plus,
               iconColor: AppTheme.indigo,
               title: l10n.createNewSet,
-              subtitle: 'Blank set',
+              subtitle: l10n.createNewSetSubtitle,
               onTap: () async {
                 Navigator.pop(sheetContext);
                 await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -1472,7 +1472,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: CupertinoIcons.globe,
               iconColor: AppTheme.purple,
               title: l10n.importFromRecall,
-              subtitle: 'Paste from website',
+              subtitle: l10n.importFromWebSubtitle,
               onTap: () {
                 Navigator.pop(sheetContext);
                 screenContext.push('/import');
@@ -1482,7 +1482,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: CupertinoIcons.doc,
               iconColor: AppTheme.green,
               title: l10n.importFromFile,
-              subtitle: 'JSON / CSV',
+              subtitle: l10n.importFromFileSubtitle,
               onTap: () {
                 Navigator.pop(sheetContext);
                 _importFromFile(screenContext, ref);
@@ -1492,7 +1492,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: CupertinoIcons.qrcode,
               iconColor: AppTheme.cyan,
               title: l10n.scanQr,
-              subtitle: 'Open scanner',
+              subtitle: l10n.scanQrSubtitle,
               onTap: () {
                 Navigator.pop(sheetContext);
                 screenContext.push('/scan');
@@ -1502,7 +1502,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: CupertinoIcons.camera,
               iconColor: AppTheme.orange,
               title: l10n.photoToFlashcard,
-              subtitle: 'Import with camera',
+              subtitle: l10n.photoToFlashcardSubtitle,
               onTap: () {
                 Navigator.pop(sheetContext);
                 final apiKey = ref.read(geminiKeyProvider);

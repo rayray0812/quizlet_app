@@ -12,8 +12,9 @@
 
 ## 目前進度
 
-所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge 皆已完成。
-程式碼已通過 `flutter analyze`（零問題）和 `flutter test`（311 個測試全部通過）。
+所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge + Grasp Phase 0 Hotfix 皆已完成。
+程式碼通過 `flutter test`（336 個測試全部通過）。
+`flutter analyze` 有 15 個 warning，全部來自 `community_screen.dart` 的 unused element，與核心功能無關，待清理。
 
 ### 基礎建設（Step 1–10）✅
 - [x] Step 1：專案骨架 + 核心設定
@@ -110,11 +111,23 @@
 - [x] StudySetCard 新增 onMore 回調 + ⋮ 按鈕（context menu 入口）
 - [x] l10n 新增：rename / renameStudySet / selectedCount / batchMoveToFolder（中/英）
 
+### Grasp Phase 0 Hotfix（2026-04-26）✅
+- [x] 移除 conversation stability bypass（`_applyConversationSrsFeedback` 直接乘 0.8，繞過 FsrsService）
+- [x] 清除 `(localStorage as dynamic)` dynamic cast
+- [x] 修正 Daily Challenge 雙重計數 conversation（srsCount 過濾 conversation log，convBonus 半權重）
+- [x] 補齊 `review_logs` Supabase schema（`review_type` + `speaking_score` 欄位）
+- [x] 補齊 sync mapper 雙向傳送新欄位（`reviewLogToRow` / `rowToReviewLog` 抽為 static）
+- [x] Migration：`202604260001_review_logs_extension.sql`
+- [x] 新增 6 個測試（Daily Challenge 計數 × 2、sync round-trip × 4）
+
 ### 待辦 / 下一步
+- [ ] 在 Supabase 執行 `202604260001_review_logs_extension.sql`（migration 已寫好，需手動跑）
 - [ ] 在 `supabase_constants.dart` 填入真實 Supabase URL 和 anon key
 - [ ] 在 Supabase 建立資料表 + RLS 政策
+- [ ] 清理 `community_screen.dart` 的 15 個 unused element warning
 - [ ] 實機測試驗證（Android/iOS/Web）
 - [ ] WebView 匯入功能實測
+- [ ] 開始 Grasp Phase A（ReviewLog event contract、review_sessions 表、A4 程式清理）
 
 ---
 

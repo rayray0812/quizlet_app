@@ -273,22 +273,11 @@ class _ExploreTabState extends ConsumerState<_ExploreTab> {
       category: _selectedCategory,
     );
     final feedAsync = ref.watch(publicStudySetsProvider(feedQuery));
-    final myPublishedAsync = user == null
-        ? const AsyncValue<List<PublicStudySet>>.data(<PublicStudySet>[])
-        : ref.watch(userPublicSetsProvider(user.id));
 
     return feedAsync.when(
       data: (feedSets) {
-        final downloadedSets = _findDownloadedPublicSets(feedSets, localSets);
-        final recommendedSets = _buildRecommendedSets(
-          publicSets: feedSets,
-          localSets: localSets,
-          currentUserId: user?.id,
-        );
         final topTags = _extractTopTags(feedSets, fallbackLocalSets: localSets);
-        final categories = _extractCategories(feedSets);
         final latestLocalSet = _latestLocalSet(localSets);
-        final myPublished = myPublishedAsync.valueOrNull ?? const <PublicStudySet>[];
         final friendIds = ref.watch(communityFriendIdsProvider);
         final weeklyMinutes = _estimateWeeklyMinutes(
           ref.watch(allReviewLogsProvider),
@@ -318,61 +307,15 @@ class _ExploreTabState extends ConsumerState<_ExploreTab> {
             children: [
               _CommunityHeroCard(
                 title: l10n.communityTitle,
-                subtitle: l10n.communitySubtitle,
-                localSetCount: localSets.length,
-                publicSetCount: feedSets.length,
-                recommendedCount: recommendedSets.length,
+                primaryLabel: latestLocalSet == null ? '開始探索' : '延續最近學習',
                 onPrimaryTap: latestLocalSet == null
                     ? null
                     : () => context.push('/study/${latestLocalSet.id}'),
-                onSecondaryTap: user == null ? () => context.push('/login') : null,
-                primaryLabel: latestLocalSet == null ? '開始探索' : '延續最近學習',
-                secondaryLabel: user == null ? l10n.logIn : null,
-              ),
-              const SizedBox(height: 16),
-              _SectionHeader(
-                icon: Icons.flash_on_rounded,
-                title: '快速入口',
-                subtitle: '縮短下載、回訪與發布的決策時間',
-              ),
-              const SizedBox(height: 10),
-              _QuickActionGrid(
-                tiles: [
-                  _QuickActionTileData(
-                    title: latestLocalSet == null ? '從社群找一套開始' : latestLocalSet.title,
-                    subtitle: latestLocalSet == null
-                        ? '先從熱門內容找你要的主題'
-                        : '${latestLocalSet.cards.length} 張卡片，直接回到最近一套',
-                    icon: latestLocalSet == null
-                        ? Icons.travel_explore_rounded
-                        : Icons.play_circle_fill_rounded,
-                    accent: AppTheme.indigo,
-                    onTap: latestLocalSet == null
-                        ? () {}
-                        : () => context.push('/study/${latestLocalSet.id}'),
-                  ),
-                  _QuickActionTileData(
-                    title: user == null ? '登入後發布內容' : '我的公開內容',
-                    subtitle: user == null
-                        ? '解鎖發布、檢舉與個人檔案'
-                        : '已發布 ${myPublished.length} 套，方便回看與管理',
-                    icon: user == null
-                        ? Icons.lock_open_rounded
-                        : Icons.cloud_upload_rounded,
-                    accent: AppTheme.green,
-                    onTap: user == null
-                        ? () => context.push('/login')
-                        : myPublished.isEmpty
-                            ? null
-                            : () => _showPreviewForSet(context, ref, myPublished.first),
-                  ),
-                ],
               ),
               const SizedBox(height: 20),
               _SectionHeader(
                 icon: Icons.emoji_events_rounded,
                 title: '好友聯賽',
-                subtitle: '先用你的真實週學習時間，搭配可加入好友的排行榜骨架',
               ),
               const SizedBox(height: 10),
               _FriendsLeagueCard(
@@ -387,99 +330,20 @@ class _ExploreTabState extends ConsumerState<_ExploreTab> {
                           friendIds,
                         ),
               ),
-              if (recommendedSets.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  icon: Icons.auto_awesome_rounded,
-                  title: '為你推薦',
-                  subtitle: '依你的本機題庫主題與標籤自動排序',
-                ),
-                const SizedBox(height: 10),
-                ...recommendedSets.take(3).map(
-                  (set) => _PublicSetCard(
-                    publicSet: set,
-                    emphasis: _PublicSetCardEmphasis.recommended,
-                    recommendationLabel: '符合你的學習主題',
-                  ),
-                ),
-              ],
-              if (downloadedSets.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  icon: Icons.download_done_rounded,
-                  title: '已加入你的資料庫',
-                  subtitle: '下載過的內容應該能更快回訪，而不是重新搜尋',
-                ),
-                const SizedBox(height: 10),
-                ...downloadedSets.take(2).map(
-                  (set) => _PublicSetCard(
-                    publicSet: set,
-                    emphasis: _PublicSetCardEmphasis.downloaded,
-                  ),
-                ),
-              ],
-              if (myPublishedAsync.hasValue && myPublished.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  icon: Icons.publish_rounded,
-                  title: '我的發布',
-                  subtitle: '回看自己已公開的內容與下載表現',
-                ),
-                const SizedBox(height: 10),
-                ...myPublished.take(2).map(
-                  (set) => _PublicSetCard(
-                    publicSet: set,
-                    emphasis: _PublicSetCardEmphasis.owned,
-                  ),
-                ),
-              ],
               const SizedBox(height: 20),
               _SectionHeader(
                 icon: Icons.tag_rounded,
                 title: l10n.communityPopularTags,
-                subtitle: '從常見主題直接切入，不必每次手動搜尋',
               ),
               const SizedBox(height: 10),
               _TagCloud(
                 tags: topTags,
                 onTagTap: widget.onTagTap,
               ),
-              if (categories.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  icon: Icons.grid_view_rounded,
-                  title: '分類瀏覽',
-                  subtitle: '先縮小範圍，再看熱門排序',
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _CategoryChip(
-                        label: l10n.communityAllCategories,
-                        selected: _selectedCategory.isEmpty,
-                        onTap: () => setState(() => _selectedCategory = ''),
-                      ),
-                      ...categories.map(
-                        (category) => Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: _CategoryChip(
-                            label: category,
-                            selected: _selectedCategory == category,
-                            onTap: () => setState(() => _selectedCategory = category),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 20),
               _SectionHeader(
                 icon: Icons.trending_up_rounded,
                 title: l10n.communityHotSets,
-                subtitle: '保留熱門、最新、下載量，但把入口整理成更容易比較',
               ),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -575,14 +439,8 @@ class _ExploreTabState extends ConsumerState<_ExploreTab> {
         children: [
           _CommunityHeroCard(
             title: l10n.communityTitle,
-            subtitle: l10n.communitySubtitle,
-            localSetCount: localSets.length,
-            publicSetCount: 0,
-            recommendedCount: 0,
-            onPrimaryTap: null,
-            onSecondaryTap: user == null ? () => context.push('/login') : null,
             primaryLabel: '稍後重試',
-            secondaryLabel: user == null ? l10n.logIn : null,
+            onPrimaryTap: null,
           ),
           const SizedBox(height: 18),
           Container(
@@ -899,30 +757,18 @@ class _ExploreTabState extends ConsumerState<_ExploreTab> {
 class _CommunityHeroCard extends StatelessWidget {
   const _CommunityHeroCard({
     required this.title,
-    required this.subtitle,
-    required this.localSetCount,
-    required this.publicSetCount,
-    required this.recommendedCount,
     required this.primaryLabel,
     required this.onPrimaryTap,
-    this.secondaryLabel,
-    this.onSecondaryTap,
   });
 
   final String title;
-  final String subtitle;
-  final int localSetCount;
-  final int publicSetCount;
-  final int recommendedCount;
   final String primaryLabel;
   final VoidCallback? onPrimaryTap;
-  final String? secondaryLabel;
-  final VoidCallback? onSecondaryTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -933,87 +779,25 @@ class _CommunityHeroCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE6E0D5)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.language_rounded,
-                  color: AppTheme.indigo,
-                  size: 28,
-                ),
+          Expanded(
+            child: Text(
+              title,
+              style: GoogleFonts.notoSerifTc(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: _darkText,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.notoSerifTc(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: _darkText,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: _subtleText,
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStat(label: '你的題庫', value: '$localSetCount'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HeroStat(label: '社群列表', value: '$publicSetCount'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _HeroStat(label: '推薦內容', value: '$recommendedCount'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: onPrimaryTap,
-                  child: Text(primaryLabel),
-                ),
-              ),
-              if (secondaryLabel != null) ...[
-                const SizedBox(width: 10),
-                OutlinedButton(
-                  onPressed: onSecondaryTap,
-                  child: Text(secondaryLabel!),
-                ),
-              ],
-            ],
+          const SizedBox(width: 12),
+          FilledButton(
+            onPressed: onPrimaryTap,
+            child: Text(primaryLabel),
           ),
         ],
       ),
@@ -1778,9 +1562,29 @@ class _ClassroomTabState extends ConsumerState<_ClassroomTab> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
-        child: Text(
-          l10n.communityLoadError,
-          style: const TextStyle(color: _darkText),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 40, color: _subtleText),
+              const SizedBox(height: 12),
+              Text(
+                l10n.communityLoadError,
+                style: const TextStyle(
+                  color: _darkText,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '請確認雲端資料庫已設定',
+                style: const TextStyle(color: _subtleText, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

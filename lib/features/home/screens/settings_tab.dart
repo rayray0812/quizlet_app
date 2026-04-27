@@ -442,9 +442,15 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
       builder: (dialogContext) {
         var selectedProvider = currentProvider;
         var isPickingModel = false;
+        // Cache the model-status future so it isn't recreated on every
+        // setDialogState call (repeated MethodChannel calls caused crashes).
+        var gemmaLocalModelPath = ref.read(gemmaLocalModelPathProvider);
+        var modelStatusFuture = gemmaLocalModelPath.trim().isEmpty
+            ? Future.value(const LocalModelStatus(
+                ready: false, message: 'No model file imported yet.'))
+            : OnDeviceAiService.checkModel(gemmaLocalModelPath);
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            final gemmaLocalModelPath = ref.read(gemmaLocalModelPathProvider);
             return AlertDialog(
               title: Text(l10n.aiSettings),
               content: SingleChildScrollView(
@@ -526,12 +532,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                             ),
                             const SizedBox(height: 4),
                             FutureBuilder<LocalModelStatus>(
-                              future: gemmaLocalModelPath.trim().isEmpty
-                                  ? Future.value(const LocalModelStatus(
-                                      ready: false,
-                                      message: 'No model file imported yet.',
-                                    ))
-                                  : OnDeviceAiService.checkModel(gemmaLocalModelPath),
+                              future: modelStatusFuture,
                               builder: (context, snapshot) {
                                 final status = snapshot.data;
                                 final icon = status?.ready == true
@@ -594,7 +595,13 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
                                                 !context.mounted) {
                                               return;
                                             }
-                                            setDialogState(() {});
+                                            // Refresh cached path and future so
+                                            // FutureBuilder re-checks the new model.
+                                            setDialogState(() {
+                                              gemmaLocalModelPath = path;
+                                              modelStatusFuture =
+                                                  OnDeviceAiService.checkModel(path);
+                                            });
                                             messenger.showSnackBar(
                                               SnackBar(
                                                 content: Text(

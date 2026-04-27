@@ -43,7 +43,9 @@ class AppLocalizations {
   String get descriptionOptional => '';
   String get create => '';
   String get createNewSet => '';
+  String get createNewSetSubtitle => '';
   String get importFromRecall => '';
+  String get importFromWebSubtitle => '';
   String get profile => '';
   String get settings => '';
   String get theme => '';
@@ -225,6 +227,7 @@ class AppLocalizations {
   String reviewNUnknownCards(int count) => '';
   String get swipeToSort => '';
   String get importFromFile => '';
+  String get importFromFileSubtitle => '';
   String get enterRecallUrl => '';
   String get tapToFlip => '';
   String get tapToReturn => '';
@@ -296,6 +299,7 @@ class AppLocalizations {
 
   // -- Photo to Flashcard (F6) --
   String get photoToFlashcard => '';
+  String get photoToFlashcardSubtitle => '';
   String get vocabularyList => '';
   String get vocabularyListDesc => '';
   String get textbookPage => '';
@@ -454,6 +458,7 @@ class AppLocalizations {
   // -- QR Share (F10) --
   String get shareSet => '';
   String get scanQr => '';
+  String get scanQrSubtitle => '';
   String get scanToImport => '';
   String get linkCopied => '';
   String get copyLink => '';
@@ -756,6 +761,7 @@ class AppLocalizations {
   String get merge => '';
   String get passwordForReauth => '';
   String get accountDeleted => '';
+  String get accountDataDeletedFallback => '';
   String get biometricEnabled => '';
   String get biometricUnavailable => '';
   String get biometricFailed => '';
@@ -803,7 +809,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get createNewSet => '\u5EFA\u7ACB\u65B0\u5B78\u7FD2\u96C6';
   @override
+  String get createNewSetSubtitle => '\u7A7A\u767D\u5B78\u7FD2\u96C6';
+  @override
   String get importFromRecall => '\u7DB2\u9801\u532F\u5165';
+  @override
+  String get importFromWebSubtitle => '\u5F9E\u7DB2\u9801\u6293\u53D6';
   @override
   String get profile => '\u500B\u4EBA\u6A94\u6848';
   @override
@@ -1154,6 +1164,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get importFromFile => '\u5F9E\u6A94\u6848\u532F\u5165 (JSON/CSV)';
   @override
+  String get importFromFileSubtitle => 'JSON / CSV';
+  @override
   String get enterRecallUrl => '\u8F38\u5165\u5B78\u7FD2\u96C6\u7DB2\u5740';
   @override
   String get tapToFlip => '\u9EDE\u64CA\u7FFB\u9762';
@@ -1297,6 +1309,8 @@ class AppLocalizationsZh extends AppLocalizations {
   // -- Photo to Flashcard (F6) --
   @override
   String get photoToFlashcard => '\u62CD\u7167\u5EFA\u5361';
+  @override
+  String get photoToFlashcardSubtitle => '\u76F8\u6A5F\u62CD\u7167\u5EFA\u5361';
   @override
   String get vocabularyList => '\u55AE\u5B57\u8868';
   @override
@@ -1627,6 +1641,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shareSet => '\u5206\u4EAB\u5B78\u7FD2\u96C6';
   @override
   String get scanQr => '\u6383\u63CF QR Code';
+  @override
+  String get scanQrSubtitle => '\u958B\u555F\u6383\u63CF\u5668';
   @override
   String get scanToImport =>
       '\u8ACB\u5C0D\u65B9\u6383\u63CF\u6B64 QR Code \u5373\u53EF\u532F\u5165';
@@ -2242,6 +2258,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get accountDeleted => '帳號已成功刪除';
   @override
+  String get accountDataDeletedFallback => '已清除您的雲端與本地學習資料並登出。完整刪除帳號需要後端進一步處理，請聯絡客服協助。';
+  @override
   String get biometricEnabled => '已啟用生物辨識快速解鎖';
   @override
   String get biometricUnavailable => '此裝置不支援生物辨識';
@@ -2291,7 +2309,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get createNewSet => 'Create New Set';
   @override
+  String get createNewSetSubtitle => 'Blank set';
+  @override
   String get importFromRecall => 'Web Import';
+  @override
+  String get importFromWebSubtitle => 'Paste from website';
   @override
   String get profile => 'Profile';
   @override
@@ -2627,6 +2649,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get importFromFile => 'Import from File (JSON/CSV)';
   @override
+  String get importFromFileSubtitle => 'JSON / CSV';
+  @override
   String get enterRecallUrl => 'Enter Web URL';
   @override
   String get tapToFlip => 'TAP TO FLIP';
@@ -2763,6 +2787,8 @@ class AppLocalizationsEn extends AppLocalizations {
   // -- Photo to Flashcard (F6) --
   @override
   String get photoToFlashcard => 'Photo to Flashcard';
+  @override
+  String get photoToFlashcardSubtitle => 'Import with camera';
   @override
   String get vocabularyList => 'Vocabulary List';
   @override
@@ -3076,6 +3102,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareSet => 'Share Study Set';
   @override
   String get scanQr => 'Scan QR Code';
+  @override
+  String get scanQrSubtitle => 'Open scanner';
   @override
   String get scanToImport => 'Scan this QR code to import';
   @override
@@ -3663,6 +3691,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get passwordForReauth => 'Password (leave blank for OAuth)';
   @override
   String get accountDeleted => 'Account deleted successfully';
+  @override
+  String get accountDataDeletedFallback => 'Cloud and local study data have been cleared and you have been signed out. Full account removal requires further server-side processing—please contact support.';
   @override
   String get biometricEnabled => 'Biometric quick unlock enabled';
   @override
