@@ -12,8 +12,8 @@
 
 ## 目前進度
 
-所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge + Grasp Phase 0 Hotfix 皆已完成。
-程式碼通過 `flutter test`（336 個測試全部通過）。
+所有基礎步驟 + 功能擴充 + FSRS + 驗證強化 + 管理後台 + UI 優化 + Daily Challenge + Grasp Phase 0 + A + B + B+ 皆已完成。
+程式碼通過 `flutter test`（369 個測試全部通過）。
 `flutter analyze` 有 15 個 warning，全部來自 `community_screen.dart` 的 unused element，與核心功能無關，待清理。
 
 ### 基礎建設（Step 1–10）✅
@@ -120,14 +120,53 @@
 - [x] Migration：`202604260001_review_logs_extension.sql`
 - [x] 新增 6 個測試（Daily Challenge 計數 × 2、sync round-trip × 4）
 
+### Grasp Phase B+（2026-04-27）✅
+- [x] `local_ai_service.dart`：3 個本地 AI 任務（L1 reviewHint / L2 mnemonic / L3 confusionDiagnosis）
+- [x] 各任務 prompt builder（buildReviewHintPrompt / buildMnemonicPrompt / buildConfusionPrompt）抽為 static，可獨立測試
+- [x] 輸出清理 cleaner（cleanSingleSentence / cleanShortParagraph）：strip 「提示：」「Hint:」label、引號、列舉符號
+- [x] 透過 `_runWithAnalytics` 包裝，所有本地 AI 呼叫自動記到 AiAnalyticsService（Phase B 建立的）
+- [x] 模型不可用時返回 null（不 throw），UI 層可安全 fail silent
+- [x] AiTaskType 新增 reviewHint / mnemonic / confusionDiagnosis 三種
+- [x] `local_ai_provider.dart`：`hasLocalAiModelProvider`（gate UI 顯示）+ `reviewHintProvider` / `mnemonicProvider` / `confusionExplanationProvider`（FutureProvider.autoDispose.family）
+- [x] L1 UI 整合：`ReviewHintButton` widget 在 SRS 複習畫面（卡片正面、未翻時顯示）；模型未設時自動隱藏
+- [x] `ReviewHintButton` 狀態機：未請求 → 請求中（loading spinner） → 顯示提示（💡 bubble）/ 失敗顯示 fallback 文案
+- [x] l10n 字串（中/英 3 個 key：localHintCta / localHintGenerating / localHintUnavailable）
+- [x] 新增 10 個測試（prompt builders × 3、cleaners × 7）
+
+### Grasp Phase B（2026-04-27）✅
+- [x] B1：`ai_error.dart`（ScanFailureReason / ScanException 從 gemini_service 移出；AiErrorClassifier.classifySdkError + classifyHttpError + isRateLimit）
+- [x] B1：gemini_service.dart 移除 `_classifyAiError` + `_isRateLimitError` 私有方法，改用 AiErrorClassifier；gemini_service re-export ScanFailureReason / ScanException 維持向後相容
+- [x] B1：groq_vision_service.dart 移除 `_classifyHttpError`，改用 AiErrorClassifier.classifyHttpError
+- [x] B2：`ai_task.dart`（AiTaskType enum + AiTaskState sealed class: Idle/Running/Done/Error + AiTask descriptor）
+- [x] B3：`ai_analytics_service.dart`（Hive-backed AI 操作日誌，max 100 records；logEvent / getRecentEvents / recentFailureCount）
+- [x] B3：`app_constants.settingAiEventsKey = 'ai_events'`
+- [x] B3：photo_import_screen `_callAiExtract` 重構為單一出口 + try-catch 接 AiAnalyticsService 日誌（success 和 ScanException 都記錄）
+- [x] 新增 13 個測試（classifySdkError × 4、classifyHttpError × 5、AiTaskState × 4）
+
+### Grasp Phase A（2026-04-27）✅
+- [x] A1：ReviewLog 擴充 5 個欄位（sessionId/responseLatencyMs/chosenDistractorId/predictedRetrievability/metadata）
+- [x] A1：更新 ReviewLogAdapter（Hive 手動序列化新欄位）
+- [x] A1：更新 supabase_service reviewLogToRow / rowToReviewLog 新欄位雙向
+- [x] A1：Migration `202704270001_review_logs_phase_a.sql`
+- [x] A2：ReviewSession freezed 模型（id/userId/modality/startedAt/endedAt/itemCount/completedCount/scoreAvg/metadata）
+- [x] A2：ReviewSessionAdapter（Hive typeId: 5）
+- [x] A2：LocalStorageService CRUD（saveReviewSession/getReviewSession/getAllReviewSessions/...）
+- [x] A2：SupabaseService upsertReviewSessions sync
+- [x] A2：Migration `202704270002_review_sessions.sql`（含 RLS + FK）
+- [x] A3：OutcomeAdapter（ConversationOutcome enum + FsrsAction sealed class + resolve()）
+- [x] A3：conversation_session_provider 接入 OutcomeAdapter（未使用詞彙 → rating=1 → FsrsService）
+- [x] A3：conversation 建立 ReviewSession，ReviewLog 帶 sessionId
+- [x] 新增 10 個測試（OutcomeAdapter × 4、ReviewSession × 3、ReviewLog Phase A × 3）
+
 ### 待辦 / 下一步
-- [ ] 在 Supabase 執行 `202604260001_review_logs_extension.sql`（migration 已寫好，需手動跑）
+- [ ] 在 Supabase 執行 migrations（`202604260001` + `202704270001` + `202704270002`）
 - [ ] 在 `supabase_constants.dart` 填入真實 Supabase URL 和 anon key
-- [ ] 在 Supabase 建立資料表 + RLS 政策
 - [ ] 清理 `community_screen.dart` 的 15 個 unused element warning
 - [ ] 實機測試驗證（Android/iOS/Web）
 - [ ] WebView 匯入功能實測
-- [ ] 開始 Grasp Phase A（ReviewLog event contract、review_sessions 表、A4 程式清理）
+- [ ] 開始 Grasp Phase C（embedding pipeline + G1 contextual memory MVP）
+- [ ] L2/L3 UI 整合（card editor 加口訣按鈕、quiz 答錯後加混淆診斷對話框）
+- [ ] 模型升級至 Gemma 3 4B（PRD §4.4，目前是 2B）
 
 ---
 

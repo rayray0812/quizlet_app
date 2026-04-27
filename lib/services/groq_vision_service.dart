@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
+import 'package:recall_app/services/ai_error.dart';
 import 'package:recall_app/services/gemini_service.dart';
 
 /// Groq Cloud API service using Llama 4 Scout.
@@ -132,7 +133,7 @@ class GroqVisionService {
           .timeout(_timeout);
 
       if (response.statusCode != 200) {
-        final reason = _classifyHttpError(response.statusCode, response.body);
+        final reason = AiErrorClassifier.classifyHttpError(response.statusCode, response.body);
         throw ScanException(reason, 'Groq API error ${response.statusCode}: ${response.body}');
       }
 
@@ -210,7 +211,7 @@ class GroqVisionService {
           .timeout(_textTimeout);
 
       if (response.statusCode != 200) {
-        final reason = _classifyHttpError(response.statusCode, response.body);
+        final reason = AiErrorClassifier.classifyHttpError(response.statusCode, response.body);
         throw ScanException(
           reason,
           'Groq API error ${response.statusCode}: ${response.body}',
@@ -257,24 +258,6 @@ class GroqVisionService {
       'temperature': 0,
       'max_tokens': 8192,
     };
-  }
-
-  static ScanFailureReason _classifyHttpError(int statusCode, String body) {
-    if (statusCode == 429) return ScanFailureReason.quotaExceeded;
-    if (statusCode == 401 || statusCode == 403) {
-      return ScanFailureReason.authError;
-    }
-    if (statusCode == 400) return ScanFailureReason.invalidRequest;
-    if (statusCode >= 500) return ScanFailureReason.serverError;
-
-    final msg = body.toLowerCase();
-    if (msg.contains('rate limit') || msg.contains('rate_limit')) {
-      return ScanFailureReason.quotaExceeded;
-    }
-    if (msg.contains('api key') || msg.contains('unauthenticated')) {
-      return ScanFailureReason.authError;
-    }
-    return ScanFailureReason.unknown;
   }
 
   /// Builds the request body map (visible for testing).

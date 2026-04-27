@@ -15,6 +15,12 @@ class ReviewLog with _$ReviewLog {
     required DateTime reviewedAt,
     @Default('srs') String reviewType,
     int? speakingScore,
+    // Phase A: session linkage and telemetry fields
+    String? sessionId,
+    int? responseLatencyMs,
+    String? chosenDistractorId,
+    double? predictedRetrievability,
+    Map<String, dynamic>? metadata,
     @Default(0) int elapsedDays,
     @Default(0) int scheduledDays,
     @Default(0.0) double lastStability,

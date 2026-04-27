@@ -3,30 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:recall_app/services/ai_error.dart';
+
+export 'package:recall_app/services/ai_error.dart'
+    show ScanFailureReason, ScanException;
 
 enum PhotoScanMode { vocabularyList, textbookPage }
-
-/// Specific failure reasons for UI to display.
-enum ScanFailureReason {
-  timeout,
-  quotaExceeded,
-  authError,
-  invalidRequest,
-  serverError,
-  parseError,
-  networkError,
-  unknown,
-}
-
-class ScanException implements Exception {
-  final ScanFailureReason reason;
-  final String message;
-
-  ScanException(this.reason, this.message);
-
-  @override
-  String toString() => message;
-}
 
 class ConversationScenario {
   final String? id;
@@ -182,10 +164,9 @@ class GeminiService {
           'Request timed out',
         );
       } on GenerativeAIException catch (e) {
-        final reason = _classifyAiError(e.toString());
+        final reason = AiErrorClassifier.classifySdkError(e.toString());
         lastError = ScanException(reason, e.toString());
-        // Stop immediately on rate limit — retrying worsens the 429 problem
-        if (_isRateLimitError(e)) break;
+        if (reason == ScanFailureReason.quotaExceeded) break;
         if (reason == ScanFailureReason.serverError) {
           continue;
         }
@@ -236,9 +217,9 @@ class GeminiService {
           'Request timed out',
         );
       } on GenerativeAIException catch (e) {
-        final reason = _classifyAiError(e.toString());
+        final reason = AiErrorClassifier.classifySdkError(e.toString());
         lastError = ScanException(reason, e.toString());
-        if (_isRateLimitError(e)) break;
+        if (reason == ScanFailureReason.quotaExceeded) break;
         if (reason == ScanFailureReason.serverError) {
           continue;
         }
@@ -295,44 +276,6 @@ class GeminiService {
     }
     final jsonOnlyContent = Content.multi(jsonOnlyParts);
     return jsonOnlyModel.generateContent([jsonOnlyContent]);
-  }
-
-  static ScanFailureReason _classifyAiError(String raw) {
-    final msg = raw.toLowerCase();
-    if (msg.contains('quota') ||
-        msg.contains('rate limit') ||
-        msg.contains('rate_limit') ||
-        msg.contains('429') ||
-        msg.contains('resource has been exhausted') ||
-        msg.contains('resource_exhausted')) {
-      return ScanFailureReason.quotaExceeded;
-    }
-    if (msg.contains('api key not valid') ||
-        msg.contains('unauthenticated') ||
-        msg.contains('permission denied') ||
-        msg.contains('401') ||
-        msg.contains('403')) {
-      return ScanFailureReason.authError;
-    }
-    if (msg.contains('invalid argument') ||
-        msg.contains('bad request') ||
-        msg.contains('request contains an invalid') ||
-        msg.contains('400')) {
-      return ScanFailureReason.invalidRequest;
-    }
-    if (msg.contains('internal') ||
-        msg.contains('unavailable') ||
-        msg.contains('deadline exceeded') ||
-        msg.contains('503') ||
-        msg.contains('500')) {
-      return ScanFailureReason.serverError;
-    }
-    if (msg.contains('failed host lookup') ||
-        msg.contains('socketexception') ||
-        msg.contains('network')) {
-      return ScanFailureReason.networkError;
-    }
-    return ScanFailureReason.unknown;
   }
 
   /// Parses Gemini response text into flashcard maps.
@@ -462,7 +405,7 @@ class GeminiService {
         return map;
       } catch (e) {
         // Stop immediately on rate limit — retrying worsens the 429
-        if (_isRateLimitError(e)) break;
+        if (AiErrorClassifier.isRateLimit(AiErrorClassifier.classifySdkError(e.toString()))) break;
         continue;
       }
     }
@@ -677,20 +620,11 @@ Rules:
         if (text.isNotEmpty) return text;
       } catch (e) {
         // Stop immediately on rate limit — retrying makes it worse
-        if (_isRateLimitError(e)) return null;
+        if (AiErrorClassifier.isRateLimit(AiErrorClassifier.classifySdkError(e.toString()))) return null;
         continue;
       }
     }
     return null;
-  }
-
-  static bool _isRateLimitError(Object e) {
-    final msg = e.toString().toLowerCase();
-    return msg.contains('429') ||
-        msg.contains('rate limit') ||
-        msg.contains('rate_limit') ||
-        msg.contains('too many requests') ||
-        msg.contains('resource_exhausted');
   }
 
   static ConversationScenario? _parseScenario(String raw) {

@@ -3,7 +3,13 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/review_session.dart';
+import 'package:recall_app/services/ai_error.dart';
+import 'package:recall_app/services/ai_task.dart';
 import 'package:recall_app/services/fsrs_service.dart';
+import 'package:recall_app/services/local_ai_service.dart';
+import 'package:recall_app/services/outcome_adapter.dart';
+import 'package:recall_app/services/supabase_service.dart';
 
 void main() {
   test('StudySet can be created with cards', () {
@@ -204,6 +210,390 @@ void main() {
         () => service.reviewCard(progress, 5),
         throwsArgumentError,
       );
+    });
+  });
+
+  group('AiErrorClassifier.classifySdkError', () {
+    test('quota / rate-limit messages → quotaExceeded', () {
+      expect(
+        AiErrorClassifier.classifySdkError('quota exceeded'),
+        ScanFailureReason.quotaExceeded,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('429 Too Many Requests'),
+        ScanFailureReason.quotaExceeded,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('RESOURCE_EXHAUSTED'),
+        ScanFailureReason.quotaExceeded,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('too many requests from client'),
+        ScanFailureReason.quotaExceeded,
+      );
+    });
+
+    test('auth messages → authError', () {
+      expect(
+        AiErrorClassifier.classifySdkError('API key not valid'),
+        ScanFailureReason.authError,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('UNAUTHENTICATED request'),
+        ScanFailureReason.authError,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('permission denied'),
+        ScanFailureReason.authError,
+      );
+    });
+
+    test('server error messages → serverError', () {
+      expect(
+        AiErrorClassifier.classifySdkError('500 internal server error'),
+        ScanFailureReason.serverError,
+      );
+      expect(
+        AiErrorClassifier.classifySdkError('service unavailable 503'),
+        ScanFailureReason.serverError,
+      );
+    });
+
+    test('unknown message → unknown', () {
+      expect(
+        AiErrorClassifier.classifySdkError('something totally random'),
+        ScanFailureReason.unknown,
+      );
+    });
+  });
+
+  group('AiErrorClassifier.classifyHttpError', () {
+    test('status 429 → quotaExceeded', () {
+      expect(
+        AiErrorClassifier.classifyHttpError(429, ''),
+        ScanFailureReason.quotaExceeded,
+      );
+    });
+
+    test('status 401/403 → authError', () {
+      expect(
+        AiErrorClassifier.classifyHttpError(401, ''),
+        ScanFailureReason.authError,
+      );
+      expect(
+        AiErrorClassifier.classifyHttpError(403, 'forbidden'),
+        ScanFailureReason.authError,
+      );
+    });
+
+    test('status 400 → invalidRequest', () {
+      expect(
+        AiErrorClassifier.classifyHttpError(400, 'bad request'),
+        ScanFailureReason.invalidRequest,
+      );
+    });
+
+    test('status 5xx → serverError', () {
+      expect(
+        AiErrorClassifier.classifyHttpError(500, ''),
+        ScanFailureReason.serverError,
+      );
+      expect(
+        AiErrorClassifier.classifyHttpError(503, 'service unavailable'),
+        ScanFailureReason.serverError,
+      );
+    });
+
+    test('isRateLimit returns true only for quotaExceeded', () {
+      expect(AiErrorClassifier.isRateLimit(ScanFailureReason.quotaExceeded), isTrue);
+      expect(AiErrorClassifier.isRateLimit(ScanFailureReason.authError), isFalse);
+      expect(AiErrorClassifier.isRateLimit(ScanFailureReason.unknown), isFalse);
+    });
+  });
+
+  group('LocalAiService prompts', () {
+    test('buildReviewHintPrompt mentions term and forbids definition', () {
+      final prompt = LocalAiService.buildReviewHintPrompt(
+        term: 'ephemeral',
+        definition: '短暫的',
+      );
+      expect(prompt, contains('ephemeral'));
+      expect(prompt, contains('短暫的'));
+      expect(prompt, contains('不要直接說出意思'));
+    });
+
+    test('buildMnemonicPrompt asks for mnemonic only', () {
+      final prompt = LocalAiService.buildMnemonicPrompt(
+        term: 'serendipity',
+        definition: '意外的好運',
+      );
+      expect(prompt, contains('serendipity'));
+      expect(prompt, contains('口訣'));
+      expect(prompt, contains('意外的好運'));
+    });
+
+    test('buildConfusionPrompt frames target vs chosen wrong', () {
+      final prompt = LocalAiService.buildConfusionPrompt(
+        targetTerm: 'affect',
+        targetDefinition: '影響（動詞）',
+        chosenTerm: 'effect',
+        chosenDefinition: '結果（名詞）',
+      );
+      expect(prompt, contains('affect'));
+      expect(prompt, contains('effect'));
+      expect(prompt, contains('正確'));
+      expect(prompt, contains('誤選'));
+    });
+  });
+
+  group('LocalAiService cleaners', () {
+    test('cleanSingleSentence strips leading "提示：" label', () {
+      expect(
+        LocalAiService.cleanSingleSentence('提示：這個字常用於正式場合'),
+        '這個字常用於正式場合',
+      );
+    });
+
+    test('cleanSingleSentence strips Hint: label', () {
+      expect(
+        LocalAiService.cleanSingleSentence('Hint: think of a butterfly'),
+        'think of a butterfly',
+      );
+    });
+
+    test('cleanSingleSentence keeps only first paragraph', () {
+      expect(
+        LocalAiService.cleanSingleSentence('first line\nsecond line\nthird'),
+        'first line',
+      );
+    });
+
+    test('cleanSingleSentence strips surrounding quotes', () {
+      expect(
+        LocalAiService.cleanSingleSentence('"quoted hint"'),
+        'quoted hint',
+      );
+      expect(
+        LocalAiService.cleanSingleSentence('「中文引號」'),
+        '中文引號',
+      );
+    });
+
+    test('cleanSingleSentence trims whitespace and returns empty for empty input', () {
+      expect(LocalAiService.cleanSingleSentence('   \n  '), '');
+      expect(LocalAiService.cleanSingleSentence(''), '');
+    });
+
+    test('cleanShortParagraph keeps up to two non-empty lines', () {
+      expect(
+        LocalAiService.cleanShortParagraph('one\ntwo\nthree\nfour'),
+        'one\ntwo',
+      );
+    });
+
+    test('cleanShortParagraph strips numbered/bullet markers', () {
+      expect(
+        LocalAiService.cleanShortParagraph('1. first point\n2. second point'),
+        'first point\nsecond point',
+      );
+      expect(
+        LocalAiService.cleanShortParagraph('• item one\n• item two'),
+        'item one\nitem two',
+      );
+    });
+  });
+
+  group('AiTaskState', () {
+    test('AiTaskIdle is the initial state', () {
+      const state = AiTaskIdle<List<String>>();
+      expect(state, isA<AiTaskState<List<String>>>());
+    });
+
+    test('AiTaskRunning carries a hint', () {
+      const state = AiTaskRunning<List<String>>(hint: '分析圖片中...');
+      expect(state.hint, '分析圖片中...');
+    });
+
+    test('AiTaskDone carries result and elapsed', () {
+      final state = AiTaskDone<int>(42, elapsed: const Duration(seconds: 2));
+      expect(state.result, 42);
+      expect(state.elapsed.inSeconds, 2);
+    });
+
+    test('AiTaskError carries reason and message', () {
+      const state = AiTaskError<int>(
+        reason: ScanFailureReason.quotaExceeded,
+        message: 'Rate limit hit',
+        elapsed: Duration(milliseconds: 500),
+      );
+      expect(state.reason, ScanFailureReason.quotaExceeded);
+      expect(state.message, 'Rate limit hit');
+    });
+  });
+
+  group('OutcomeAdapter', () {
+    test('conversationSuccess resolves to ApplyFsrsRating(3)', () {
+      final action = OutcomeAdapter.resolve(
+        ConversationOutcome.conversationSuccess,
+      );
+      expect(action, isA<ApplyFsrsRating>());
+      expect((action as ApplyFsrsRating).rating, 3);
+    });
+
+    test('conversationUnusedTerm resolves to ApplyFsrsRating(1)', () {
+      final action = OutcomeAdapter.resolve(
+        ConversationOutcome.conversationUnusedTerm,
+      );
+      expect(action, isA<ApplyFsrsRating>());
+      expect((action as ApplyFsrsRating).rating, 1);
+    });
+
+    test('speakingTargetUsed resolves to ApplyFsrsRating(3)', () {
+      final action = OutcomeAdapter.resolve(
+        ConversationOutcome.speakingTargetUsed,
+      );
+      expect(action, isA<ApplyFsrsRating>());
+      expect((action as ApplyFsrsRating).rating, 3);
+    });
+
+    test('quizConfusionDetected resolves to NoScheduleImpact', () {
+      final action = OutcomeAdapter.resolve(
+        ConversationOutcome.quizConfusionDetected,
+      );
+      expect(action, isA<NoScheduleImpact>());
+    });
+  });
+
+  group('ReviewSession', () {
+    test('can be created with defaults', () {
+      final session = ReviewSession(
+        id: 'sess-1',
+        userId: 'user-1',
+        modality: 'conversation',
+        startedAt: DateTime.utc(2026, 4, 27, 10),
+      );
+      expect(session.itemCount, 0);
+      expect(session.completedCount, 0);
+      expect(session.scoreAvg, isNull);
+      expect(session.isSynced, isFalse);
+    });
+
+    test('copyWith updates fields', () {
+      final session = ReviewSession(
+        id: 'sess-2',
+        userId: 'user-1',
+        modality: 'srs',
+        startedAt: DateTime.utc(2026, 4, 27, 9),
+        itemCount: 5,
+      );
+      final updated = session.copyWith(completedCount: 5, scoreAvg: 87.5);
+      expect(updated.completedCount, 5);
+      expect(updated.scoreAvg, 87.5);
+      expect(updated.itemCount, 5); // unchanged
+    });
+
+    test('serializes to/from JSON round-trip', () {
+      final session = ReviewSession(
+        id: 'sess-3',
+        userId: 'user-1',
+        modality: 'quiz',
+        startedAt: DateTime.utc(2026, 4, 27, 8),
+        endedAt: DateTime.utc(2026, 4, 27, 8, 5),
+        itemCount: 10,
+        completedCount: 8,
+        scoreAvg: 72.0,
+        isSynced: true,
+      );
+      final json = session.toJson();
+      final restored = ReviewSession.fromJson(json);
+      expect(restored.id, session.id);
+      expect(restored.modality, session.modality);
+      expect(restored.completedCount, session.completedCount);
+      expect(restored.scoreAvg, session.scoreAvg);
+    });
+  });
+
+  group('ReviewLog Phase A fields', () {
+    test('new optional fields default to null', () {
+      final log = ReviewLog(
+        id: 'log-1',
+        cardId: 'c1',
+        setId: 's1',
+        rating: 3,
+        state: 2,
+        reviewedAt: DateTime.utc(2026, 4, 27),
+      );
+      expect(log.sessionId, isNull);
+      expect(log.responseLatencyMs, isNull);
+      expect(log.chosenDistractorId, isNull);
+      expect(log.predictedRetrievability, isNull);
+      expect(log.metadata, isNull);
+    });
+
+    test('round-trip through supabase_service mapper preserves new fields', () {
+      final log = ReviewLog(
+        id: 'log-2',
+        cardId: 'c2',
+        setId: 's1',
+        rating: 2,
+        state: 1,
+        reviewedAt: DateTime.utc(2026, 4, 27, 12),
+        reviewType: 'conversation',
+        speakingScore: 85,
+        sessionId: 'sess-abc',
+        responseLatencyMs: 1200,
+        chosenDistractorId: 'card-xyz',
+        predictedRetrievability: 0.82,
+        metadata: {'source': 'test'},
+      );
+
+      const userId = 'user-42';
+      final row = SupabaseService.reviewLogToRow(log, userId);
+
+      expect(row['session_id'], 'sess-abc');
+      expect(row['response_latency_ms'], 1200);
+      expect(row['chosen_distractor_id'], 'card-xyz');
+      expect(row['predicted_retrievability'], closeTo(0.82, 0.001));
+      expect(row['metadata'], {'source': 'test'});
+
+      // Simulate reading back from Supabase (row already has user_id stripped)
+      final rowForRead = Map<String, dynamic>.from(row)
+        ..['card_id'] = row['card_id']
+        ..['set_id'] = row['set_id']
+        ..['reviewed_at'] = row['reviewed_at']
+        ..['elapsed_days'] = 0
+        ..['scheduled_days'] = 0
+        ..['last_stability'] = 0.0
+        ..['last_difficulty'] = 0.0;
+      final restored = SupabaseService.rowToReviewLog(rowForRead);
+
+      expect(restored.sessionId, 'sess-abc');
+      expect(restored.responseLatencyMs, 1200);
+      expect(restored.chosenDistractorId, 'card-xyz');
+      expect(restored.predictedRetrievability, closeTo(0.82, 0.001));
+      expect(restored.metadata, {'source': 'test'});
+    });
+
+    test('legacy row without new fields reads back with nulls', () {
+      final legacyRow = {
+        'id': 'log-3',
+        'card_id': 'c3',
+        'set_id': 's1',
+        'rating': 3,
+        'state': 2,
+        'reviewed_at': '2026-04-27T00:00:00.000Z',
+        'review_type': 'srs',
+        'elapsed_days': 1,
+        'scheduled_days': 7,
+        'last_stability': 4.5,
+        'last_difficulty': 5.0,
+        // no session_id, response_latency_ms, etc.
+      };
+      final log = SupabaseService.rowToReviewLog(legacyRow);
+      expect(log.sessionId, isNull);
+      expect(log.responseLatencyMs, isNull);
+      expect(log.chosenDistractorId, isNull);
+      expect(log.predictedRetrievability, isNull);
     });
   });
 }

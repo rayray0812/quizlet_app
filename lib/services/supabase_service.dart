@@ -3,6 +3,7 @@ import 'package:recall_app/core/constants/supabase_constants.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/review_session.dart';
 import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -433,6 +434,11 @@ class SupabaseService {
       'reviewed_at': log.reviewedAt.toIso8601String(),
       'review_type': log.reviewType,
       'speaking_score': log.speakingScore,
+      'session_id': log.sessionId,
+      'response_latency_ms': log.responseLatencyMs,
+      'chosen_distractor_id': log.chosenDistractorId,
+      'predicted_retrievability': log.predictedRetrievability,
+      'metadata': log.metadata,
       'elapsed_days': log.elapsedDays,
       'scheduled_days': log.scheduledDays,
       'last_stability': log.lastStability,
@@ -575,12 +581,48 @@ class SupabaseService {
       reviewedAt: DateTime.parse(row['reviewed_at'] as String),
       reviewType: row['review_type'] as String? ?? 'srs',
       speakingScore: (row['speaking_score'] as num?)?.toInt(),
+      sessionId: row['session_id'] as String?,
+      responseLatencyMs: (row['response_latency_ms'] as num?)?.toInt(),
+      chosenDistractorId: row['chosen_distractor_id'] as String?,
+      predictedRetrievability:
+          (row['predicted_retrievability'] as num?)?.toDouble(),
+      metadata: (row['metadata'] as Map?)?.cast<String, dynamic>(),
       elapsedDays: row['elapsed_days'] as int? ?? 0,
       scheduledDays: row['scheduled_days'] as int? ?? 0,
       lastStability: (row['last_stability'] as num?)?.toDouble() ?? 0.0,
       lastDifficulty: (row['last_difficulty'] as num?)?.toDouble() ?? 0.0,
       isSynced: true,
     );
+  }
+
+  // —— ReviewSession Sync ——
+
+  Future<void> upsertReviewSessions(List<ReviewSession> sessions) async {
+    final client = _clientOrNull;
+    final userId = currentUser?.id;
+    if (client == null || userId == null) return;
+
+    final rows = sessions
+        .map((s) => _reviewSessionToRow(s, userId))
+        .toList();
+    await client.from('review_sessions').upsert(rows);
+  }
+
+  static Map<String, dynamic> _reviewSessionToRow(
+    ReviewSession session,
+    String userId,
+  ) {
+    return {
+      'id': session.id,
+      'user_id': userId,
+      'modality': session.modality,
+      'started_at': session.startedAt.toIso8601String(),
+      'ended_at': session.endedAt?.toIso8601String(),
+      'item_count': session.itemCount,
+      'completed_count': session.completedCount,
+      'score_avg': session.scoreAvg,
+      'metadata': session.metadata,
+    };
   }
 
   // -- Profile --

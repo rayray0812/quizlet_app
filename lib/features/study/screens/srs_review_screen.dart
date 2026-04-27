@@ -15,6 +15,7 @@ import 'package:recall_app/features/study/services/voice_playback_service.dart';
 import 'package:recall_app/features/study/widgets/combo_indicator.dart';
 import 'package:recall_app/features/study/widgets/completion_celebrate_overlay.dart';
 import 'package:recall_app/features/study/widgets/rating_buttons.dart';
+import 'package:recall_app/features/study/widgets/review_hint_button.dart';
 import 'package:recall_app/features/study/widgets/xp_toast.dart';
 import 'package:recall_app/providers/session_xp_provider.dart';
 import 'package:recall_app/features/study/widgets/rounded_progress_bar.dart';
@@ -637,11 +638,21 @@ class _SrsReviewScreenState extends ConsumerState<SrsReviewScreen>
               offset: const Offset(0, -10),
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  l10n.tapToFlip,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ReviewHintButton(
+                      cardId: item.card.id,
+                      term: item.card.term,
+                      definition: item.card.definition,
+                    ),
+                    Text(
+                      l10n.tapToFlip,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

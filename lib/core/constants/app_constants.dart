@@ -3,6 +3,7 @@
   static const String hiveStudySetsBox = 'study_sets';
   static const String hiveCardProgressBox = 'card_progress';
   static const String hiveReviewLogsBox = 'review_logs';
+  static const String hiveReviewSessionsBox = 'review_sessions';
   static const String hiveFoldersBox = 'folders';
   static const String hiveSettingsBox = 'settings';
 
@@ -18,6 +19,7 @@
   static const String settingConversationMutedKey = 'conversation_muted';
   static const String settingGemmaLocalModelPathKey =
       'gemma_local_model_path';
+  static const String settingAiEventsKey = 'ai_events';
 
   static const int maxCardsPerSet = 2000;
   static const int defaultNewCardsPerDay = 20;

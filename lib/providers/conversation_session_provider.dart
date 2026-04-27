@@ -9,10 +9,14 @@ import 'package:recall_app/features/study/models/conversation_turn_record.dart';
 import 'package:recall_app/features/study/services/conversation_scorer.dart';
 import 'package:recall_app/features/study/utils/vocabulary_tracker.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/review_session.dart';
+import 'package:recall_app/providers/auth_provider.dart';
+import 'package:recall_app/providers/fsrs_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
 import 'package:recall_app/providers/stats_provider.dart';
 import 'package:recall_app/providers/study_set_provider.dart';
 import 'package:recall_app/services/gemini_service.dart';
+import 'package:recall_app/services/outcome_adapter.dart';
 import 'package:uuid/uuid.dart';
 
 /// Parameters for creating a conversation session.
@@ -1012,10 +1016,39 @@ class ConversationSessionNotifier
     _hasPersistedSessionResult = true;
     try {
       final localStorage = ref.read(localStorageServiceProvider);
+      final fsrsService = ref.read(fsrsServiceProvider);
+      final studySet = ref.read(studySetsProvider.notifier).getById(arg.setId);
+      final userId = ref.read(currentUserProvider)?.id ?? 'local';
       const uuid = Uuid();
+      final now = DateTime.now().toUtc();
 
+      // Create a ReviewSession record for this conversation
+      final sessionId = uuid.v4();
+      final scoredTurns = current.turnRecords
+          .where((t) => t.feedback != null)
+          .toList();
+      final scoreAvg = scoredTurns.isEmpty
+          ? null
+          : scoredTurns.fold<double>(
+                0,
+                (sum, t) => sum + (t.feedback!.overallScore),
+              ) /
+              scoredTurns.length;
+
+      final session = ReviewSession(
+        id: sessionId,
+        userId: userId,
+        modality: 'conversation',
+        startedAt: current.turnRecords.first.timestamp,
+        endedAt: now,
+        itemCount: current.turnRecords.length,
+        completedCount: scoredTurns.length,
+        scoreAvg: scoreAvg,
+      );
+      await localStorage.saveReviewSession(session);
+
+      // Save ReviewLogs for each turn, linked to session
       for (final turn in current.turnRecords) {
-        // Use AI feedback score if available, otherwise heuristic
         final score =
             turn.feedback?.overallScoreRounded ?? _heuristicScore(turn);
 
@@ -1028,15 +1061,42 @@ class ConversationSessionNotifier
           reviewedAt: turn.timestamp,
           reviewType: 'conversation',
           speakingScore: score,
+          sessionId: sessionId,
         );
         await localStorage.saveReviewLog(log);
       }
 
-      // TODO(grasp-phase-a): Replace with OutcomeAdapter that emits a
-      // 'conversation_unused_term' outcome event for unused target terms,
-      // and let FsrsService decide the schedule impact. Direct stability
-      // mutation removed in Phase 0 hotfix because it bypassed FSRS-5
-      // internal consistency.
+      // OutcomeAdapter: schedule unused target terms via FsrsService
+      if (studySet != null) {
+        final termToCardId = <String, String>{};
+        for (final card in studySet.cards) {
+          final term = card.term.trim();
+          if (term.isNotEmpty) termToCardId[term] = card.id;
+        }
+
+        final unusedTerms =
+            _vocab.targetTerms.toSet().difference(_vocab.practicedTerms);
+        for (final term in unusedTerms) {
+          final cardId = termToCardId[term];
+          if (cardId == null) continue;
+          final progress = localStorage.getCardProgress(cardId);
+          if (progress == null) continue;
+
+          final action = OutcomeAdapter.resolve(
+            ConversationOutcome.conversationUnusedTerm,
+          );
+          if (action is ApplyFsrsRating) {
+            final result = fsrsService.reviewCard(progress, action.rating);
+            await localStorage.saveCardProgress(result.progress);
+            await localStorage.saveReviewLog(
+              result.log.copyWith(
+                reviewType: 'conversation',
+                sessionId: sessionId,
+              ),
+            );
+          }
+        }
+      }
 
       // Save transcript
       await _saveTranscript(current);

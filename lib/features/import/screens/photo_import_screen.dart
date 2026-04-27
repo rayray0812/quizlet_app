@@ -15,6 +15,8 @@ import 'package:recall_app/models/flashcard.dart';
 import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/providers/ai_provider_provider.dart';
 import 'package:recall_app/providers/gemini_key_provider.dart';
+import 'package:recall_app/services/ai_analytics_service.dart';
+import 'package:recall_app/services/ai_task.dart';
 import 'package:recall_app/services/gemini_service.dart';
 import 'package:recall_app/services/groq_vision_service.dart';
 import 'package:recall_app/services/on_device_ai_service.dart';
@@ -235,50 +237,79 @@ class _PhotoImportScreenState extends ConsumerState<PhotoImportScreen>
     required PhotoScanMode mode,
   }) async {
     final provider = ref.read(aiProviderProvider);
-    if (provider == AiProvider.gemma) {
-      return _callGemmaExtract(mode);
-    }
-    if (provider == AiProvider.groq) {
-      // Prefer text-only mode: OCR reads, AI formats.
-      final ocrText = _ocrResult?.fullText;
-      if (GroqVisionService.canUseTextOnly(ocrText)) {
-        if (kDebugMode) {
-          debugPrint('Groq: using text-only mode (OCR + AI formatting)');
-        }
-        return GroqVisionService.extractFlashcardsFromText(
-          apiKey: apiKey,
-          ocrText: ocrText!,
-          mode: mode,
-        );
-      }
-      // Fallback: send image to Vision API.
-      if (kDebugMode) {
-        debugPrint('Groq: OCR text insufficient, falling back to Vision API');
-      }
-      return GroqVisionService.extractFlashcards(
-        apiKey: apiKey,
-        imageBytes: _imageBytes!,
-        mimeType: _mimeType,
-        mode: mode,
-        ocrHintText: ocrText,
-      );
-    }
-    final ocrText = _ocrResult?.fullText;
-    if (mode == PhotoScanMode.vocabularyList &&
-        ocrText != null &&
-        ocrText.trim().length >= 20) {
-      return GeminiService.extractFlashcardsFromText(
-        apiKey: apiKey,
-        ocrText: ocrText,
-        mode: mode,
-      );
-    }
-    return GeminiService.extractFlashcards(
-      apiKey: apiKey,
-      imageBytes: _imageBytes!,
-      mimeType: _mimeType,
-      mode: mode,
+    final task = AiTask(
+      type: AiTaskType.photoImport,
+      provider: provider.name,
+      startedAt: DateTime.now().toUtc(),
     );
+    final analytics = AiAnalyticsService();
+    try {
+      final List<Map<String, String>> result;
+      if (provider == AiProvider.gemma) {
+        result = await _callGemmaExtract(mode);
+      } else if (provider == AiProvider.groq) {
+        // Prefer text-only mode: OCR reads, AI formats.
+        final ocrText = _ocrResult?.fullText;
+        if (GroqVisionService.canUseTextOnly(ocrText)) {
+          if (kDebugMode) {
+            debugPrint('Groq: using text-only mode (OCR + AI formatting)');
+          }
+          result = await GroqVisionService.extractFlashcardsFromText(
+            apiKey: apiKey,
+            ocrText: ocrText!,
+            mode: mode,
+          );
+        } else {
+          // Fallback: send image to Vision API.
+          if (kDebugMode) {
+            debugPrint(
+              'Groq: OCR text insufficient, falling back to Vision API',
+            );
+          }
+          result = await GroqVisionService.extractFlashcards(
+            apiKey: apiKey,
+            imageBytes: _imageBytes!,
+            mimeType: _mimeType,
+            mode: mode,
+            ocrHintText: ocrText,
+          );
+        }
+      } else {
+        final ocrText = _ocrResult?.fullText;
+        if (mode == PhotoScanMode.vocabularyList &&
+            ocrText != null &&
+            ocrText.trim().length >= 20) {
+          result = await GeminiService.extractFlashcardsFromText(
+            apiKey: apiKey,
+            ocrText: ocrText,
+            mode: mode,
+          );
+        } else {
+          result = await GeminiService.extractFlashcards(
+            apiKey: apiKey,
+            imageBytes: _imageBytes!,
+            mimeType: _mimeType,
+            mode: mode,
+          );
+        }
+      }
+      analytics.logEvent(
+        taskType: task.type,
+        provider: task.provider,
+        success: true,
+        elapsed: task.elapsed,
+      );
+      return result;
+    } on ScanException catch (e) {
+      analytics.logEvent(
+        taskType: task.type,
+        provider: task.provider,
+        success: false,
+        elapsed: task.elapsed,
+        failureReason: e.reason,
+      );
+      rethrow;
+    }
   }
 
   /// Gemma-specific extraction with hybrid OCR parser + local model strategy.

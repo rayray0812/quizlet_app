@@ -30,7 +30,13 @@ mixin _$ReviewLog {
       throw _privateConstructorUsedError; // card state at time of review
   DateTime get reviewedAt => throw _privateConstructorUsedError;
   String get reviewType => throw _privateConstructorUsedError;
-  int? get speakingScore => throw _privateConstructorUsedError;
+  int? get speakingScore =>
+      throw _privateConstructorUsedError; // Phase A: session linkage and telemetry fields
+  String? get sessionId => throw _privateConstructorUsedError;
+  int? get responseLatencyMs => throw _privateConstructorUsedError;
+  String? get chosenDistractorId => throw _privateConstructorUsedError;
+  double? get predictedRetrievability => throw _privateConstructorUsedError;
+  Map<String, dynamic>? get metadata => throw _privateConstructorUsedError;
   int get elapsedDays => throw _privateConstructorUsedError;
   int get scheduledDays => throw _privateConstructorUsedError;
   double get lastStability => throw _privateConstructorUsedError;
@@ -61,6 +67,11 @@ abstract class $ReviewLogCopyWith<$Res> {
     DateTime reviewedAt,
     String reviewType,
     int? speakingScore,
+    String? sessionId,
+    int? responseLatencyMs,
+    String? chosenDistractorId,
+    double? predictedRetrievability,
+    Map<String, dynamic>? metadata,
     int elapsedDays,
     int scheduledDays,
     double lastStability,
@@ -92,6 +103,11 @@ class _$ReviewLogCopyWithImpl<$Res, $Val extends ReviewLog>
     Object? reviewedAt = null,
     Object? reviewType = null,
     Object? speakingScore = freezed,
+    Object? sessionId = freezed,
+    Object? responseLatencyMs = freezed,
+    Object? chosenDistractorId = freezed,
+    Object? predictedRetrievability = freezed,
+    Object? metadata = freezed,
     Object? elapsedDays = null,
     Object? scheduledDays = null,
     Object? lastStability = null,
@@ -132,6 +148,26 @@ class _$ReviewLogCopyWithImpl<$Res, $Val extends ReviewLog>
                 ? _value.speakingScore
                 : speakingScore // ignore: cast_nullable_to_non_nullable
                       as int?,
+            sessionId: freezed == sessionId
+                ? _value.sessionId
+                : sessionId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            responseLatencyMs: freezed == responseLatencyMs
+                ? _value.responseLatencyMs
+                : responseLatencyMs // ignore: cast_nullable_to_non_nullable
+                      as int?,
+            chosenDistractorId: freezed == chosenDistractorId
+                ? _value.chosenDistractorId
+                : chosenDistractorId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            predictedRetrievability: freezed == predictedRetrievability
+                ? _value.predictedRetrievability
+                : predictedRetrievability // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            metadata: freezed == metadata
+                ? _value.metadata
+                : metadata // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
             elapsedDays: null == elapsedDays
                 ? _value.elapsedDays
                 : elapsedDays // ignore: cast_nullable_to_non_nullable
@@ -176,6 +212,11 @@ abstract class _$$ReviewLogImplCopyWith<$Res>
     DateTime reviewedAt,
     String reviewType,
     int? speakingScore,
+    String? sessionId,
+    int? responseLatencyMs,
+    String? chosenDistractorId,
+    double? predictedRetrievability,
+    Map<String, dynamic>? metadata,
     int elapsedDays,
     int scheduledDays,
     double lastStability,
@@ -206,6 +247,11 @@ class __$$ReviewLogImplCopyWithImpl<$Res>
     Object? reviewedAt = null,
     Object? reviewType = null,
     Object? speakingScore = freezed,
+    Object? sessionId = freezed,
+    Object? responseLatencyMs = freezed,
+    Object? chosenDistractorId = freezed,
+    Object? predictedRetrievability = freezed,
+    Object? metadata = freezed,
     Object? elapsedDays = null,
     Object? scheduledDays = null,
     Object? lastStability = null,
@@ -246,6 +292,26 @@ class __$$ReviewLogImplCopyWithImpl<$Res>
             ? _value.speakingScore
             : speakingScore // ignore: cast_nullable_to_non_nullable
                   as int?,
+        sessionId: freezed == sessionId
+            ? _value.sessionId
+            : sessionId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        responseLatencyMs: freezed == responseLatencyMs
+            ? _value.responseLatencyMs
+            : responseLatencyMs // ignore: cast_nullable_to_non_nullable
+                  as int?,
+        chosenDistractorId: freezed == chosenDistractorId
+            ? _value.chosenDistractorId
+            : chosenDistractorId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        predictedRetrievability: freezed == predictedRetrievability
+            ? _value.predictedRetrievability
+            : predictedRetrievability // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        metadata: freezed == metadata
+            ? _value._metadata
+            : metadata // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
         elapsedDays: null == elapsedDays
             ? _value.elapsedDays
             : elapsedDays // ignore: cast_nullable_to_non_nullable
@@ -283,12 +349,17 @@ class _$ReviewLogImpl implements _ReviewLog {
     required this.reviewedAt,
     this.reviewType = 'srs',
     this.speakingScore,
+    this.sessionId,
+    this.responseLatencyMs,
+    this.chosenDistractorId,
+    this.predictedRetrievability,
+    final Map<String, dynamic>? metadata,
     this.elapsedDays = 0,
     this.scheduledDays = 0,
     this.lastStability = 0.0,
     this.lastDifficulty = 0.0,
     this.isSynced = false,
-  });
+  }) : _metadata = metadata;
 
   factory _$ReviewLogImpl.fromJson(Map<String, dynamic> json) =>
       _$$ReviewLogImplFromJson(json);
@@ -312,6 +383,25 @@ class _$ReviewLogImpl implements _ReviewLog {
   final String reviewType;
   @override
   final int? speakingScore;
+  // Phase A: session linkage and telemetry fields
+  @override
+  final String? sessionId;
+  @override
+  final int? responseLatencyMs;
+  @override
+  final String? chosenDistractorId;
+  @override
+  final double? predictedRetrievability;
+  final Map<String, dynamic>? _metadata;
+  @override
+  Map<String, dynamic>? get metadata {
+    final value = _metadata;
+    if (value == null) return null;
+    if (_metadata is EqualUnmodifiableMapView) return _metadata;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   @override
   @JsonKey()
   final int elapsedDays;
@@ -330,7 +420,7 @@ class _$ReviewLogImpl implements _ReviewLog {
 
   @override
   String toString() {
-    return 'ReviewLog(id: $id, cardId: $cardId, setId: $setId, rating: $rating, state: $state, reviewedAt: $reviewedAt, reviewType: $reviewType, speakingScore: $speakingScore, elapsedDays: $elapsedDays, scheduledDays: $scheduledDays, lastStability: $lastStability, lastDifficulty: $lastDifficulty, isSynced: $isSynced)';
+    return 'ReviewLog(id: $id, cardId: $cardId, setId: $setId, rating: $rating, state: $state, reviewedAt: $reviewedAt, reviewType: $reviewType, speakingScore: $speakingScore, sessionId: $sessionId, responseLatencyMs: $responseLatencyMs, chosenDistractorId: $chosenDistractorId, predictedRetrievability: $predictedRetrievability, metadata: $metadata, elapsedDays: $elapsedDays, scheduledDays: $scheduledDays, lastStability: $lastStability, lastDifficulty: $lastDifficulty, isSynced: $isSynced)';
   }
 
   @override
@@ -349,6 +439,18 @@ class _$ReviewLogImpl implements _ReviewLog {
                 other.reviewType == reviewType) &&
             (identical(other.speakingScore, speakingScore) ||
                 other.speakingScore == speakingScore) &&
+            (identical(other.sessionId, sessionId) ||
+                other.sessionId == sessionId) &&
+            (identical(other.responseLatencyMs, responseLatencyMs) ||
+                other.responseLatencyMs == responseLatencyMs) &&
+            (identical(other.chosenDistractorId, chosenDistractorId) ||
+                other.chosenDistractorId == chosenDistractorId) &&
+            (identical(
+                  other.predictedRetrievability,
+                  predictedRetrievability,
+                ) ||
+                other.predictedRetrievability == predictedRetrievability) &&
+            const DeepCollectionEquality().equals(other._metadata, _metadata) &&
             (identical(other.elapsedDays, elapsedDays) ||
                 other.elapsedDays == elapsedDays) &&
             (identical(other.scheduledDays, scheduledDays) ||
@@ -373,6 +475,11 @@ class _$ReviewLogImpl implements _ReviewLog {
     reviewedAt,
     reviewType,
     speakingScore,
+    sessionId,
+    responseLatencyMs,
+    chosenDistractorId,
+    predictedRetrievability,
+    const DeepCollectionEquality().hash(_metadata),
     elapsedDays,
     scheduledDays,
     lastStability,
@@ -404,6 +511,11 @@ abstract class _ReviewLog implements ReviewLog {
     required final DateTime reviewedAt,
     final String reviewType,
     final int? speakingScore,
+    final String? sessionId,
+    final int? responseLatencyMs,
+    final String? chosenDistractorId,
+    final double? predictedRetrievability,
+    final Map<String, dynamic>? metadata,
     final int elapsedDays,
     final int scheduledDays,
     final double lastStability,
@@ -429,7 +541,17 @@ abstract class _ReviewLog implements ReviewLog {
   @override
   String get reviewType;
   @override
-  int? get speakingScore;
+  int? get speakingScore; // Phase A: session linkage and telemetry fields
+  @override
+  String? get sessionId;
+  @override
+  int? get responseLatencyMs;
+  @override
+  String? get chosenDistractorId;
+  @override
+  double? get predictedRetrievability;
+  @override
+  Map<String, dynamic>? get metadata;
   @override
   int get elapsedDays;
   @override

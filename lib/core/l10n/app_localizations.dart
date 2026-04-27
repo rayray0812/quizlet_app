@@ -314,6 +314,9 @@ class AppLocalizations {
   String get groqApiKeyHint => '';
   String get groqFreeLabel => '';
   String get aiProvider => '';
+  String get localHintCta => '';
+  String get localHintGenerating => '';
+  String get localHintUnavailable => '';
   String get ttsEngine => '';
   String get ttsCloudTts => '';
   String get ttsCloudTtsDesc => '';
@@ -1342,6 +1345,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groqFreeLabel => '\u2705 \u514D\u8CBB\uFF0C\u4E0D\u9700\u4FE1\u7528\u5361';
   @override
   String get aiProvider => 'AI \u63D0\u4F9B\u8005';
+  @override
+  String get localHintCta => '\u63D0\u793A';
+  @override
+  String get localHintGenerating => '\u672C\u5730 AI \u601D\u8003\u4E2D\u2026';
+  @override
+  String get localHintUnavailable => '\u672C\u6B21\u63D0\u793A\u751F\u6210\u5931\u6557\uFF0C\u8ACB\u91CD\u8A66';
   @override
   String get ttsEngine => '\u8A9E\u97F3\u5F15\u64CE';
   @override
@@ -2819,6 +2828,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groqFreeLabel => '\u2705 Free, no credit card required';
   @override
   String get aiProvider => 'AI Provider';
+  @override
+  String get localHintCta => 'Hint';
+  @override
+  String get localHintGenerating => 'Local AI thinking…';
+  @override
+  String get localHintUnavailable => 'Hint generation failed, please retry';
   @override
   String get ttsEngine => 'Voice Engine';
   @override

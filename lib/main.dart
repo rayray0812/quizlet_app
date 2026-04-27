@@ -16,6 +16,7 @@ import 'package:recall_app/models/adapters/study_set_adapter.dart';
 import 'package:recall_app/models/adapters/flashcard_adapter.dart';
 import 'package:recall_app/models/adapters/card_progress_adapter.dart';
 import 'package:recall_app/models/adapters/review_log_adapter.dart';
+import 'package:recall_app/models/adapters/review_session_adapter.dart';
 import 'package:recall_app/models/adapters/folder_adapter.dart';
 import 'package:recall_app/services/notification_service.dart';
 import 'package:recall_app/services/widget_snapshot_service.dart';
@@ -79,6 +80,7 @@ Future<void> _bootstrap() async {
   Hive.registerAdapter(FlashcardAdapter());
   Hive.registerAdapter(CardProgressAdapter());
   Hive.registerAdapter(ReviewLogAdapter());
+  Hive.registerAdapter(ReviewSessionAdapter());
   Hive.registerAdapter(FolderAdapter());
 
   final encryptionKey = await _getOrCreateEncryptionKey();
@@ -89,6 +91,7 @@ Future<void> _bootstrap() async {
     AppConstants.hiveStudySetsBox,
     AppConstants.hiveCardProgressBox,
     AppConstants.hiveReviewLogsBox,
+    AppConstants.hiveReviewSessionsBox,
     AppConstants.hiveFoldersBox,
     AppConstants.hiveSettingsBox,
   ];

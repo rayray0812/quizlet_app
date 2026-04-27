@@ -5,11 +5,13 @@ import 'package:recall_app/models/study_set.dart';
 import 'package:recall_app/models/card_progress.dart';
 import 'package:recall_app/models/folder.dart';
 import 'package:recall_app/models/review_log.dart';
+import 'package:recall_app/models/review_session.dart';
 
 class LocalStorageService {
   Box get _box => Hive.box(AppConstants.hiveStudySetsBox);
   Box get _progressBox => Hive.box(AppConstants.hiveCardProgressBox);
   Box get _reviewLogBox => Hive.box(AppConstants.hiveReviewLogsBox);
+  Box get _reviewSessionsBox => Hive.box(AppConstants.hiveReviewSessionsBox);
   Box get _settingsBox => Hive.box(AppConstants.hiveSettingsBox);
   Box get _foldersBox => Hive.box(AppConstants.hiveFoldersBox);
 
@@ -204,6 +206,42 @@ class LocalStorageService {
       }
     }
     await _reviewLogBox.deleteAll(keys);
+  }
+
+  // —— ReviewSession CRUD ——
+
+  Future<void> saveReviewSession(ReviewSession session) async {
+    await _reviewSessionsBox.put(session.id, session);
+  }
+
+  ReviewSession? getReviewSession(String id) {
+    return _reviewSessionsBox.get(id) as ReviewSession?;
+  }
+
+  List<ReviewSession> getAllReviewSessions() {
+    return _reviewSessionsBox.values.whereType<ReviewSession>().toList();
+  }
+
+  List<ReviewSession> getUnsyncedReviewSessions() {
+    return _reviewSessionsBox.values
+        .whereType<ReviewSession>()
+        .where((s) => !s.isSynced)
+        .toList();
+  }
+
+  List<ReviewSession> getReviewSessionsForDate(DateTime date) {
+    final start = DateTime.utc(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+    return getAllReviewSessions().where((s) {
+      return !s.startedAt.isBefore(start) && s.startedAt.isBefore(end);
+    }).toList();
+  }
+
+  Future<void> markReviewSessionAsSynced(String id) async {
+    final session = getReviewSession(id);
+    if (session != null && !session.isSynced) {
+      await saveReviewSession(session.copyWith(isSynced: true));
+    }
   }
 
   Future<void> clearAllStudyData() async {
